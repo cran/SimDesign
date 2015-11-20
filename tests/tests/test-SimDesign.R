@@ -9,7 +9,7 @@ test_that('SimDesign', {
                           sample_sizes_group2=sample_sizes,
                           standard_deviations=standard_deviations)
 
-    mysim <- function(condition){
+    mysim <- function(condition, fixed_design_elements = NULL){
 
         #require packages/define functions if needed, or better yet index with the :: operator
 
@@ -25,11 +25,10 @@ test_that('SimDesign', {
         return(list(dat=dat, parameters=pars))
     }
 
-    mycompute <- function(dat, parameters, condition){
+    mycompute <- function(condition, dat, fixed_design_elements = NULL, parameters = NULL){
 
         # require packages/define functions if needed, or better yet index with the :: operator
         require(stats)
-        mygreatfunction <- function(x) print('Do some stuff')
 
         #wrap computational statistics in try() statements to control estimation problems
         welch <- try(t.test(DV ~ group, dat), silent=TRUE)
@@ -47,7 +46,7 @@ test_that('SimDesign', {
         return(ret)
     }
 
-    mycollect <- function(results, parameters_list, condition){
+    mycollect <-  function(condition, results, fixed_design_elements = NULL, parameters_list = NULL){
 
         # handy functions
         bias <- function(observed, population) mean(observed - population)
@@ -80,5 +79,56 @@ test_that('SimDesign', {
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                            replications = parallel::detectCores(), parallel=TRUE, save=FALSE)
     expect_is(Final, 'data.frame')
+
+    # aggregate test
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                           replications = 2, parallel=FALSE, save=TRUE)
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                           replications = 2, parallel=FALSE, save=TRUE, filename = 'newfile')
+    Final <- aggregate_simulations()
+    expect_is(Final, 'data.frame')
+    expect_true(all(Final$REPLICATIONS == 4L))
+    system('rm *.rds')
+
+    mycompute <- function(condition, dat, fixed_design_elements = NULL, parameters = NULL){
+
+        # require packages/define functions if needed, or better yet index with the :: operator
+        require(stats)
+
+        if(runif(1, 0, 1) < .9) return(try(suppressWarnings(t.test('char')), silent=TRUE))
+        if(runif(1, 0, 1) < .9) check_error(try(suppressWarnings(aov('char')), silent=TRUE))
+
+        #wrap computational statistics in try() statements to control estimation problems
+        welch <- try(t.test(DV ~ group, dat), silent=TRUE)
+        ind <- try(stats::t.test(DV ~ group, dat, var.equal=TRUE), silent=TRUE)
+
+        # check if error, and if so stop and return an 'error'. This will re-draw the data
+        check_error(welch)
+        if(is(ind, 'try-error')) stop('Independent t-test error message')
+
+
+        # In this function the p values for the t-tests are returned,
+        #  and make sure to name each element, for future reference
+        ret <- c(welch = welch$p.value,
+                 independent = ind$p.value)
+
+        return(ret)
+    }
+
+    Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                           replications = 2, verbose = FALSE, try_errors = TRUE)
+    expect_is(Final, 'data.frame')
+    expect_true(any(grepl('TRY_ERROR_MESSAGE', names(Final))))
+
+    # aggregate test
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                         replications = 2, parallel=FALSE, save=TRUE, try_errors = TRUE)
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                         replications = 2, parallel=FALSE, save=TRUE, filename = 'newfile', try_errors = TRUE)
+    Final <- aggregate_simulations()
+    expect_is(Final, 'data.frame')
+    expect_true(all(Final$REPLICATIONS == 4L))
+    system('rm *.rds')
+
 })
 

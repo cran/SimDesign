@@ -1,7 +1,8 @@
 #' Check if object contains an error and stop flow
 #'
 #' Check if the supplied object, which has previously been wrapped in a \code{\link{try}} function,
-#' contains an error. If so, this function will throw an error to stop the workflow.
+#' contains an error. If so, this function will throw an error to stop the work-flow. This function
+#' works sequentially, therefore the first object to demonstrate a try-error in input will generate the error.
 #'
 #' @param ... objects that have been returned from a \code{\link{try}} call
 #'
@@ -29,5 +30,5 @@ check_error <- function(...){
     object <- list(...)
     for(i in 1L:length(object))
         if(is(object[[i]], 'try-error'))
-            stop('Error thrown from check_error()', call.=FALSE)
+            stop(gsub('Error : ', '', object[[i]][1L]), call.=FALSE)
 }

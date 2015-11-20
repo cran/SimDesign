@@ -1,8 +1,7 @@
-#' Collapse seperate simulation files into a single result
+#' Collapse separate simulation files into a single result
 #'
 #' This function grabs all .rds files in the working directory and aggregates them into a single
-#' data.frame object. Weights are inferred from the last numbers before .rds, in the form
-#' "name_of_sim_100.rds".
+#' data.frame object.
 #'
 #' @param files a character vector containing the names of the simulation files. If NULL, all files
 #'   in the working directory ending in .rds will be used
@@ -10,6 +9,8 @@
 #' @return a data.frame with the (weighted) average of the simulation results
 #'
 #' @aliases aggregate_simulations
+#'
+#' @seealso \code{\link{runSimulation}}
 #'
 #' @export aggregate_simulations
 #'
@@ -32,20 +33,28 @@ aggregate_simulations <- function(files = NULL){
     readin <- vector('list', length(filenames))
     for(i in 1:length(filenames))
         readin[[i]] <- readRDS(filenames[i])
+    errors <- lapply(readin, function(x) x[ ,grepl('TRY_ERROR_MESSAGE', colnames(x)), drop=FALSE])
+    nms <- unique(do.call(c, lapply(errors, function(x) colnames(x))))
+    try_errors <- as.data.frame(matrix(0, nrow(readin[[1L]]), length(nms)))
+    names(try_errors) <- nms
+    readin <- lapply(readin, function(x) x[ ,!grepl('TRY_ERROR_MESSAGE', colnames(x)), drop=FALSE])
+    if(length(unique(sapply(readin, ncol))) > 1L)
+        stop('Number of columns in the replications not equal')
     ret <- readin[[1L]]
     pick <- sapply(readin[[1L]], is.numeric)
     ret[, pick] <- 0
-    pick <- pick & !(colnames(readin[[1L]]) %in% c('SIM_TIME', 'N_CELL_RUNS'))
-    splt <- strsplit(filenames, '_')
-    weights <- sapply(splt, function(x){
-        y <- x[length(x)]
-        as.integer(strsplit(y, '.rds')[[1L]])
-    })
+    pick <- pick & !(colnames(readin[[1L]]) %in% c('SIM_TIME', 'REPLICATIONS'))
+    weights <- sapply(readin, function(x) x$REPLICATIONS[1L])
     weights <- weights / sum(weights)
     for(i in 1L:length(filenames)){
-        ret$N_CELL_RUNS <- ret$N_CELL_RUNS + readin[[i]]$N_CELL_RUNS
+        tmp <- stats::na.omit(match(nms, names(errors[[i]])))
+        if(length(tmp) > 0L){
+            try_errors[,match(nms, names(try_errors))] <- errors[[i]][ ,tmp] +
+                try_errors[,match(nms, names(try_errors))]
+        }
+        ret$REPLICATIONS <- ret$REPLICATIONS + readin[[i]]$REPLICATIONS
         ret$SIM_TIME <- ret$SIM_TIME + readin[[i]]$SIM_TIME
         ret[ ,pick] <- ret[ ,pick] + weights[i] * readin[[i]][ ,pick]
     }
-    ret
+    data.frame(ret, try_errors)
 }
