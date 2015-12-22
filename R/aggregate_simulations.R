@@ -1,12 +1,12 @@
 #' Collapse separate simulation files into a single result
 #'
-#' This function grabs all .rds files in the working directory and aggregates them into a single
-#' data.frame object.
+#' This function grabs all \code{.rds} files in the working directory and aggregates them into a single
+#' \code{data.frame} object.
 #'
-#' @param files a character vector containing the names of the simulation files. If NULL, all files
-#'   in the working directory ending in .rds will be used
+#' @param files a \code{character} vector containing the names of the simulation files. If \code{NULL},
+#'   all files in the working directory ending in \code{.rds} will be used
 #'
-#' @return a data.frame with the (weighted) average of the simulation results
+#' @return a \code{data.frame} with the (weighted) average of the simulation results
 #'
 #' @aliases aggregate_simulations
 #'
@@ -33,19 +33,21 @@ aggregate_simulations <- function(files = NULL){
     readin <- vector('list', length(filenames))
     for(i in 1:length(filenames))
         readin[[i]] <- readRDS(filenames[i])
-    errors <- lapply(readin, function(x) x[ ,grepl('TRY_ERROR_MESSAGE', colnames(x)), drop=FALSE])
+    errors <- lapply(readin, function(x) x[ ,grepl('ERROR_MESSAGE', colnames(x)), drop=FALSE])
     nms <- unique(do.call(c, lapply(errors, function(x) colnames(x))))
     try_errors <- as.data.frame(matrix(0, nrow(readin[[1L]]), length(nms)))
     names(try_errors) <- nms
-    readin <- lapply(readin, function(x) x[ ,!grepl('TRY_ERROR_MESSAGE', colnames(x)), drop=FALSE])
+    readin <- lapply(readin, function(x) x[ ,!grepl('ERROR_MESSAGE', colnames(x)), drop=FALSE])
     if(length(unique(sapply(readin, ncol))) > 1L)
         stop('Number of columns in the replications not equal')
     ret <- readin[[1L]]
     pick <- sapply(readin[[1L]], is.numeric)
     ret[, pick] <- 0
-    pick <- pick & !(colnames(readin[[1L]]) %in% c('SIM_TIME', 'REPLICATIONS'))
+    pick <- pick & !(colnames(readin[[1L]]) %in% c('SIM_TIME', 'REPLICATIONS', 'SEED'))
     weights <- sapply(readin, function(x) x$REPLICATIONS[1L])
+    stopifnot(all(sapply(readin, function(x) length(unique(x$REPLICATIONS)) == 1L)))
     weights <- weights / sum(weights)
+    message('Aggregating ', length(filenames), ' simulation files.')
     for(i in 1L:length(filenames)){
         tmp <- stats::na.omit(match(nms, names(errors[[i]])))
         if(length(tmp) > 0L){
@@ -56,5 +58,7 @@ aggregate_simulations <- function(files = NULL){
         ret$SIM_TIME <- ret$SIM_TIME + readin[[i]]$SIM_TIME
         ret[ ,pick] <- ret[ ,pick] + weights[i] * readin[[i]][ ,pick]
     }
-    data.frame(ret, try_errors)
+    out <- data.frame(ret, try_errors, check.names = FALSE)
+    out$SEED <- NULL
+    out
 }

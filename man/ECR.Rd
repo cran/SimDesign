@@ -4,17 +4,20 @@
 \alias{ECR}
 \title{Compute the empirical coverage rate for Type I errors and Power}
 \usage{
-ECR(CIs, population)
+ECR(CIs, parameter)
 }
 \arguments{
-\item{CIs}{a matrix of confidence interval values for a given population value, where the first
-column indicates the lower confidence interval and the second column the upper confidence interval}
+\item{CIs}{a \code{numeric} vector or \code{matrix} of confidence interval values for a
+given parameter value, where the first element/column indicates the lower confidence interval
+and the second element/column the upper confidence interval. If a
+vector of length 2 is passed instead then the returned value will be either a 1 or 0 to indicate
+whether the parameter value was or was not within the interval, respectively}
 
-\item{population}{a numeric scalar indicating the fixed population value}
+\item{parameter}{a numeric scalar indicating the fixed parameter value}
 }
 \description{
 Computes the detection rate for determining empirical Type I error and power rates using information
-from the confidence intervals. Note that using \code{1 - ECR(CIs, population)} will provide the empirical
+from the confidence intervals. Note that using \code{1 - ECR(CIs, parameter)} will provide the empirical
 detection rate.
 }
 \examples{
@@ -26,6 +29,11 @@ for(i in 1:100){
 }
 
 ECR(CIs, 0)
+
+# single vector input
+CI <- c(-1, 1)
+ECR(CI, 0)
+ECR(CI, 2)
 
 }
 \seealso{

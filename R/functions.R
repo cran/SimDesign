@@ -2,23 +2,26 @@
 #'
 #' Generate data from a single row in the \code{design} input (see \code{\link{runSimulation}}).
 #'
-#' @param condition a single row from the design input (as a data.frame), indicating the
+#' @param condition a single row from the \code{design} input (as a \code{data.frame}), indicating the
 #'   simulation conditions
 #'
-#' @param fixed_design_elements object passed down from \code{\link{runSimulation}}
+#' @param fixed_objects object passed down from \code{\link{runSimulation}}
 #'
-#' @return returns a single object containing the data to be analysed (usually a vector, matrix, or data.frame),
-#'   or a list with a \code{'dat'} and \code{'parameters'} element. If a list is returned, the \code{'dat'}
-#'   element should be the observed data object while the
+#' @return returns a single object containing the data to be analyzed (usually a
+#'   \code{vector}, \code{matrix}, or \code{data.frame}),
+#'   or a list with a the elements \code{'dat'} and \code{'parameters'}. If a list is returned
+#'   the \code{'dat'} element should be the observed data object while the
 #'   \code{'parameters'} element should be a named list containing the simulated parameters
 #'   (if there are any. Otherwise, this could just be an empty list)
 #'
 #' @aliases generate
 #'
+#' @seealso \code{\link{add_missing}}
+#'
 #' @examples
 #' \dontrun{
 #'
-#' mygenerate <- function(condition, fixed_design_elements = NULL){
+#' mygenerate <- function(condition, fixed_objects = NULL){
 #'
 #'     #require packages/define functions if needed, or better yet index with the :: operator
 #'
@@ -37,7 +40,7 @@
 #'
 #' }
 #'
-generate <- function(condition, fixed_design_elements = NULL) NULL
+generate <- function(condition, fixed_objects = NULL) NULL
 
 #=================================================================================================#
 
@@ -45,26 +48,30 @@ generate <- function(condition, fixed_design_elements = NULL) NULL
 #'
 #' Computes all relevant test statistics, parameter estimates, detection rates, and so on.
 #' This is the computational heavy lifting portion of the Monte Carlo simulation.
-#' In some cases, it may be easier to change
-#' the output to a named list containing different parameter configurations (i.e., when
+#'
+#' In some cases, it may be easier to change the output to a named \code{list} containing
+#' different parameter configurations (e.g., when
 #' determining RMSE values for a large set of population parameters).
 #'
-#' Be sure to make heavy use
-#' of \code{\link{try}} combinations and throw a \code{\link{stop}}/\code{\link{check_error}}
-#' if an iterative function fails
-#' to converge. This will cause the function to stop, and \code{\link{generate}} will be called again
+#' Also, be sure to make heavy use of \code{\link{try}} combinations and throw
+#' a \code{\link{stop}}/\code{\link{check_error}} if an iterative function fails to converge.
+#' This will cause the function to halt, and \code{\link{generate}} will be called again
 #' to obtain a different dataset.
 #'
-#' @param dat the 'dat' object returned from the \code{\link{generate}} function (usually a data.frame, matrix,
-#'   or vector) if a list was returned, otherwise just the raw object defined from \code{\link{generate}}
-#' @param parameters the (optional) list object named 'parameters' returned from the
-#'   \code{\link{generate}} function when a list is returned. Otherwise, this will be an empty list
-#' @param condition a single row from the design input (as a data.frame), indicating the
-#'   simulation conditions
-#' @param fixed_design_elements object passed down from \code{\link{runSimulation}}
+#' @param dat the \code{dat} object returned from the \code{\link{generate}} function
+#'   (usually a \code{data.frame}, \code{matrix}, or \code{vector}).
 #'
-#' @return returns a named numeric vector with the values of interest (e.g., p-values,
-#'   effects sizes, etc), or a list containing values of interest (e.g., separate matrix
+#' @param parameters the (optional) list object named 'parameters' returned from the
+#'   \code{\link{generate}} function when a list is returned. Otherwise, this will be an just an
+#'   empty list
+#'
+#' @param condition a single row from the design input (as a \code{data.frame}), indicating the
+#'   simulation conditions
+#'
+#' @param fixed_objects object passed down from \code{\link{runSimulation}}
+#'
+#' @return returns a named \code{numeric} vector with the values of interest (e.g., p-values,
+#'   effects sizes, etc), or a \code{list} containing values of interest (e.g., separate matrix
 #'   and vector of parameter estimates corresponding to elements in \code{parameters})
 #'
 #' @seealso \code{\link{try}}, \code{\link{check_error}}, \code{\link{stop}}
@@ -73,7 +80,7 @@ generate <- function(condition, fixed_design_elements = NULL) NULL
 #' @examples
 #' \dontrun{
 #'
-#' myanalyse <- function(condition, dat, fixed_design_elements = NULL, parameters = NULL){
+#' myanalyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
 #'
 #'     # require packages/define functions if needed, or better yet index with the :: operator
 #'     require(stats)
@@ -96,7 +103,7 @@ generate <- function(condition, fixed_design_elements = NULL) NULL
 #' }
 #'
 #' }
-analyse <- function(condition, dat, fixed_design_elements = NULL, parameters = NULL) NULL
+analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL) NULL
 
 
 
@@ -108,27 +115,27 @@ analyse <- function(condition, dat, fixed_design_elements = NULL, parameters = N
 #' This collapses the simulation results within each condition to composite
 #' estimates such as RMSE, bias, Type I error rates, coverage rates, etc.
 #'
-#' @param results a data.frame (if \code{analyse} returned a numeric vector) or a list (if
-#'   \code{analyse} returned a list) containing the simulation results from \code{\link{analyse}},
+#' @param results a \code{data.frame} (if \code{analyse} returned a numeric vector) or a \code{list}
+#'   (if \code{analyse} returned a list) containing the simulation results from \code{\link{analyse}},
 #'   where each cell is stored in a unique row/list element
 #' @param parameters_list an (optional) list containing all the 'parameters' elements generated
-#'   from \code{\link{generate}},  where each repetition is stored in a unique element. If a list was
-#'   not returned from \code{\link{generate}} then this will be NULL
+#'   from \code{\link{generate}}, where each repetition is stored in a unique element. If a \code{list}
+#'   was not returned from \code{\link{generate}} then this will be \code{NULL}
 #' @param condition a single row from the \code{design} input from \code{\link{runSimulation}}
-#'   (as a data.frame), indicating the simulation conditions
-#' @param fixed_design_elements object passed down from \code{\link{runSimulation}}
+#'   (as a \code{data.frame}), indicating the simulation conditions
+#' @param fixed_objects object passed down from \code{\link{runSimulation}}
 #'
 #' @aliases summarise
 #'
-#' @return must return a named numeric vector with the desired meta-simulation results
+#' @return must return a named \code{numeric} vector with the desired meta-simulation results
 #'
-#' @seealso \code{\link{bias}}, \code{\link{RMSE}}, \code{\link{RE}}, \code{\link{EDR}}, \code{\link{ECR}},
-#'   \code{\link{MAE}}
+#' @seealso \code{\link{bias}}, \code{\link{RMSE}}, \code{\link{RE}}, \code{\link{EDR}},
+#'   \code{\link{ECR}}, \code{\link{MAE}}
 #'
 #' @examples
 #' \dontrun{
 #'
-#' mysummarise <- function(condition, results, fixed_conditoins = NULL, parameters_list = NULL){
+#' mysummarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL){
 #'
 #'     #convert to matrix for convenience (if helpful)
 #'     cell_results <- do.call(rbind, results)
@@ -151,7 +158,7 @@ analyse <- function(condition, dat, fixed_design_elements = NULL, parameters = N
 #'
 #' }
 #'
-summarise <- function(condition, results, fixed_design_elements = NULL, parameters_list = NULL) NULL
+summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) NULL
 
 #=================================================================================================#
 
@@ -166,7 +173,7 @@ summarise <- function(condition, results, fixed_design_elements = NULL, paramete
 #   represents a particular draw given the \code{replications} argument in \code{\link{runSimulation}}
 # @param condition a single row from the design input (as a data.frame), indicating the
 #   simulation conditions
-# @param fixed_design_elements object passed down from \code{\link{runSimulation}}
+# @param fixed_objects object passed down from \code{\link{runSimulation}}
 # @param generate the \code{\link{generate}} function defined above (required for parallel computing)
 # @param analyse the \code{\link{analyse}} function defined above (required for parallel computing)
 #
@@ -184,24 +191,42 @@ summarise <- function(condition, results, fixed_design_elements = NULL, paramete
 # print(SimDesign::main)
 #
 # }
-mainsim <- function(index, condition, generate, analyse, fixed_design_elements){
+mainsim <- function(index, condition, generate, analyse, fixed_objects, max_errors,
+                    save_generate_data, save_generate_data_dirname, packages = NULL){
 
-    require('SimDesign') #this is required if SimDesign functions are called (e.g., bias(), RMSE())
+    load_packages(packages)
     try_error <- character()
 
     while(TRUE){
 
-        simlist <- generate(condition=condition, fixed_design_elements=fixed_design_elements)
+        simlist <- try(generate(condition=condition, fixed_objects=fixed_objects), TRUE)
+        if(is(simlist, 'try-error'))
+            stop(paste0('generate function threw an error.',
+                        '\n\nError message was: ', simlist), call.=FALSE)
+        if(save_generate_data){
+            filename_stem <- paste0(save_generate_data_dirname, '/design-row-', condition$ID,
+                                    '/generate-data-')
+            filename <- paste0(filename_stem, index, '.rds')
+            count <- 1L
+            while(file.exists(filename)){
+                filename <- paste0(filename_stem, index, '-', count, '.rds')
+                count <- count + 1L
+            }
+            saveRDS(simlist, filename)
+        }
         if(is.data.frame(simlist) || !is.list(simlist)) simlist <- list(dat=simlist)
         if(length(names(simlist)) > 1L)
             if(!all(names(simlist) %in% c('dat', 'parameters')))
-            stop('generate() did not return a list with elements \'dat\' and \'parameters\'', call.=FALSE)
+                stop('generate() did not return a list with elements \'dat\' and \'parameters\'', call.=FALSE)
         res <- try(analyse(dat=simlist$dat, parameters=simlist$parameters, condition=condition,
-                           fixed_design_elements=fixed_design_elements), silent=TRUE)
+                           fixed_objects=fixed_objects), silent=TRUE)
 
         # if an error was detected in compute(), try again
         if(is(res, 'try-error')){
             try_error <- c(try_error, res[1L])
+            if(length(try_error) == max_errors)
+                stop(paste0('Row ', condition$ID, ' in design was terminated because it had ', max_errors,
+                            ' consecutive errors. \n\nLast error message was \n', res[1L]), call.=FALSE)
             next
         }
         if(!is.list(res) && !is.numeric(res))

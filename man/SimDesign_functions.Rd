@@ -4,12 +4,18 @@
 \alias{SimDesign_functions}
 \title{Skeleton functions for simulations}
 \usage{
-SimDesign_functions(filename = NULL)
+SimDesign_functions(filename = NULL, comments = TRUE, singlefile = FALSE)
 }
 \arguments{
 \item{filename}{a character vector indicating whether the output should be saved to two respective files
 containing the simulation design and the functional components, respectively. Using this option
-is generally the recommended approach when designing simulations}
+is generally the recommended approach when beginning to write a Monte Carlo simulation}
+
+\item{comments}{logical; include helpful comments? Default is \code{TRUE}}
+
+\item{singlefile}{logical; when \code{filename} is included, put output in one files? When \code{FALSE} the
+output is saved to two separate files containing the functions and design definitions. Default is
+\code{FALSE}}
 }
 \description{
 This function prints skeleton versions of the required functions and work-flow required
@@ -19,11 +25,15 @@ when defining your simulation.
 \examples{
 
 SimDesign_functions()
+SimDesign_functions(comments=FALSE) #without comments
 
 \dontrun{
 
-# write output files
+# write output to two files
 SimDesign_functions('mysim')
+
+# write output files to a single file without comments
+SimDesign_functions('mysim', comments = FALSE, singlefile = TRUE)
 }
 
 }

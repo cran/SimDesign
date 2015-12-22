@@ -9,7 +9,7 @@ test_that('SimDesign', {
                           sample_sizes_group2=sample_sizes,
                           standard_deviations=standard_deviations)
 
-    mysim <- function(condition, fixed_design_elements = NULL){
+    mysim <- function(condition, fixed_objects = NULL){
 
         #require packages/define functions if needed, or better yet index with the :: operator
 
@@ -25,7 +25,7 @@ test_that('SimDesign', {
         return(list(dat=dat, parameters=pars))
     }
 
-    mycompute <- function(condition, dat, fixed_design_elements = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
 
         # require packages/define functions if needed, or better yet index with the :: operator
         require(stats)
@@ -46,7 +46,7 @@ test_that('SimDesign', {
         return(ret)
     }
 
-    mycollect <-  function(condition, results, fixed_design_elements = NULL, parameters_list = NULL){
+    mycollect <-  function(condition, results, fixed_objects = NULL, parameters_list = NULL){
 
         # handy functions
         bias <- function(observed, population) mean(observed - population)
@@ -69,7 +69,7 @@ test_that('SimDesign', {
     }
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = 2, parallel=FALSE, save=FALSE)
+                           replications = 2, parallel=FALSE, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
@@ -77,20 +77,20 @@ test_that('SimDesign', {
     expect_is(Final, 'data.frame')
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = parallel::detectCores(), parallel=TRUE, save=FALSE)
+                           replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
 
     # aggregate test
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = 2, parallel=FALSE, save=TRUE)
+                           replications = 2, parallel=FALSE, save=TRUE, verbose = FALSE)
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = 2, parallel=FALSE, save=TRUE, filename = 'newfile')
+                           replications = 2, parallel=FALSE, save=TRUE, filename = 'newfile', verbose = FALSE)
     Final <- aggregate_simulations()
     expect_is(Final, 'data.frame')
     expect_true(all(Final$REPLICATIONS == 4L))
     system('rm *.rds')
 
-    mycompute <- function(condition, dat, fixed_design_elements = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
 
         # require packages/define functions if needed, or better yet index with the :: operator
         require(stats)
@@ -116,19 +116,81 @@ test_that('SimDesign', {
     }
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = 2, verbose = FALSE, try_errors = TRUE)
+                           replications = 2, verbose = FALSE, include_errors = TRUE, max_errors = Inf)
     expect_is(Final, 'data.frame')
-    expect_true(any(grepl('TRY_ERROR_MESSAGE', names(Final))))
+    expect_true(any(grepl('ERROR_MESSAGE', names(Final))))
 
     # aggregate test
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                         replications = 2, parallel=FALSE, save=TRUE, try_errors = TRUE)
-    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                         replications = 2, parallel=FALSE, save=TRUE, filename = 'newfile', try_errors = TRUE)
+                         replications = 2, parallel=FALSE, save=TRUE, include_errors = TRUE,
+                         max_errors=Inf, verbose = FALSE)
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, max_errors=Inf,
+                         replications = 2, parallel=FALSE, save=TRUE, filename = 'newfile',
+                         include_errors = TRUE, verbose = FALSE)
     Final <- aggregate_simulations()
     expect_is(Final, 'data.frame')
     expect_true(all(Final$REPLICATIONS == 4L))
     system('rm *.rds')
+
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
+                         replications = 2, parallel=FALSE, save_results = TRUE, max_errors = Inf)
+    compname = Sys.info()["nodename"]
+    DIR <- paste0("SimDesign-results_", compname)
+    expect_true(dir.exists(DIR))
+    files <- dir(DIR)
+    expect_equal(length(files), 8L)
+    x <- readRDS(paste0(DIR, '/', files[1]))
+    expect_true(all(names(x) %in% c('condition', 'results', 'errors')))
+    system(paste0('rm -r ', DIR))
+
+    # error test
+    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+        stop('this error', call. = FALSE)
+    }
+    expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                               replications = 1, parallel=FALSE, save=FALSE, verbose = FALSE))
+    expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                           replications = 1, parallel=TRUE, save=FALSE, ncores = 2, verbose = FALSE))
+
+    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+        ret <- does_not_exist(TRUE)
+        ret
+    }
+    expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                               replications = 1, parallel=FALSE, save=FALSE, verbose = FALSE))
+    expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                               replications = 1, parallel=TRUE, save=FALSE, verbose = FALSE))
+
+    mysim <- function(condition, fixed_objects = NULL){
+        stop('something silly', call.=FALSE)
+    }
+    expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                               replications = 1, parallel=FALSE, save=FALSE, verbose = FALSE))
+
+
+    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+        c(ret = 1)
+    }
+    mygenerate <- function(condition, fixed_objects = NULL){
+        rmvnorm(5, sigma = matrix(1))
+    }
+    mycollect <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) {
+        colMeans(results)
+    }
+    expect_error(runSimulation(Design, replications = 1,
+                               generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                               parallel=FALSE, save=FALSE, verbose = FALSE))
+    expect_error(runSimulation(Design, replications = 1, ncores=2,
+                               generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                               parallel=TRUE, save=FALSE, verbose = FALSE))
+    out <- runSimulation(Design, replications = 1, packages = 'mvtnorm',
+                         generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                         parallel=FALSE, save=FALSE, verbose = FALSE)
+    out2 <- runSimulation(Design, replications = 1, packages = 'mvtnorm',
+                         generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                         parallel=TRUE, save=FALSE, verbose = FALSE)
+    expect_is(out, 'SimDesign')
+    expect_is(out2, 'SimDesign')
 
 })
 

@@ -4,28 +4,30 @@
 \alias{bias}
 \title{Compute (relative) bias summary statistic}
 \usage{
-bias(observed, population = NULL, relative = FALSE)
+bias(estimate, parameter = NULL, relative = FALSE)
 }
 \arguments{
-\item{observed}{a numeric vector or matrix/data.frame of parameter estimates. If a vector,
-the length is equal to the number of replications. If a matrix/data.frame,
+\item{estimate}{a \code{numeric} vector or \code{matrix}/\code{data.frame}
+of parameter estimates. If a vector,
+the length is equal to the number of replications. If a \code{matrix}/\code{data.frame},
 the number of rows must equal the number of replications}
 
-\item{population}{a numeric scalar/vector indicating the fixed population values.
-If a single value is supplied and \code{observed} is a matrix/data.frame then the value will be
-recycled for each column.
-If NULL, then it will be assumed that the \code{observed} input is in a deviation
-form (therefore \code{mean(observed))} will be returned)}
+\item{parameter}{a \code{numeric} scalar/vector indicating the fixed parameters.
+If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame}
+then the value will be recycled for each column.
+If \code{NULL} then it will be assumed that the \code{estimate} input is in a deviation
+form (therefore \code{mean(estimate))} will be returned)}
 
-\item{relative}{logical; compute the relative bias statistic? Default is FALSE}
+\item{relative}{logical; compute the relative bias statistic (i.e., divide the bias by the value
+in \code{parameter})? Default is \code{FALSE}}
 }
 \value{
-returns a numeric vector indicating the overall (relative) bias in the estimates
+returns a \code{numeric} vector indicating the overall (relative) bias in the estimates
 }
 \description{
-Computes the (relative) bias of a sample estimate from the population value.
-Accepts observed and population values, as well as observed values which are in deviation form.
-If relative bias is requested the \code{observed} and \code{population} inputs are both required.
+Computes the (relative) bias of a sample estimate from the parameter value.
+Accepts estimate and parameter values, as well as estimate values which are in deviation form.
+If relative bias is requested the \code{estimate} and \code{parameter} inputs are both required.
 }
 \examples{
 
@@ -42,11 +44,11 @@ bias(mean(samp), pop)
 
 # matrix input
 mat <- cbind(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
-bias(mat, population = 2)
+bias(mat, parameter = 2)
 
 # same, but with data.frame
 df <- data.frame(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
-bias(df, population = c(2,2))
+bias(df, parameter = c(2,2))
 
 
 }
