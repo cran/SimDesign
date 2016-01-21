@@ -7,13 +7,9 @@
 runSimulation(design, replications, generate, analyse, summarise,
   fixed_objects = NULL, parallel = FALSE, packages = NULL,
   ncores = parallel::detectCores(), MPI = FALSE, save = FALSE,
-  save_results = FALSE, save_generate_data = FALSE, max_errors = 50,
-  include_errors = TRUE, seed = NULL, compname = Sys.info()["nodename"],
-  filename = paste0("SimDesign-Final_", compname, ".rds"),
-  tmpfilename = paste0("SIMDESIGN-TEMPFILE_", compname, ".rds"),
-  save_results_dirname = paste0("SimDesign-results_", compname),
-  save_generate_data_dirname = paste0("SimDesign-generate-data_", compname),
-  edit = "none", verbose = TRUE)
+  save_results = FALSE, save_generate_data = FALSE, filename = NULL,
+  max_errors = 50, include_errors = TRUE, seed = NULL,
+  save_details = list(), edit = "none", verbose = TRUE)
 }
 \arguments{
 \item{design}{a \code{data.frame} object containing the Monte Carlo simulation conditions to
@@ -54,10 +50,12 @@ Alternatively, functions can be called explicitly without attaching the package 
 \item{MPI}{logical; use the \code{foreach} package in a form usable by MPI to run simulation
 in parallel on a cluster? Default is \code{FALSE}}
 
-\item{save}{logical; save the final simulation to the hard-drive? This is useful
-for simulations which require an extended amount of time. When \code{TRUE}, a temp file will be created
-in the working directory which allows the simulation state to be saved and recovered (in case
-of power outages, crashes, etc). Default is \code{FALSE}}
+\item{save}{logical; save the simulation state to the hard-drive? This is useful
+for simulations which require an extended amount of time. When \code{TRUE}, a temp file
+will be created in the working directory which allows the simulation state to be saved
+and recovered (in case of power outages, crashes, etc). To recover you simulation at the last known
+location simply rerun the same code you used to initially define the simulation and the object
+will automatically be detected and read-in. Default is \code{FALSE}}
 
 \item{save_results}{logical; save the results returned from \code{\link{analyse}} to external
 \code{.rds} files located in the defined \code{save_results_dirname} directory/folder?
@@ -72,12 +70,18 @@ It is generally recommended to leave this argument as \code{FALSE} because savin
 a large amount of disk space, and by and large saving data is not required or recommended for simulations.
 Default is \code{FALSE}}
 
+\item{filename}{the name of the \code{.rds} file to save the final simulation results to.
+When \code{NULL} the final simulation object is not saved to the drive. As well,
+if the same file name already exists in the working directy at the time of saving then a new
+file will be generated instead and a warning will be thrown. This helps avoid accidentally overwritting
+existing files. Default is \code{NULL}}
+
 \item{max_errors}{the simulation will terminate when more than this number of errors are thrown in any
 given condition. The purpose of this is to indicate that likely something problematic is going
 wrong in the generate-analyse phases and should be inspected. Default is 50}
 
-\item{include_errors}{logical; include information about which error how often they occurred from
-\code{try()} chunks or \code{\link{check_error}}? If \code{TRUE}, this information will be stacked at the end
+\item{include_errors}{logical; include information about which error how often they occurred?
+If \code{TRUE}, this information will be stacked at the end
 of the returned simulation results with the name of the specific error used as the column name in the
 data.frame object, and the number of occurrences included as the value for each condition.
 Default is \code{TRUE}}
@@ -89,26 +93,39 @@ This argument calls \code{\link{set.seed}} or
 but will not be run when \code{MPI = TRUE}.
 Default is \code{NULL}, indicating that no seed is set for each condition}
 
-\item{compname}{name of the computer running the simulation. Normally this doesn't need to be modified,
-but in the event that a node breaks down while running a simulation the results from the tmp files
-may be resumed on another computer by changing the name of the node to match the broken computer}
+\item{save_details}{a list pertaining to information about how and where files should be saved
+  when \code{save}, \code{save_results}, or \code{save_generate_data} are triggered.
 
-\item{filename}{the name of the \code{.rds} file to save the final simulation results to}
+  \describe{
 
-\item{tmpfilename}{the name of the temporary file, default is the system name with 'tmpsim.rds'
-appended at the end. This file will be
-read-in if it is in the working directory, and the simulation will continue where at the last
-point this file was saved (useful in case of power outages or broken nodes).
-This file will be deleted when the simulation is complete}
+    \item{\code{safe}}{logical; trigger whether safe-saving should be performed. When \code{TRUE} files
+      will never be over-written accidentelly, and where apppropriate the program will either stop or generate
+      new files with unique names. Default is \code{TRUE}}
 
-\item{save_results_dirname}{a string indicating the name of the folder to save results objects to
-when \code{save_results = TRUE}. If a directory/folder does not exist
-in the current working directory then one will be created automatically}
+    \item{\code{compname}}{name of the computer running the simulation. Normally this doesn't need
+      to be modified, but in the event that a node breaks down while running a simulation the
+      results from the tmp files may be resumed on another computer by changing the name of the
+      node to match the broken computer. Default is \code{unname(Sys.info()['nodename'])}}
 
-\item{save_generate_data_dirname}{a string indicating the name of the folder to save data objects to
-when \code{save_generate_data = TRUE}. If a directory/folder does not exist
-in the current working directory then one will be created automatically. Within this folder nested
-directories will be created associated with each row in \code{design}}
+    \item{\code{tmpfilename}}{the name of the temporary \code{.rds} file when any of the \code{save} flag is used.
+       This file will be read-in if it is in the working directory, and the simulation will continue where
+       at the last point this file was saved
+       (useful in case of power outages or broken nodes). Finally, this file will be deleted when the
+       simulation is complete. Default is the system name (\code{compname}) appended
+       to \code{'SIMDESIGN-TEMPFILE_'}}
+
+    \item{\code{save_results_dirname}}{a string indicating the name of the folder to save
+      results objects to when \code{save_results = TRUE}. If a directory/folder does not exist
+      in the current working directory then one will be created automatically. Default is
+      \code{'SimDesign-results_'} with the associated \code{compname} appended}
+
+    \item{\code{save_generate_data_dirname}}{a string indicating the name of the folder to save
+      data objects to when \code{save_generate_data = TRUE}. If a directory/folder does not exist
+      in the current working directory then one will be created automatically.
+      Within this folder nested directories will be created associated with each row in \code{design}.
+      Default is \code{'SimDesign-generate-data_'} with the \code{compname} appended}
+
+  }}
 
 \item{edit}{a string indicating where to initiate a \code{browser()} call for editing and debugging.
   General options are \code{'none'} (default) and \code{'all'}, which are used
@@ -191,8 +208,9 @@ then the original code in
 the main source file need only be rerun again to resume the simulation.
 The saved temp file will be read into the function, and the simulation will continue where it left
 off before the simulation was terminated. Upon completion, a data.frame with the simulation
-will be returned in the R session and a \code{.rds} file will be saved to the hard-drive (with the
-file name corresponding to the \code{filename} argument below). To save the complete list of results returned
+will be returned in the R session. If specified, an \code{.rds} file may also be saved
+to the hard-drive if a suitable \code{filename} argument was included.
+Finally, to save the complete list of results returned
 from \code{\link{analyse}} to unique files use \code{save_results = TRUE}.
 }
 
@@ -212,9 +230,9 @@ files using the suitable BASH commands to execute the \code{mpirun} tool. For ex
   \item{\code{library(doMPI)}}{}
   \item{\code{cl <- startMPIcluster()}}{}
   \item{\code{registerDoMPI(cl)}}{}
-  \item{\code{Final <- runSimulation(design=Design, replications=1000,
+  \item{\code{Final <- runSimulation(design=Design, replications=1000, save=TRUE,
     generate=Generate, analyse=Analyse, summarise=Summarise, MPI=TRUE)}}{}
-  \item{\code{saveRDS(Final, 'mysimulation.rds') # alternatively, pass save=TRUE above}}{}
+  \item{\code{saveRDS(Final, 'mysimulation.rds') # alternatively, pass a filename argument}}{}
   \item{\code{closeCluster(cl)}}{}
   \item{\code{mpi.quit()}}{}
 }
@@ -238,12 +256,13 @@ aggregating the results using the \code{\link{aggregate_simulations}} function.
 
 For instance, if you have two computers available and wanted 500 replications you
 could pass \code{replications = 300} to one computer and \code{replications = 200} to the other along
-with a \code{save = TRUE} argument. This will create two distinct \code{.rds} files which can be
+with a \code{filename} argument (or simply saving the final objects as \code{.rds} files manually).
+This will create two distinct \code{.rds} files which can be
 combined later with the \code{\link{aggregate_simulations}} function. The benefit of this approach over
 MPI is that computers need not be linked over a LAN network, and should the need arise the temporary
 simulation results can be migrated to another computer in case of a complete hardware failure by modifying
-the suitable \code{compname} input (or, if the \code{filename} and \code{tmpfilename} were modified,
-matching those files as well).
+the suitable \code{compname} input to \code{save_details} (or, if the \code{filename} and \code{tmpfilename}
+were modified, matching those files as well).
 }
 \examples{
 
@@ -298,11 +317,8 @@ Analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
     mygreatfunction <- function(x) print('Do some stuff')
 
     #wrap computational statistics in try() statements to control estimation problems
-    welch <- try(t.test(DV ~ group, dat), silent=TRUE)
-    ind <- try(t.test(DV ~ group, dat, var.equal=TRUE), silent=TRUE)
-
-    # check if any errors occurred. This will re-draw the data
-    check_error(welch, ind)
+    welch <- t.test(DV ~ group, dat)
+    ind <- t.test(DV ~ group, dat, var.equal=TRUE)
 
     # In this function the p values for the t-tests are returned,
     #  and make sure to name each element, for future reference
@@ -337,6 +353,12 @@ Final <- runSimulation(design=Design, replications=1000, parallel=TRUE,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 head(Final)
 View(Final)
+
+## save results to a file upon completion (not run)
+# runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
+#               generate=Generate, analyse=Analyse, summarise=Summarise)
+
+
 
 ## Debug the generate function. See ?browser for help on debugging
 ##   Type help to see available commands (e.g., n, c, where, ...),
@@ -373,6 +395,7 @@ runSimulation(design=Design, replications=1000,
 # registerDoMPI(cl)
 # Final <- runSimulation(design=Design, replications=1000, MPI=TRUE, save=TRUE,
 #                        generate=Generate, analyse=Analyse, summarise=Summarise)
+# saveRDS(Final, 'mysim.rds')
 # closeCluster(cl)
 # mpi.quit()
 
