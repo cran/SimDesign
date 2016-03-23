@@ -76,6 +76,18 @@ test_that('SimDesign', {
                            replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
 
+    #seeds
+    Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
+                           replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
+    Final2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
+                           replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
+    expect_equal(Final$bias.random_number, Final2$bias.random_number, tolerance=1e-6)
+    Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
+                           replications = parallel::detectCores(), parallel=FALSE, save=FALSE, verbose = FALSE)
+    Final2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
+                            replications = parallel::detectCores(), parallel=FALSE, save=FALSE, verbose = FALSE)
+    expect_equal(Final$bias.random_number, Final2$bias.random_number, tolerance=1e-6)
+
     # aggregate test
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, filename='file',
                            replications = 2, parallel=FALSE, save=TRUE, verbose = FALSE)
@@ -85,6 +97,15 @@ test_that('SimDesign', {
     expect_is(Final, 'data.frame')
     expect_true(all(Final$REPLICATIONS == 4L))
     system('rm *.rds')
+
+    # seeds
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
+                         replications = 1, parallel=FALSE, save_seeds=TRUE, max_errors = Inf)
+    load_seed <- paste0('design-row-1/seed-1')
+    tmp2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
+                         replications = 2, parallel=FALSE, load_seed = load_seed)
+    expect_equal(tmp[1, ]$bias.random_number, tmp2[1, ]$bias.random_number, tollerance = 1e-4)
+    SimClean(seeds = TRUE)
 
     mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
 
@@ -133,7 +154,7 @@ test_that('SimDesign', {
     expect_equal(length(files), 8L)
     x <- readRDS(paste0(DIR, '/', files[1]))
     expect_true(all(names(x) %in% c('condition', 'results', 'errors')))
-    system(paste0('rm -r ', DIR))
+    SimClean(results = TRUE)
 
     # error test
     mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){

@@ -1,8 +1,12 @@
 #' Skeleton functions for simulations
 #'
 #' This function prints skeleton versions of the required functions and work-flow required
-#' to run simulations, complete with the correct inputs and class of outputs. Use this at the start
+#' to run simulations, complete with the correct inputs, class of outputs, and option comments to
+#' help with the initial definitions. Use this at the start
 #' when defining your simulation.
+#'
+#' The function \code{SimDesign_functions} is deprecated and will be
+#' removed in a future release.
 #'
 #' @param filename a character vector indicating whether the output should be saved to two respective files
 #'   containing the simulation design and the functional components, respectively. Using this option
@@ -14,25 +18,25 @@
 #'   output is saved to two separate files containing the functions and design definitions. Default is
 #'   \code{FALSE}
 #'
-#' @aliases SimDesign_functions
+#' @aliases SimFunctions
 #'
-#' @export SimDesign_functions
+#' @export SimFunctions
 #'
 #' @examples
 #'
-#' SimDesign_functions()
-#' SimDesign_functions(comments=FALSE) #without comments
+#' SimFunctions()
+#' SimFunctions(comments=FALSE) #without comments
 #'
 #'\dontrun{
 #'
 #' # write output to two files
-#' SimDesign_functions('mysim')
+#' SimFunctions('mysim')
 #'
 #' # write output files to a single file without comments
-#' SimDesign_functions('mysim', comments = FALSE, singlefile = TRUE)
+#' SimFunctions('mysim', comments = FALSE, singlefile = TRUE)
 #' }
 #'
-SimDesign_functions <- function(filename = NULL, comments = TRUE, singlefile = FALSE){
+SimFunctions <- function(filename = NULL, comments = TRUE, singlefile = FALSE){
     LINE <- function()
         cat('#-------------------------------------------------------------------\n')
     HEAD <- function(){
@@ -78,6 +82,10 @@ SimDesign_functions <- function(filename = NULL, comments = TRUE, singlefile = F
     }
 
     #main
+    if(!is.null(filename)){
+        if(file.exists(paste0(filename, '.R')))
+            stop('File already exists! Please rename input or rename/remve existing files', call.=FALSE)
+    }
     if(is.null(filename) || singlefile){
         if(singlefile)
             if(!is.null(filename)) sink(paste0(filename, '.R'))
@@ -96,3 +104,8 @@ SimDesign_functions <- function(filename = NULL, comments = TRUE, singlefile = F
     }
     invisible()
 }
+
+#' @rdname SimFunctions
+#' @export
+SimDesign_functions <- function(filename = NULL, comments = TRUE, singlefile = FALSE)
+    .Deprecated('SimFunctions')

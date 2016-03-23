@@ -9,12 +9,18 @@
 #'
 #' @return returns a single object containing the data to be analyzed (usually a
 #'   \code{vector}, \code{matrix}, or \code{data.frame}),
-#'   or a list with a the elements \code{'dat'} and \code{'parameters'}. If a list is returned
-#'   the \code{'dat'} element should be the observed data object while the
-#'   \code{'parameters'} element should be a named list containing the simulated parameters
-#'   (if there are any. Otherwise, this could just be an empty list)
+#'   or a list with the elements \code{'dat'} and \code{'parameters'}.
 #'
-#' @aliases generate
+#'   If a list is returned the \code{'dat'} element should be the observed data object while the
+#'   \code{'parameters'} element should be a named list containing the simulated parameters
+#'   (if there are any. Otherwise, this could just be an empty list),
+#'   or any other objects that would be useful
+#'   in the \code{\link{Analyse}} and \code{\link{Summarise}} functions. If, on the other hand,
+#'   the objects are only useful in the \code{\link{Analyse}} function and NOT
+#'   \code{\link{Summarise}} then simply adding \code{\link{attributes}} to the returned object
+#'   is sufficent (and requires less RAM)
+#'
+#' @aliases Generate
 #'
 #' @seealso \code{\link{add_missing}}
 #'
@@ -34,13 +40,28 @@
 #'     dat <- data.frame(group = c(rep('g1', N1), rep('g2', N2)), DV = c(group1, group2))
 #'     pars <- list(random_number = rnorm(1)) # just a silly example of a simulated parameter
 #'
-#'     #could just use return(dat) if no parameters should be tracked
+#'     #could just use return(dat) if no parameters should be tracked for Summerise
 #'     return(list(dat=dat, parameters=pars))
 #' }
 #'
+#' mygenerate2 <- function(condition, fixed_objects = NULL){
+#'     mu <- sample(c(-1,0,1), 1)
+#'     dat <- rnorm(100, mu)
+#'     dat        #return simple vector (discard mu information)
 #' }
 #'
-generate <- function(condition, fixed_objects = NULL) NULL
+#' mygenerate3 <- function(condition, fixed_objects = NULL){
+#'     mu <- sample(c(-1,0,1), 1)
+#'     dat <- rnorm(100, mu)
+#'     attr(dat, 'mu') <- mu    # store mu as an attribute 'mu'
+#'     dat
+#' }
+#'
+#' # in the Analyse function, use attr(dat, 'mu') to pull out the mu object for further use
+#'
+#' }
+#'
+Generate <- function(condition, fixed_objects = NULL) NULL
 
 #=================================================================================================#
 
@@ -56,16 +77,16 @@ generate <- function(condition, fixed_objects = NULL) NULL
 #' The use of \code{\link{try}} functions is generally not required because the function
 #' is internally wrapped in a \code{\link{try}} call. Therefore, if a function stops early
 #' then this will cause the function to halt iternally, the message which triggered the \code{\link{stop}}
-#' will be recorded, and \code{\link{generate}} will be called again to obtain a different dataset.
+#' will be recorded, and \code{\link{Generate}} will be called again to obtain a different dataset.
 #' That being said, it may be useful for users to throw their own \code{\link{stop}} commands if the data
 #' should be redrawn for other reasons (e.g., a model terminated correctly but the maximum number of
 #' iterations were reached).
 #'
-#' @param dat the \code{dat} object returned from the \code{\link{generate}} function
+#' @param dat the \code{dat} object returned from the \code{\link{Generate}} function
 #'   (usually a \code{data.frame}, \code{matrix}, or \code{vector}).
 #'
 #' @param parameters the (optional) list object named 'parameters' returned from the
-#'   \code{\link{generate}} function when a list is returned. Otherwise, this will be an just an
+#'   \code{\link{Generate}} function when a list is returned. Otherwise, this will be an just an
 #'   empty list
 #'
 #' @param condition a single row from the design input (as a \code{data.frame}), indicating the
@@ -78,7 +99,7 @@ generate <- function(condition, fixed_objects = NULL) NULL
 #'   and vector of parameter estimates corresponding to elements in \code{parameters})
 #'
 #' @seealso \code{\link{stop}}
-#' @aliases analyse
+#' @aliases Analyse
 #'
 #' @examples
 #' \dontrun{
@@ -102,7 +123,7 @@ generate <- function(condition, fixed_objects = NULL) NULL
 #' }
 #'
 #' }
-analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL) NULL
+Analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL) NULL
 
 
 
@@ -114,17 +135,17 @@ analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL) NUL
 #' This collapses the simulation results within each condition to composite
 #' estimates such as RMSE, bias, Type I error rates, coverage rates, etc.
 #'
-#' @param results a \code{data.frame} (if \code{analyse} returned a numeric vector) or a \code{list}
-#'   (if \code{analyse} returned a list) containing the simulation results from \code{\link{analyse}},
+#' @param results a \code{data.frame} (if \code{Analyse} returned a numeric vector) or a \code{list}
+#'   (if \code{Analyse} returned a list) containing the simulation results from \code{\link{Analyse}},
 #'   where each cell is stored in a unique row/list element
 #' @param parameters_list an (optional) list containing all the 'parameters' elements generated
-#'   from \code{\link{generate}}, where each repetition is stored in a unique element. If a \code{list}
-#'   was not returned from \code{\link{generate}} then this will be \code{NULL}
+#'   from \code{\link{Generate}}, where each repetition is stored in a unique element. If a \code{list}
+#'   was not returned from \code{\link{Generate}} then this will be \code{NULL}
 #' @param condition a single row from the \code{design} input from \code{\link{runSimulation}}
 #'   (as a \code{data.frame}), indicating the simulation conditions
 #' @param fixed_objects object passed down from \code{\link{runSimulation}}
 #'
-#' @aliases summarise
+#' @aliases Summarise
 #'
 #' @return must return a named \code{numeric} vector with the desired meta-simulation results
 #'
@@ -157,7 +178,8 @@ analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL) NUL
 #'
 #' }
 #'
-summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) NULL
+Summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) NULL
+
 
 #=================================================================================================#
 
@@ -173,11 +195,11 @@ summarise <- function(condition, results, fixed_objects = NULL, parameters_list 
 # @param condition a single row from the design input (as a data.frame), indicating the
 #   simulation conditions
 # @param fixed_objects object passed down from \code{\link{runSimulation}}
-# @param generate the \code{\link{generate}} function defined above (required for parallel computing)
-# @param analyse the \code{\link{analyse}} function defined above (required for parallel computing)
+# @param generate the \code{\link{Generate}} function defined above (required for parallel computing)
+# @param analyse the \code{\link{Analyse}} function defined above (required for parallel computing)
 #
 # @return must return a named list with the 'result' and 'parameters' elements for the
-#   computational results and \code{parameters} from \code{\link{generate}}
+#   computational results and \code{parameters} from \code{\link{Generate}}
 #
 # @aliases main
 #
@@ -191,13 +213,28 @@ summarise <- function(condition, results, fixed_objects = NULL, parameters_list 
 #
 # }
 mainsim <- function(index, condition, generate, analyse, fixed_objects, max_errors,
-                    save_generate_data, save_generate_data_dirname, packages = NULL){
+                    save_generate_data, save_generate_data_dirname,
+                    save_seeds, save_seeds_dirname, load_seed, packages = NULL){
 
     load_packages(packages)
     try_error <- character()
 
     while(TRUE){
 
+        current_Random.seed <- .GlobalEnv$.Random.seed
+        if(save_seeds){
+            filename_stem <- paste0(save_seeds_dirname, '/design-row-', condition$ID,
+                                    '/seed-')
+            filename <- paste0(filename_stem, index)
+            count <- 1L
+            while(file.exists(filename)){
+                filename <- paste0(filename_stem, index, '-', count)
+                count <- count + 1L
+            }
+            write(current_Random.seed, filename, sep = ' ')
+        }
+        if(!is.null(load_seed))
+            .GlobalEnv$.Random.seed <- as.integer(scan(load_seed, sep = ' ', quiet = TRUE))
         simlist <- try(generate(condition=condition, fixed_objects=fixed_objects), TRUE)
         if(is(simlist, 'try-error'))
             stop(paste0('generate function threw an error.',
