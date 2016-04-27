@@ -12,7 +12,8 @@
 Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI, seed,
                      save_results, save_results_dirname, max_errors,
                      save_generate_data, save_generate_data_dirname,
-                     save_seeds, save_seeds_dirname, load_seed, export_funs, packages)
+                     save_seeds, save_seeds_dirname, load_seed, export_funs, packages,
+                     summarise_asis)
 {
     # This defines the work-flow for the Monte Carlo simulation given the condition (row in Design)
     #  and number of replications desired
@@ -47,14 +48,19 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                                                 save_seeds=save_seeds, save_seeds_dirname=save_seeds_dirname)
         }
     }
-
-    try_errors <- lapply(cell_results, function(x) attr(x, 'try_errors'))
-    try_errors <- table(do.call(c, try_errors))
+    if(summarise_asis)
+        return(do.call(rbind, lapply(cell_results, function(x) x$result)))
+    try_errors <- do.call(c, lapply(cell_results, function(x) attr(x, 'try_errors')))
+    try_errors <- if(length(try_errors)){
+        table(try_errors[!is.na(try_errors)])
+    } else table(try_errors)
     names(try_errors) <-
         gsub('Error in analyse\\(dat = simlist\\$dat, parameters = simlist\\$parameters, condition = condition,  : \\n  ',
              replacement = 'Manual Error : ', names(try_errors))
-    warnings <- lapply(cell_results, function(x) attr(x, 'warnings'))
-    warnings <- table(do.call(c, warnings))
+    warnings <- do.call(c, lapply(cell_results, function(x) attr(x, 'warnings')))
+    warnings <- if(length(warnings)){
+        table(warnings[!is.na(warnings)])
+    } else table(warnings)
     for(i in 1L:length(cell_results))
         attr(cell_results[[i]], 'try_errors') <- attr(cell_results[[i]], 'warnings') <- NULL
 
@@ -79,7 +85,6 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
     }
     sim_results <- Functions$summarise(results=results, parameters_list=parameters,
                            condition=condition, fixed_objects=fixed_objects)
-
     if(!is.vector(sim_results) || is.null(names(sim_results)))
         stop('summarise() must return a named vector', call.=FALSE)
     sim_results <- c(sim_results, 'REPLICATIONS'=replications, 'ERROR: '=try_errors,

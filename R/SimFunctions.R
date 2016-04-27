@@ -12,11 +12,13 @@
 #'   containing the simulation design and the functional components, respectively. Using this option
 #'   is generally the recommended approach when beginning to write a Monte Carlo simulation
 #'
-#' @param comments logical; include helpful comments? Default is \code{TRUE}
+#' @param comments logical; include helpful comments? Default is \code{FALSE}
 #'
 #' @param singlefile logical; when \code{filename} is included, put output in one files? When \code{FALSE} the
 #'   output is saved to two separate files containing the functions and design definitions. Default is
 #'   \code{FALSE}
+#'
+#' @param summarise include \code{summarise} function? Default is \code{TRUE}
 #'
 #' @aliases SimFunctions
 #'
@@ -25,18 +27,18 @@
 #' @examples
 #'
 #' SimFunctions()
-#' SimFunctions(comments=FALSE) #without comments
+#' SimFunctions(comments = TRUE) #with helpful comments
 #'
 #'\dontrun{
 #'
-#' # write output to two files
-#' SimFunctions('mysim')
+#' # write output to two files and include helpful comments
+#' SimFunctions('mysim', comments = TRUE)
 #'
 #' # write output files to a single file without comments
-#' SimFunctions('mysim', comments = FALSE, singlefile = TRUE)
+#' SimFunctions('mysim', singlefile = TRUE)
 #' }
 #'
-SimFunctions <- function(filename = NULL, comments = TRUE, singlefile = FALSE){
+SimFunctions <- function(filename = NULL, comments = FALSE, singlefile = FALSE, summarise = TRUE){
     LINE <- function()
         cat('#-------------------------------------------------------------------\n')
     HEAD <- function(){
@@ -67,17 +69,20 @@ SimFunctions <- function(filename = NULL, comments = TRUE, singlefile = FALSE){
         if(comments) cat('\n    # Return a named vector or list')
         cat('\n    ret <- c(stat1 = NaN, stat2 = NaN)\n    ret\n}')
         cat('\n\n')
-        cat('Summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) {')
-        if(comments) cat('\n    # Summarise the simulation results ...\n')
-        if(comments) cat('\n    # Return a named vector of results')
-        cat('\n    ret <- c(bias = NaN, RMSE = NaN)\n    ret\n}\n\n')
+        if(summarise){
+            cat('Summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) {')
+            if(comments) cat('\n    # Summarise the simulation results ...\n')
+            if(comments) cat('\n    # Return a named vector of results')
+            cat('\n    ret <- c(bias = NaN, RMSE = NaN)\n    ret\n}\n\n')
+        }
     }
 
     TAIL <- function(){
         LINE()
         if(comments) cat('\n### Run the simulation\n')
         cat('\nresults <- runSimulation(design=Design, replications=1000, ')
-        cat('\n    generate=Generate, analyse=Analyse, summarise=Summarise, edit=\'none\')')
+        cat(sprintf('\n    generate=Generate, analyse=Analyse, %sedit=\'none\')',
+                    if(summarise) 'summarise=Summarise, ' else ''))
         cat('\n\n')
     }
 
@@ -107,5 +112,5 @@ SimFunctions <- function(filename = NULL, comments = TRUE, singlefile = FALSE){
 
 #' @rdname SimFunctions
 #' @export
-SimDesign_functions <- function(filename = NULL, comments = TRUE, singlefile = FALSE)
+SimDesign_functions <- function(filename = NULL, comments = FALSE, singlefile = FALSE)
     .Deprecated('SimFunctions')

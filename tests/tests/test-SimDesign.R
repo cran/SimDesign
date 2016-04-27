@@ -11,8 +11,6 @@ test_that('SimDesign', {
 
     mysim <- function(condition, fixed_objects = NULL){
 
-        #require packages/define functions if needed, or better yet index with the :: operator
-
         N1 <- condition$sample_sizes_group1
         N2 <- condition$sample_sizes_group2
         sd <- condition$standard_deviations
@@ -27,8 +25,21 @@ test_that('SimDesign', {
 
     mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
 
-        # require packages/define functions if needed, or better yet index with the :: operator
-        require(stats)
+        #wrap computational statistics in try() statements to control estimation problems
+        welch <- t.test(DV ~ group, dat)
+        ind <- stats::t.test(DV ~ group, dat, var.equal=TRUE)
+
+        # In this function the p values for the t-tests are returned,
+        #  and make sure to name each element, for future reference
+        ret <- c(welch = welch$p.value,
+                 independent = ind$p.value)
+
+        return(ret)
+    }
+
+    mycompute2 <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+
+        if(condition$standard_deviations == 4) stop('error')
 
         #wrap computational statistics in try() statements to control estimation problems
         welch <- t.test(DV ~ group, dat)
@@ -76,6 +87,16 @@ test_that('SimDesign', {
                            replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
 
+    # resume
+    expect_error(runSimulation(Design, generate=mysim, analyse=mycompute2, summarise=mycollect,
+                           replications = 2, save=TRUE, verbose = FALSE))
+    compname = Sys.info()["nodename"]
+    tmp <- readRDS(paste0('SIMDESIGN-TEMPFILE_', compname, '.rds'))
+    Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                               replications = 2, save=TRUE, verbose = FALSE, filename = 'newfile')
+    expect_equal(tmp[[1]]$bias.random_number[1], Final$bias.random_number[1])
+    SimClean('newfile.rds')
+
     #seeds
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
                            replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
@@ -96,7 +117,7 @@ test_that('SimDesign', {
     Final <- aggregate_simulations()
     expect_is(Final, 'data.frame')
     expect_true(all(Final$REPLICATIONS == 4L))
-    system('rm *.rds')
+    SimClean(dir()[grepl('\\.rds', dir())])
 
     # seeds
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
@@ -108,9 +129,6 @@ test_that('SimDesign', {
     SimClean(seeds = TRUE)
 
     mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
-
-        # require packages/define functions if needed, or better yet index with the :: operator
-        require(stats)
 
         if(runif(1, 0, 1) < .9) t.test('char')
         if(runif(1, 0, 1) < .9) aov('char')
@@ -143,7 +161,7 @@ test_that('SimDesign', {
     Final <- aggregate_simulations()
     expect_is(Final, 'data.frame')
     expect_true(all(Final$REPLICATIONS == 4L))
-    system('rm *.rds')
+    SimClean(dir()[grepl('\\.rds', dir())])
 
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
                          replications = 2, parallel=FALSE, save_results = TRUE, max_errors = Inf)
