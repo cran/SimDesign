@@ -89,7 +89,7 @@ bias <- function(estimate, parameter = NULL, relative = FALSE){
 #'   \code{'CV'} for the coefficient of variation, or \code{'RMSLE'} for the root mean-square log-error
 #'
 #' @param MSE logical; return the mean square error equivalent of the results instead of the root
-#'   mean-square error (in other words, the result is squred)? Default is \code{FALSE}
+#'   mean-square error (in other words, the result is squared)? Default is \code{FALSE}
 #'
 #' @return returns a \code{numeric} vector indicating the overall average deviation in the estimates
 #'
@@ -296,7 +296,12 @@ RE <- function(x, MSE = FALSE){
 #' EDR(rates)
 #' EDR(rates, alpha = .01)
 #'
+#' # multiple rates at once
+#' rates <- cbind(runif(1000), runif(1000))
+#' EDR(rates)
+#'
 EDR <- function(p, alpha = .05){
+    if(is.data.frame(p)) p <- as.matrix(p)
     stopifnot(all(p <= 1 && p >= 0))
     stopifnot(length(alpha) == 1L)
     stopifnot(alpha <= 1 && alpha >= 0)
@@ -349,6 +354,7 @@ EDR <- function(p, alpha = .05){
 #' ECR(CI, 2, tails = TRUE)
 #'
 ECR <- function(CIs, parameter, tails = FALSE){
+    if(is.data.frame(CIs)) CIs <- as.matrix(CIs)
     if(length(CIs) == 2L) CIs <- matrix(CIs, 1L, 2L)
     stopifnot(is.matrix(CIs))
     stopifnot(length(parameter) == 1L)

@@ -4,28 +4,47 @@
 \alias{aggregate_simulations}
 \title{Collapse separate simulation files into a single result}
 \usage{
-aggregate_simulations(files = NULL)
+aggregate_simulations(files = NULL, dirs = NULL,
+  results_dirname = "SimDesign_aggregate_results")
 }
 \arguments{
 \item{files}{a \code{character} vector containing the names of the simulation files. If \code{NULL},
 all files in the working directory ending in \code{.rds} will be used}
+
+\item{dirs}{a \code{character} vector containing the names of the \code{save_results} directories to be
+aggregated. A new folder will be created and placed in the \code{results_dirname} output folder}
+
+\item{results_dirname}{the new directory to place the aggregated results files}
 }
 \value{
-a \code{data.frame} with the (weighted) average of the simulation results
+if \code{files} is used the function returns a \code{data.frame} with the (weighted) average
+  of the simulation results. Otherwise, if \code{dirs} is used, the function returns NULL
 }
 \description{
 This function grabs all \code{.rds} files in the working directory and aggregates them into a single
-\code{data.frame} object.
+\code{data.frame} object or combines all the saved results directories and combines them into one.
+This is generally useful when results are run piecewise on one node or run independently across
+different nodes/computers which are not on the same network.
 }
 \examples{
 \dontrun{
 
 setwd('my_working_directory')
 
-final <- aggregate_simulations()
-head(final)
+## run simulations to save the .rds files (or move them to the working directory)
+# runSimulation(..., filename='file1')
+# runSimulation(..., filename='file2')
 
+final <- aggregate_simulations()
 saveRDS(final, 'my_final_simulation.rds')
+
+# aggregate saved results
+# runSimulation(..., save_results = TRUE, save_details = list(save_results_dirname = 'dir1'))
+# runSimulation(..., save_results = TRUE, save_details = list(save_results_dirname = 'dir2'))
+
+# place new saved results in 'SimDesign_results/' directory by default
+aggregate_simulations(dirs = c('dir1', 'dir2'))
+
 
 }
 }

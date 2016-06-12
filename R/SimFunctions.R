@@ -64,13 +64,13 @@ SimFunctions <- function(filename = NULL, comments = FALSE, singlefile = FALSE, 
         cat('\n    dat <- data.frame()')
         cat('\n    dat\n}')
         cat('\n\n')
-        cat('Analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL) {')
+        cat('Analyse <- function(condition, dat, fixed_objects = NULL) {')
         if(comments) cat('\n    # Run statistical analyses of interest ... \n')
         if(comments) cat('\n    # Return a named vector or list')
         cat('\n    ret <- c(stat1 = NaN, stat2 = NaN)\n    ret\n}')
         cat('\n\n')
         if(summarise){
-            cat('Summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) {')
+            cat('Summarise <- function(condition, results, fixed_objects = NULL) {')
             if(comments) cat('\n    # Summarise the simulation results ...\n')
             if(comments) cat('\n    # Return a named vector of results')
             cat('\n    ret <- c(bias = NaN, RMSE = NaN)\n    ret\n}\n\n')
@@ -89,7 +89,7 @@ SimFunctions <- function(filename = NULL, comments = FALSE, singlefile = FALSE, 
     #main
     if(!is.null(filename)){
         if(file.exists(paste0(filename, '.R')))
-            stop('File already exists! Please rename input or rename/remve existing files', call.=FALSE)
+            stop('File already exists! Please rename input or rename/remove existing files', call.=FALSE)
     }
     if(is.null(filename) || singlefile){
         if(singlefile)
@@ -109,8 +109,3 @@ SimFunctions <- function(filename = NULL, comments = FALSE, singlefile = FALSE, 
     }
     invisible()
 }
-
-#' @rdname SimFunctions
-#' @export
-SimDesign_functions <- function(filename = NULL, comments = FALSE, singlefile = FALSE)
-    .Deprecated('SimFunctions')

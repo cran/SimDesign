@@ -4,25 +4,23 @@
 \alias{Analyse}
 \title{Compute estimates and statistics}
 \usage{
-Analyse(condition, dat, fixed_objects = NULL, parameters = NULL)
+Analyse(condition, dat, fixed_objects = NULL)
 }
 \arguments{
 \item{condition}{a single row from the design input (as a \code{data.frame}), indicating the
 simulation conditions}
 
 \item{dat}{the \code{dat} object returned from the \code{\link{Generate}} function
-(usually a \code{data.frame}, \code{matrix}, or \code{vector}).}
+(usually a \code{data.frame}, \code{matrix}, \code{vector}, or \code{list})}
 
 \item{fixed_objects}{object passed down from \code{\link{runSimulation}}}
-
-\item{parameters}{the (optional) list object named 'parameters' returned from the
-\code{\link{Generate}} function when a list is returned. Otherwise, this will be an just an
-empty list}
 }
 \value{
-returns a named \code{numeric} vector with the values of interest (e.g., p-values,
-  effects sizes, etc), or a \code{list} containing values of interest (e.g., separate matrix
-  and vector of parameter estimates corresponding to elements in \code{parameters})
+returns a named \code{numeric} vector or \code{data.frame} with the values of interest
+  (e.g., p-values, effects sizes, etc), or a \code{list} containing values of interest
+  (e.g., separate matrix and vector of parameter estimates corresponding to elements in
+  \code{parameters}). If a \code{data.frame} is returned with more than 1 row then these
+  objects will be wrapped into \code{list} objects
 }
 \description{
 Computes all relevant test statistics, parameter estimates, detection rates, and so on.
@@ -35,7 +33,7 @@ determining RMSE values for a large set of population parameters).
 
 The use of \code{\link{try}} functions is generally not required because the function
 is internally wrapped in a \code{\link{try}} call. Therefore, if a function stops early
-then this will cause the function to halt iternally, the message which triggered the \code{\link{stop}}
+then this will cause the function to halt internally, the message which triggered the \code{\link{stop}}
 will be recorded, and \code{\link{Generate}} will be called again to obtain a different dataset.
 That being said, it may be useful for users to throw their own \code{\link{stop}} commands if the data
 should be redrawn for other reasons (e.g., a model terminated correctly but the maximum number of
@@ -44,7 +42,7 @@ iterations were reached).
 \examples{
 \dontrun{
 
-myanalyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+myanalyse <- function(condition, dat, fixed_objects = NULL){
 
     # require packages/define functions if needed, or better yet index with the :: operator
     require(stats)

@@ -16,7 +16,7 @@
 #'    \item{1)}{Define a suitable \code{design} data.frame object containing fixed conditional
 #'       information about the Monte Carlo simulations. This is often expedited by using the
 #'       \code{\link{expand.grid}} function, and if necessary using the \code{\link{subset}}
-#'       function to remove redundent or non-applicable rows}
+#'       function to remove redundant or non-applicable rows}
 #'    \item{2)}{Define the three step functions to generate the data (\code{\link{Generate}}),
 #'       analyse the generated data by computing the respective parameter estimates, detection rates,
 #'       etc (\code{\link{Analyse}}), and finally summarise the results across the total
@@ -53,22 +53,26 @@
 #' To conserve RAM, temporary objects (such as data generated across conditions and replications)
 #' are discarded; however, these can be saved to the hard-disk by passing the appropriate flags.
 #' For longer simulations it is recommended to use \code{save = TRUE} to temporarily save the
-#' simulation state, and to use a \code{save_results} flag to write the analysis results
+#' simulation state, and to use the \code{save_results} flag to write the analysis results
 #' the to hard-disc.
 #'
 #' The generated data can be saved by passing
-#' \code{save_generate_data=TRUE}, however it is often more memory efficient to use the
+#' \code{save_generate_data = TRUE}, however it is often more memory efficient to use the
 #' \code{save_seeds} option instead to only save R's \code{.Random.seed} state instead (still
-#' allowing for complete reproducibility). Providing a vector of \code{seeds} is also possible to ensure
-#' that the simulation conditions are completely reproducible under the single/multi-core method selected.
+#' allowing for complete reproducibility); individual \code{.Random.seed} terms may also be read in with the
+#' \code{load_seed} input to reproduce the exact simulation state at any given replication. Finally,
+#' providing a vector of \code{seeds} is also possible to ensure
+#' that each simulation condition is completely reproducible under the single/multi-core method selected.
 #'
 #' Finally, when the Monte Carlo simulation is complete
 #' it is recommended to write the results to a hard-drive for safe keeping, particularly with the
-#' \code{filename} argument provided (for reasons that are more obvious in the parallel computation
-#' descriptions below). Using the \code{filename} argument supplied is much safer than using something
-#' like \code{\link{saveRDS}} because files will not accidentally be overwritten and instead a new file name
-#' will be created; this safety against overwriting files is prevalent in many aspects of the package and
-#' helps to avoid many unrecoverable mistakes.
+#' \code{save} and \code{filename} arguments provided (for reasons that are more obvious in the parallel computation
+#' descriptions below). Using the \code{filename} argument (along with \code{save = TRUE})
+#' supplied is much safer than using something
+#' like \code{\link{saveRDS}} directly because files will never accidentally be overwritten,
+#' and instead a new file name will be created when a conflict arises; this type of safety
+#' is prevalent in many aspects of the package and helps to avoid many unrecoverable (yet surprisingly common)
+#' mistakes.
 #'
 #' @section Resuming temporary results:
 #'
@@ -89,14 +93,15 @@
 #' nodes automatically}. This makes it convenient when writing code because custom functions will
 #' always be available across nodes if they are visible in the R workspace. As well, note the
 #' \code{packages} input to declare packages which must be loaded via \code{library()} in order to make
-#' specific non-based R functions available across nodes.
+#' specific non-standard R functions available across nodes.
 #'
 #' @section Cluster computing:
 #'
 #' SimDesign code may be released to a computing system which supports parallel cluster computations using
 #' the industry standard Message Passing Interface (MPI) form. This simply
 #' requires that the computers be setup using the usual MPI requirements (typically, running some flavor
-#' of Linux, have password-less open-SSH access, addresses have been added to the \code{/etc/hosts} file, etc).
+#' of Linux, have password-less open-SSH access, IP addresses have been added to the \code{/etc/hosts} file
+#' or \code{~/.ssh/config}, etc).
 #' More generally though, these resources are widely available through professional
 #' organizations dedicated to super-computing.
 #'
@@ -114,10 +119,11 @@
 #'   \item{\code{mpi.quit()}}{}
 #' }
 #'
-#' This file (or files if the simulation script is broken up) must be uploaded to the master node
+#' The necessary SimDesign files must be uploaded to the dedicated master node
 #' so that a BASH call to \code{mpirun} can be used to distribute the work across slaves.
 #' For instance, if the following BASH command is run on the master node then 16 processes
-#' will be summoned (1 master, 15 slaves) across the computers named localhost, slave1, and slave2.
+#' will be summoned (1 master, 15 slaves) across the computers named \code{localhost}, \code{slave1},
+#' and \code{slave2} in the ssh \code{config} file.
 #'
 #' \code{mpirun -np 16 -H localhost,slave1,slave2 R --slave -f simulation.R}
 #'
@@ -136,8 +142,9 @@
 #'
 #' Setup for network computing is generally more straightforward and controlled
 #' than the setup for MPI jobs in that it only requires the specification of a) the respective
-#' IP addresses, and b) the user name (if different from the master node's user name. Otherwise only a) is required).
-#' However, on Linux I have found it is also imporant to include relavent information about the host names
+#' IP addresses within a defined R script, and b) the user name
+#' (if different from the master node's user name. Otherwise, only a) is required).
+#' However, on Linux I have found it is also important to include relevant information about the host names
 #' and IP addresses in the \code{/etc/hosts} file on the master and slave nodes, and to ensure that
 #' the selected port (passed to \code{\link{makeCluster}}) on the master node is not hindered by a firewall.
 #'
@@ -152,7 +159,7 @@
 #'   \item{\code{IPs <- list(list(host=primary, user='myname', ncore=8), list(host='192.168.2.2', user='myname', ncore=6))}}{}
 #'   \item{\code{spec <- lapply(IPs, function(IP) rep(list(list(host=IP$host, user=IP$user)), IP$ncore))}}{}
 #'   \item{\code{spec <- unlist(spec, recursive=FALSE)}}{}
-#'   \item{\code{cl <- makeCluster(type='PSOCK', master=primary, spec=spec)}}{}
+#'   \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
 #'   \item{\code{Final <- runSimulation(..., cl=cl)}}{}
 #'   \item{\code{stopCluster(cl)}}{}
 #' }
@@ -162,6 +169,37 @@
 #' IP addresses. Finally, it's usually good practice to use \code{stopCluster(cl)}
 #' when all the simulations are said and done to release the communication between the computers,
 #' which is what the above code shows.
+#'
+#' Alternatively, if you have provided suitable names for each respective slave node, as well as the master,
+#' then you can define the \code{cl} object using these instead (rather than supplying the IP addresses in
+#' your R script). This requires that the master node has itself and all the slave nodes defined in the
+#' \code{/etc/hosts} and \code{~/.ssh/config} files, while the slave nodes require themselves and the
+#' master node in the same files (only 2 IP addresses required on each slave).
+#' Following this setup, and assuming the user name is the same across all nodes,
+#' the \code{cl} object could instead be defined with
+#'
+#' \describe{
+#'   \item{\code{library(parallel)}}{}
+#'   \item{\code{primary <- 'master'}}{}
+#'   \item{\code{IPs <- list(list(host=primary, ncore=8), list(host='slave', ncore=6))}}{}
+#'   \item{\code{spec <- lapply(IPs, function(IP) rep(list(list(host=IP$host)), IP$ncore))}}{}
+#'   \item{\code{spec <- unlist(spec, recursive=FALSE)}}{}
+#'   \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
+#'   \item{\code{Final <- runSimulation(..., cl=cl)}}{}
+#'   \item{\code{stopCluster(cl)}}{}
+#' }
+#'
+#' Or, even more succinctly if all communication elements required are identical to the master node,
+#'
+#' \describe{
+#'   \item{\code{library(parallel)}}{}
+#'   \item{\code{primary <- 'master'}}{}
+#'   \item{\code{spec <- c(rep(primary, 8), rep('slave', 6))}}{}
+#'   \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
+#'   \item{\code{Final <- runSimulation(..., cl=cl)}}{}
+#'   \item{\code{stopCluster(cl)}}{}
+#' }
+#'
 #'
 #' @section Poor man's cluster computing for independent nodes:
 #'
@@ -173,22 +211,23 @@
 #'
 #' For instance, if you have two computers available on different networks and wanted a total of 500 replications you
 #' could pass \code{replications = 300} to one computer and \code{replications = 200} to the other along
-#' with a \code{filename} argument (or simply saving the final objects as \code{.rds} files manually).
-#' This will create two distinct \code{.rds} files which can be
+#' with a \code{filename} argument (or simply saving the final objects as \code{.rds} files manually after
+#' \code{runSimulation()} has finished). This will create two distinct \code{.rds} files which can be
 #' combined later with the \code{\link{aggregate_simulations}} function. The benefit of this approach over
-#' MPI or setting up a Beowulf cluster is that computers need not be linked over a LAN network,
-#' and should the need arise the temporary
-#' simulation results can be migrated to another computer in case of a complete hardware failure by modifying
+#' MPI or setting up a Beowulf cluster is that computers need not be linked on the same network,
+#' and, should the need arise, the temporary
+#' simulation results can be migrated to another computer in case of a complete hardware failure by moving the
+#' saved temp files to another node, modifying
 #' the suitable \code{compname} input to \code{save_details} (or, if the \code{filename} and \code{tmpfilename}
-#' were modified, matching those files accordingly).
+#' were modified, matching those files accordingly), and resuming the simulation as normal.
 #'
 #' Note that this is also a useful tactic if the MPI or Network computing options require you to
 #' submit smaller jobs due to time and resource constraint-related reasons,
 #' where fewer replications/nodes should be requested. After all the jobs are completed and saved to their
-#' respective files the \code{\link{aggregate_simulations}}
+#' respective files, \code{\link{aggregate_simulations}}
 #' can then collapse the files as if the simulations were run all at once. Hence, SimDesign makes submitting
-#' smaller jobs to super-computing resources considerably less error prone then managing a number of smaller
-#' jobs manually.
+#' smaller jobs to super-computing resources considerably less error prone than managing a number of smaller
+#' jobs manually .
 #'
 #' @param design a \code{data.frame} object containing the Monte Carlo simulation conditions to
 #'   be studied, where each row represents a unique condition
@@ -200,7 +239,7 @@
 #'   \code{\link{Generate}}. See \code{\link{Analyse}} for details
 #'
 #' @param summarise (optional but recommended) user-defined summary function to be used
-#'   after all the replications have completed within each \code{design} condition. Ommiting this function
+#'   after all the replications have completed within each \code{design} condition. Omitting this function
 #'   will return a list of matrices (or a single matrix, if only one row in \code{design} is supplied)
 #'   containing only the results returned form \code{\link{Analyse}}.
 #'   Ommiting this function is only recommended for didactic purposes because it leaves out a large amount of
@@ -219,9 +258,11 @@
 #' @param parallel logical; use parallel processing from the \code{parallel} package over each
 #'   unique condition?
 #'
-#' @param cl cluster object defined by \code{\link{makeCluster}} to be used when \code{parallel = TRUE}.
-#'   If \code{NULL} a local cluster object will be defined which selects the maximum number cores available
-#'   and will be stop the cluster when the simulation is complete
+#' @param cl cluster object defined by \code{\link{makeCluster}} used to run code in parallel.
+#'   If \code{NULL} and \code{parallel = TRUE}, a local cluster object will be defined which
+#'   selects the maximum number cores available
+#'   and will be stop the cluster when the simulation is complete. Note that supplying a \code{cl}
+#'   object will automatically set the \code{parallel} argument to \code{TRUE}
 #'
 #' @param packages a character vector of external packages to be used during the simulation (e.g.,
 #'   \code{c('MASS', 'mvtnorm', 'simsem')} ). Use this input when \code{parallel = TRUE} or
@@ -240,8 +281,9 @@
 #'   Use this if you would like to keep track of the individual parameters returned from the analyses.
 #'   Each saved object will contain a list of three elements containing the condition (row from \code{design}),
 #'   results (as a \code{list} or \code{matrix}), and try-errors. When \code{TRUE}, a temp file will be used to track the simulation
-#'   state (in case of power outages, crashes, etc). When \code{TRUE} the \code{save} flag will also be
-#'   set to \code{TRUE} to better track the save-state. Default is \code{FALSE}
+#'   state (in case of power outages, crashes, etc). When \code{TRUE}, temporary files will also be saved
+#'   to the working directory (in the same was as when \code{save = TRUE} to better track the state of the simulation.
+#'   Default is \code{FALSE}
 #'
 #' @param save_seeds logical; save the \code{.Random.seed} states prior to performing each replication into
 #'   plain text files located in the defined \code{save_seeds_dirname} directory/folder?
@@ -249,15 +291,18 @@
 #'   condition. Primarily, this is useful for completely replicating any cell in the simulation if need be,
 #'   especially when tracking down hard-to-find errors and bugs. As well, see the \code{load_seed} input
 #'   to load a given \code{.Random.seed} to exactly replicate the generated data and analysis state (handy
-#'   for debugging). Default is \code{FALSE}
+#'   for debugging). When \code{TRUE}, temporary files will also be saved
+#'   to the working directory (in the same was as when \code{save = TRUE} to better track the state of the simulation.
+#'   Default is \code{FALSE}
 #'
 #' @param save_generate_data logical; save the data returned from \code{\link{Generate}} to external \code{.rds} files
 #'   located in the defined \code{save_generate_data_dirname} directory/folder?
 #'   It is generally recommended to leave this argument as \code{FALSE} because saving datasets will often consume
 #'   a large amount of disk space, and by and large saving data is not required or recommended for simulations.
 #'   A more space-friendly version is available when using the \code{save_seed} flag.
-#'   Finally, when set to \code{TRUE} the \code{save} flag will also be set to \code{TRUE} to better track
-#'   the save-state. Default is \code{FALSE}
+#'   When \code{TRUE}, temporary files will also be saved
+#'   to the working directory (in the same was as when \code{save = TRUE} to better track the state of the simulation.
+#'   Default is \code{FALSE}
 #'
 #' @param load_seed a character object indicating which file to load from when the \code{.Random.seed}s have
 #'   be saved (after a run with \code{save_seeds = TRUE}). E.g., \code{load_seed = 'design-row-2/seed-1'}
@@ -265,11 +310,12 @@
 #'   to modify the \code{design} input object, otherwise the path may not point to the correct saved location.
 #'   Default is \code{NULL}
 #'
-#' @param filename (optional) the name of the \code{.rds} file to save the final simulation results to.
-#'   When \code{NULL} the final simulation object is not saved to the drive. As well,
+#' @param filename (optional) the name of the \code{.rds} file to save the final simulation results to
+#'   when \code{save = TRUE}.
+#'   When \code{NULL}, the final simulation object is not saved to the drive. As well,
 #'   if the same file name already exists in the working directly at the time of saving then a new
 #'   file will be generated instead and a warning will be thrown; this helps avoid accidentally overwriting
-#'   existing files. Default is \code{NULL}
+#'   existing files. Default is \code{'SimDesign-results'}
 #'
 #' @param save_details a list pertaining to information about how and where files should be saved
 #'   when \code{save}, \code{save_results}, or \code{save_generate_data} are triggered.
@@ -319,12 +365,13 @@
 #' @param MPI logical; use the \code{foreach} package in a form usable by MPI to run simulation
 #'   in parallel on a cluster? Default is \code{FALSE}
 #'
-#' @param save logical; save the simulation state to the hard-drive? This is useful
+#' @param save logical; save the simulation state and final results to the hard-drive? This is useful
 #'   for simulations which require an extended amount of time. When \code{TRUE}, a temp file
 #'   will be created in the working directory which allows the simulation state to be saved
 #'   and recovered (in case of power outages, crashes, etc). To recover you simulation at the last known
 #'   location simply rerun the same code you used to initially define the simulation and the object
-#'   will automatically be detected and read-in. Default is \code{FALSE}
+#'   will automatically be detected and read-in. Upon completion, and if \code{filename} is not
+#'   \code{NULL}, the final results will also be saved to the working directory. Default is \code{FALSE}
 #'
 #' @param edit a string indicating where to initiate a \code{browser()} call for editing and debugging.
 #'   General options are \code{'none'} (default) and \code{'all'}, which are used
@@ -356,40 +403,32 @@
 #'
 #' @seealso \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
 #'   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}},
-#'   \code{\link{aggregate_simulations}}
+#'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}
 #'
 #' @export runSimulation
 #'
 #' @examples
 #'
+#' # skeleton functions to be saved and edited
+#' SimFunctions()
+#'
 #' #### Step 1 --- Define your conditions under study and create design data.frame
 #'
 #' # (use EXPLICIT names, avoid things like N <- 100. That's fine in functions, not here)
-#' sample_sizes <- c(30, 60, 90, 120)
-#' standard_deviation_ratios <- c(1, 4, 8)
-#' group_size_ratios <- c(.5, 1, 2)
-#'
-#' Design <- expand.grid(sample_size=sample_sizes,
-#'                       group_size_ratio=group_size_ratios,
-#'                       standard_deviation_ratio=standard_deviation_ratios)
+#' Design <- expand.grid(sample_size = c(30, 60, 90, 120),
+#'                       group_size_ratio = c(1, 4, 8),
+#'                       standard_deviation_ratio = c(.5, 1, 2))
 #' dim(Design)
 #' head(Design)
 #'
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Step 2 --- Define generate, analyse, and summarise functions
 #'
-#' # skeleton functions to be edited
-#' SimFunctions()
-#'
 #' # help(Generate)
 #' Generate <- function(condition, fixed_objects = NULL){
-#'
-#'     #require packages/define functions if needed, or better yet index with the :: operator
-#'
 #'     N <- condition$sample_size
 #'     grs <- condition$group_size_ratio
 #'     sd <- condition$standard_deviation_ratio
-#'
 #'     if(grs < 1){
 #'         N2 <- N / (1/grs + 1)
 #'         N1 <- N - N2
@@ -400,37 +439,25 @@
 #'     group1 <- rnorm(N1)
 #'     group2 <- rnorm(N2, sd=sd)
 #'     dat <- data.frame(group = c(rep('g1', N1), rep('g2', N2)), DV = c(group1, group2))
-#'
-#'     return(dat)
+#'     dat
 #' }
 #'
 #' # help(Analyse)
-#' Analyse <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
-#'
-#'     # require packages/define functions if needed, or better yet index with the :: operator
-#'     require(stats)
-#'     mygreatfunction <- function(x) print('Do some stuff')
-#'
-#'     #wrap computational statistics in try() statements to control estimation problems
+#' Analyse <- function(condition, dat, fixed_objects = NULL){
 #'     welch <- t.test(DV ~ group, dat)
 #'     ind <- t.test(DV ~ group, dat, var.equal=TRUE)
 #'
 #'     # In this function the p values for the t-tests are returned,
 #'     #  and make sure to name each element, for future reference
 #'     ret <- c(welch = welch$p.value, independent = ind$p.value)
-#'
-#'     return(ret)
+#'     ret
 #' }
 #'
 #' # help(Summarise)
-#' Summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL){
-#'
+#' Summarise <- function(condition, results, fixed_objects = NULL){
 #'     #find results of interest here (e.g., alpha < .1, .05, .01)
-#'     lessthan.05 <- EDR(results, alpha = .05)
-#'
-#'     # return the results that will be appended to the design input
-#'     ret <- c(lessthan.05=lessthan.05)
-#'     return(ret)
+#'     ret <- EDR(results, alpha = .05)
+#'     ret
 #' }
 #'
 #'
@@ -442,7 +469,7 @@
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' head(Final)
 #'
-#' # didactic demonstration when summarise function is not supplied (returns list of matricies)
+#' # didactic demonstration when summarise function is not supplied (returns list of matrices)
 #' Final2 <- runSimulation(design=Design, replications=5,
 #'                        generate=Generate, analyse=Analyse)
 #' print(Final2[1:3])
@@ -461,7 +488,7 @@
 #' View(Final)
 #'
 #' ## save results to a file upon completion (not run)
-#' # runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
+#' # runSimulation(design=Design, replications=1000, parallel=TRUE, save=TRUE, filename = 'mysim',
 #' #               generate=Generate, analyse=Analyse, summarise=Summarise)
 #'
 #'
@@ -475,17 +502,11 @@
 #'
 #' ## Alternatively, place a browser() within the desired function line to
 #' ##   jump to a specific location
-#' Summarise <- function(condition, results, parameters_list = NULL){
-#'
+#' Summarise <- function(condition, results, fixed_objects = NULL){
 #'     #find results of interest here (e.g., alpha < .1, .05, .01)
-#'     nms <- c('welch', 'independent')
-#'     lessthan.05 <- EDR(results[,nms], alpha = .05)
-#'
+#'     ret <- EDR(results[,nms], alpha = .05)
 #'     browser()
-#'
-#'     # return the results that will be appended to the design input
-#'     ret <- c(lessthan.05=lessthan.05)
-#'     return(ret)
+#'     ret
 #' }
 #'
 #' runSimulation(design=Design, replications=1000,
@@ -530,22 +551,22 @@
 #'
 #' library(dplyr)
 #' Final2 <- tbl_df(Final)
-#' Final2 %>% summarise(mean(lessthan.05.welch), mean(lessthan.05.independent))
+#' Final2 %>% summarise(mean(welch), mean(independent))
 #' Final2 %>% group_by(standard_deviation_ratio, group_size_ratio) %>%
-#'    summarise(mean(lessthan.05.welch), mean(lessthan.05.independent))
+#'    summarise(mean(welch), mean(independent))
 #'
 #' # quick ANOVA analysis method with all two-way interactions
 #' SimAnova( ~ (sample_size + group_size_ratio + standard_deviation_ratio)^2, Final)
 #'
 #' # or more specific anovas
-#' SimAnova(lessthan.05.independent ~ (group_size_ratio + standard_deviation_ratio)^2,
+#' SimAnova(independent ~ (group_size_ratio + standard_deviation_ratio)^2,
 #'     Final)
 #'
 #' # make some plots
 #' library(ggplot2)
 #' library(reshape2)
 #' welch_ind <- Final[,c('group_size_ratio', "standard_deviation_ratio",
-#'     "lessthan.05.welch", "lessthan.05.independent")]
+#'     "welch", "independent")]
 #' dd <- melt(welch_ind, id.vars = names(welch_ind)[1:2])
 #'
 #' ggplot(dd, aes(factor(group_size_ratio), value)) +
@@ -564,12 +585,13 @@
 #' }
 #'
 runSimulation <- function(design, replications, generate, analyse, summarise,
-                          fixed_objects = NULL, parallel = FALSE, packages = NULL,
-                          ncores = parallel::detectCores(), MPI = FALSE,
+                          fixed_objects = NULL, packages = NULL,
+                          filename = 'SimDesign-results',
                           save = FALSE, save_results = FALSE, save_seeds = FALSE,
-                          load_seed = NULL, max_errors = 50, as.factor = TRUE,
-                          cl = NULL, seed = NULL, filename = NULL, save_details = list(),
-                          save_generate_data = FALSE, edit = 'none', verbose = TRUE)
+                          load_seed = NULL, seed = NULL,
+                          parallel = FALSE, ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
+                          max_errors = 50, as.factor = TRUE, save_generate_data = FALSE,
+                          save_details = list(), edit = 'none', verbose = TRUE)
 {
     stopifnot(!missing(generate) || !missing(analyse))
     if(!all(names(save_results) %in%
@@ -584,9 +606,14 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(is.null(save_results_dirname)) save_results_dirname <- paste0('SimDesign-results_', compname)
     if(is.null(save_generate_data_dirname)) save_generate_data_dirname <- paste0('SimDesign-generate-data_', compname)
     if(is.null(save_seeds_dirname)) save_seeds_dirname <- paste0('SimDesign-seeds_', compname)
+    if(!is.null(filename)){
+        if(grepl('\\.rds', filename))
+            filename <- gsub('\\.rds', '', filename)
+    }
+    if(!is.null(cl)) parallel <- TRUE
     summarise_asis <- FALSE
     if(missing(summarise)){
-        summarise <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) results
+        summarise <- function(condition, results, fixed_objects = NULL) results
         summarise_asis <- TRUE
         save_results <- save_generate_data <- FALSE
         stored_time <- 0
@@ -597,12 +624,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!is.null(seed))
         stopifnot(nrow(design) == length(seed))
     edit <- tolower(edit)
+    if(!save && any(save_results, save_generate_data, save_seeds)) filename <- NULL
     for(i in names(Functions)){
         fms <- names(formals(Functions[[i]]))
         truefms <- switch(i,
                           generate  = c('condition', 'fixed_objects'),
-                          analyse = c('dat', 'parameters', 'condition', 'fixed_objects'),
-                          summarise = c('results', 'parameters_list', 'condition', 'fixed_objects'))
+                          analyse = c('dat', 'condition', 'fixed_objects'),
+                          summarise = c('results', 'condition', 'fixed_objects'))
         if(!all(truefms %in% fms))
             stop(paste0('Function arguments for ', i, ' are not correct.'), call. = FALSE)
     }
@@ -619,16 +647,15 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         verbose <- FALSE
     }
     packages <- c('SimDesign', packages)
-    for(i in 1L:length(Functions)){
-        if(names(Functions)[i] == 'summarise') next
-        tmp <- deparse(substitute(Functions[[i]]))
-        if(any(grepl('browser\\(', tmp))){
-            if(verbose && parallel)
-                message('A browser() call was detected.
-                        Parallel processing/object saving will be disabled while visible')
-            save <- save_results <- save_generate_data <- save_seeds <- parallel <- MPI <- FALSE
-        }
+    char_functions <- deparse(substitute(Functions[[i]]))
+    if(any(grepl('browser\\(', char_functions))){
+        if(verbose && parallel)
+            message(paste0('A browser() call was detected. Parallel processing/object ',
+                    'saving will be disabled while visible'))
+        save <- save_results <- save_generate_data <- save_seeds <- parallel <- MPI <- FALSE
     }
+    if(any(grepl('attach\\(', char_functions)))
+        stop('Did you mean to use Attach() instead of attach()?', call.=FALSE)
     if(!is.data.frame(design))
         stop('design must be a data.frame object', call. = FALSE)
     if(replications < 1L)
@@ -674,6 +701,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         Result_list <- readRDS(tmpfilename)
         if(!is.null(Result_list[[1L]]$REPLICATIONS))
             replications <- Result_list[[1L]]$REPLICATIONS
+        if(nrow(design) != length(Result_list))
+            stop(paste0("Number of rows in design input not equal to the length of temp .rds file.",
+                        "Simulations conditions are not identical. Either fix design object or ",
+                        "consider removing temp file and re-running"))
         start <- min(which(sapply(Result_list, is.null)))
         time0 <- time1 - Result_list[[start-1L]]$SIM_TIME
     }
@@ -748,7 +779,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 dir.create(paste0(save_generate_data_dirname, '/design-row-', i), showWarnings = FALSE)
             if(save_seeds)
                 dir.create(paste0(save_seeds_dirname, '/design-row-', i), showWarnings = FALSE)
-            Result_list[[i]] <- data.frame(c(as.list(design[i, ]),
+            Result_list[[i]] <- data.frame(design[i, ],
                                              as.list(Analysis(Functions=Functions,
                                                               condition=design[i,],
                                                               replications=replications,
@@ -761,7 +792,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                                               save_seeds=save_seeds, summarise_asis=summarise_asis,
                                                               save_seeds_dirname=save_seeds_dirname,
                                                               max_errors=max_errors, packages=packages,
-                                                              load_seed=load_seed, export_funs=export_funs))),
+                                                              load_seed=load_seed, export_funs=export_funs)),
                                            check.names=FALSE)
             time1 <- proc.time()[3]
             Result_list[[i]]$SIM_TIME <- time1 - time0
@@ -814,6 +845,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     dn <- dn[dn != 'ID']
     if(as.factor){
         Final[dn] <- lapply(Final[dn], function(x){
+            if(is.list(x)) return(x)
             if(is.numeric(x)) return(ordered(x))
                 else return(factor(x))
             })
@@ -835,7 +867,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                       ncores = if(parallel) length(cl) else if(MPI) NA else 1,
                                       number_of_conditions = nrow(design),
                                       date_completed = date(), total_elapsed_time = sum(Final$SIM_TIME))
-    if(!is.null(filename)){ #save file
+    if(!is.null(filename) && save){ #save file
         if(verbose)
             message(paste('\nSaving simulation results to file:', filename))
         saveRDS(Final, filename)
@@ -846,17 +878,16 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
 
 #' @rdname runSimulation
 #' @param x SimDesign object returned from \code{\link{runSimulation}}
-#' @param errors logical; print the errors (if applicable)? Default is \code{TRUE}
-#' @param warnings logical; print the warnings (if applicable)? Default is \code{TRUE}
-#' @param reps logical; print the replications?
-#' @param time logical; print the SIM_TIME?
+#' @param drop.extras logical; don't print information about warnings, errors, simulation time, and replications?
+#'   Default is \code{FALSE}
+#' @param drop.design logical; don't include information about the (potentially factorized) simulation design?
+#'   This may be useful if you wish to \code{cbind()} the original design \code{data.frame} to the simulation
+#'   results instead of using the auto-factorized version. Default is \code{FALSE}
 #' @export
-print.SimDesign <- function(x, errors = TRUE, warnings = TRUE, reps = TRUE, time = TRUE, ...){
+print.SimDesign <- function(x, drop.extras = FALSE, drop.design = FALSE, ...){
     att <- attr(x, 'design_names')
-    if(!errors) x <- x[,!(names(x) %in% att$errors), drop=FALSE]
-    if(!warnings) x <- x[,!(names(x) %in% att$warnings), drop=FALSE]
-    if(!time) x$SIM_TIME <- NULL
-    if(!reps) x$REPLICATIONS <- NULL
+    if(drop.extras) x <- x[ ,c(att$design, att$sim), drop=FALSE]
+    if(drop.design) x <- x[ ,!(names(x) %in% att$design), drop=FALSE]
     class(x) <- 'data.frame'
     ldots <- list(...)
     if(is.null(ldots$print)) print(x)
@@ -867,6 +898,7 @@ print.SimDesign <- function(x, errors = TRUE, warnings = TRUE, reps = TRUE, time
 #' @export
 head.SimDesign <- function(x, ...){
     x <- print(x, print = FALSE, ...)
+    class(x) <- 'data.frame'
     head(x, ...)
 }
 
@@ -874,6 +906,7 @@ head.SimDesign <- function(x, ...){
 #' @export
 tail.SimDesign <- function(x, ...){
     x <- print(x, print = FALSE, ...)
+    class(x) <- 'data.frame'
     tail(x, ...)
 }
 

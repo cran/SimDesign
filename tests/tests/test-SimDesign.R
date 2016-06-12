@@ -11,19 +11,20 @@ test_that('SimDesign', {
 
     mysim <- function(condition, fixed_objects = NULL){
 
-        N1 <- condition$sample_sizes_group1
+        Attach(condition)
+
+        N1 <- sample_sizes_group1
         N2 <- condition$sample_sizes_group2
         sd <- condition$standard_deviations
 
         group1 <- rnorm(N1)
         group2 <- rnorm(N2, sd=sd)
         dat <- data.frame(group = c(rep('g1', N1), rep('g2', N2)), DV = c(group1, group2))
-        pars <- list(random_number = rnorm(1)) # just a silly example of a simulated parameter
 
-        return(list(dat=dat, parameters=pars))
+        return(dat)
     }
 
-    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL){
 
         #wrap computational statistics in try() statements to control estimation problems
         welch <- t.test(DV ~ group, dat)
@@ -37,7 +38,7 @@ test_that('SimDesign', {
         return(ret)
     }
 
-    mycompute2 <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+    mycompute2 <- function(condition, dat, fixed_objects = NULL){
 
         if(condition$standard_deviations == 4) stop('error')
 
@@ -53,31 +54,31 @@ test_that('SimDesign', {
         return(ret)
     }
 
-    mycollect <-  function(condition, results, fixed_objects = NULL, parameters_list = NULL){
+    mycollect <-  function(condition, results, fixed_objects = NULL){
 
         # handy functions
         bias <- function(observed, population) mean(observed - population)
         RMSD <- function(observed, population) sqrt(mean((observed - population)^2))
-
-        # silly test for bias and RMSD of a random number from 0
-        pop_value <- 0
-        bias.random_number <- bias(sapply(parameters_list, function(x) x$random_number), pop_value)
-        RMSD.random_number <- RMSD(sapply(parameters_list, function(x) x$random_number), pop_value)
 
         #find results of interest here
         nms <- c('welch', 'independent')
         lessthan.05 <- EDR(results[,nms], alpha = .05)
 
         # return the results that will be appended to the Design input
-        ret <- c(bias.random_number=bias.random_number,
-                 RMSD.random_number=RMSD.random_number,
-                 lessthan.05=lessthan.05)
+        ret <- c(lessthan.05=lessthan.05)
         return(ret)
     }
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                            replications = 2, parallel=FALSE, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
+
+    mycollect <-  function(condition, results, fixed_objects = NULL){
+
+        # return the results that will be appended to the Design input
+        ret <- EDR(results, .05)
+        return(ret)
+    }
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                            replications = 2, parallel=FALSE, save=FALSE, verbose = FALSE)
@@ -128,7 +129,7 @@ test_that('SimDesign', {
     expect_equal(tmp[1, ]$bias.random_number, tmp2[1, ]$bias.random_number, tollerance = 1e-4)
     SimClean(seeds = TRUE)
 
-    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL){
 
         if(runif(1, 0, 1) < .9) t.test('char')
         if(runif(1, 0, 1) < .9) aov('char')
@@ -153,10 +154,10 @@ test_that('SimDesign', {
 
     # aggregate test
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                         replications = 2, parallel=FALSE, filename='this',
+                         replications = 2, parallel=FALSE, filename='this', save=TRUE,
                          max_errors=Inf, verbose = FALSE)
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, max_errors=Inf,
-                         replications = 2, parallel=FALSE, filename = 'newfile',
+                         replications = 2, parallel=FALSE, filename = 'newfile', save=TRUE,
                          verbose = FALSE)
     Final <- aggregate_simulations()
     expect_is(Final, 'data.frame')
@@ -171,11 +172,11 @@ test_that('SimDesign', {
     files <- dir(DIR)
     expect_equal(length(files), 8L)
     x <- readRDS(paste0(DIR, '/', files[1]))
-    expect_true(all(names(x) %in% c('condition', 'results', 'errors')))
+    expect_true(all(names(x) %in% c('condition', 'results', 'errors', 'warnings')))
     SimClean(results = TRUE)
 
     # error test
-    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL){
         stop('this error')
     }
     expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
@@ -183,7 +184,7 @@ test_that('SimDesign', {
     expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                            replications = 1, parallel=TRUE, save=FALSE, ncores = 2, verbose = FALSE))
 
-    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL){
         ret <- does_not_exist(TRUE)
         ret
     }
@@ -199,13 +200,13 @@ test_that('SimDesign', {
                                replications = 1, parallel=FALSE, save=FALSE, verbose = FALSE))
 
 
-    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL){
         c(ret = 1)
     }
     mygenerate <- function(condition, fixed_objects = NULL){
         rmvnorm(5, sigma = matrix(1))
     }
-    mycollect <- function(condition, results, fixed_objects = NULL, parameters_list = NULL) {
+    mycollect <- function(condition, results, fixed_objects = NULL) {
         colMeans(results)
     }
     expect_error(runSimulation(Design, replications = 1,
@@ -224,7 +225,7 @@ test_that('SimDesign', {
     expect_is(out2, 'SimDesign')
 
     # warnings
-    mycompute <- function(condition, dat, fixed_objects = NULL, parameters = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL){
         if(sample(c(FALSE, TRUE), 1)) log(-1)
         if(sample(c(FALSE, TRUE), 1)) log(-2)
         c(ret = 1)
@@ -237,6 +238,91 @@ test_that('SimDesign', {
                   generate=mygenerate, analyse=mycompute, summarise=mycollect,
                   parallel=TRUE, save=FALSE, verbose = FALSE)
     expect_true(any(grepl('WARNING:', names(results))))
+
+    #aggregate different files
+    mycompute2 <- function(condition, dat, fixed_objects = NULL){
+        if(sample(c(FALSE, TRUE), 1, prob = c(.9, .1))) stop('error')
+        c(ret = 1)
+    }
+    mycompute3 <- function(condition, dat, fixed_objects = NULL){
+        c(ret = 1)
+    }
+    set.seed(1)
+    results <- runSimulation(Design, replications = 2, packages = 'mvtnorm',
+                  generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                  parallel=FALSE, save_results = TRUE, verbose = FALSE,
+                  save_details = list(save_results_dirname = 'dir1'))
+    results <- runSimulation(Design, replications = 2, packages = 'mvtnorm',
+                  generate=mygenerate, analyse=mycompute2, summarise=mycollect,
+                  parallel=FALSE, save_results = TRUE, verbose = FALSE,
+                  save_details = list(save_results_dirname = 'dir2'))
+    results <- runSimulation(Design, replications = 2, packages = 'mvtnorm',
+                             generate=mygenerate, analyse=mycompute3, summarise=mycollect,
+                             parallel=FALSE, save_results = TRUE, verbose = FALSE,
+                             save_details = list(save_results_dirname = 'dir3'))
+    aggregate_simulations(dirs = c('dir1', 'dir2', 'dir3'))
+    expect_true(dir.exists('SimDesign_aggregate_results'))
+    expect_equal(6, nrow(readRDS('SimDesign_aggregate_results/results-row-1.rds')$results))
+    SimClean(dirs = c('SimDesign_aggregate_results','dir1', 'dir2', 'dir3'))
+
+    mycompute <- function(condition, dat, fixed_objects = NULL){
+        if(sample(c(FALSE, TRUE), 1, prob = c(.9, .1))) stop('error')
+        list(ret = 1)
+    }
+    mycollect <- function(condition, results, fixed_objects = NULL) {
+        c(ret=1)
+    }
+    results <- runSimulation(Design, replications = 2, packages = 'mvtnorm',
+                             generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                             parallel=FALSE, save_results = TRUE, verbose = FALSE,
+                             save_details = list(save_results_dirname = 'dir1'))
+    results <- runSimulation(Design, replications = 2, packages = 'mvtnorm',
+                             generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                             parallel=FALSE, save_results = TRUE, verbose = FALSE,
+                             save_details = list(save_results_dirname = 'dir2'))
+    aggregate_simulations(dirs = c('dir1', 'dir2'))
+    expect_true(dir.exists('SimDesign_aggregate_results'))
+    expect_equal(4, length(readRDS('SimDesign_aggregate_results/results-row-1.rds')$results))
+    SimClean(dirs = c('SimDesign_aggregate_results','dir1', 'dir2'))
+
+    # NAs
+    mycompute <- function(condition, dat, fixed_objects = NULL){
+        ret <- c(ret = sample(c(NA, 1), 1, prob = c(.1, .9)))
+        ret
+    }
+
+    results <- runSimulation(Design, replications = 10, packages = 'mvtnorm', seed=1:nrow(Design),
+                             generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                             parallel=FALSE, save=FALSE, verbose = FALSE)
+    expect_equal(names(results)[5], "ERROR: .Error : The following return NA/NaN and required redrawing: ret\n")
+    expect_equal(results[,5], c(NA, NA, NA, 2, 1, 3, NA, 2))
+
+    #data.frame test
+    mysim <- function(condition, fixed_objects = NULL){
+        N1 <- condition$sample_sizes_group1
+        N2 <- condition$sample_sizes_group2
+        sd <- condition$standard_deviations
+        group1 <- rnorm(N1)
+        group2 <- rnorm(N2, sd=sd)
+        dat <- data.frame(group = c(rep('g1', N1), rep('g2', N2)), DV = c(group1, group2))
+        dat
+    }
+
+    mycompute <- function(condition, dat, fixed_objects = NULL){
+        welch <- t.test(DV ~ group, dat)
+        ind <- stats::t.test(DV ~ group, dat, var.equal=TRUE)
+        ret <- data.frame(welch = welch$p.value, independent = ind$p.value)
+        ret
+    }
+
+    mycollect <-  function(condition, results, fixed_objects = NULL){
+        ret <- EDR(results, alpha = .05)
+        ret
+    }
+
+    Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                           replications = 2, parallel=FALSE, save=FALSE, verbose = FALSE)
+    expect_is(Final, 'data.frame')
 
 })
 
