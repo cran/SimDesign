@@ -9,6 +9,7 @@
 #' For convenience, all functions available in the R workspace are exported across all computational nodes
 #' so that they are more easily accessible (however, other R objects are not, and therefore
 #' must be passed to the \code{fixed_objects} input to become available across nodes).
+#' For a didactic presentation of the package refer to Sigal and Chalmers (in press).
 #'
 #' The strategy for organizing the Monte Carlo simulation work-flow is to
 #'
@@ -407,6 +408,10 @@
 #'
 #' @export runSimulation
 #'
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (in press). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education}.
+#'
 #' @examples
 #'
 #' # skeleton functions to be saved and edited
@@ -619,7 +624,11 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         stored_time <- 0
     }
     Functions <- list(generate=generate, analyse=analyse, summarise=summarise)
-    stopifnot(!missing(design))
+    dummy_run <- FALSE
+    if(missing(design)){
+        design <- data.frame(dummy_run=NA)
+        dummy_run <- TRUE
+    }
     stopifnot(!missing(replications))
     if(!is.null(seed))
         stopifnot(nrow(design) == length(seed))
@@ -921,6 +930,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         saveRDS(Final, filename)
     }
     if(save || save_results || save_generate_data || save_seeds) file.remove(tmpfilename)
+    if(dummy_run) Final$dummy_run <- NULL
     return(Final)
 }
 

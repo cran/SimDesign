@@ -85,7 +85,8 @@ test_that('SimDesign', {
     expect_is(Final, 'data.frame')
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
+                           replications = parallel::detectCores(),
+                           parallel=TRUE, ncores=2L, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
 
     # resume
@@ -100,9 +101,11 @@ test_that('SimDesign', {
 
     #seeds
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
-                           replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
+                           replications = parallel::detectCores(),
+                           parallel=TRUE, ncores=2L, save=FALSE, verbose = FALSE)
     Final2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
-                           replications = parallel::detectCores(), parallel=TRUE, save=FALSE, verbose = FALSE)
+                           replications = parallel::detectCores(),
+                           parallel=TRUE, ncores=2L, save=FALSE, verbose = FALSE)
     expect_equal(Final$bias.random_number, Final2$bias.random_number, tolerance=1e-6)
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
                            replications = parallel::detectCores(), parallel=FALSE, save=FALSE, verbose = FALSE)
@@ -182,7 +185,8 @@ test_that('SimDesign', {
     expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                                replications = 1, parallel=FALSE, save=FALSE, verbose = FALSE))
     expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = 1, parallel=TRUE, save=FALSE, ncores = 2, verbose = FALSE))
+                           replications = 1, parallel=TRUE, ncores=2L,
+                           save=FALSE, ncores = 2, verbose = FALSE))
 
     mycompute <- function(condition, dat, fixed_objects = NULL){
         ret <- does_not_exist(TRUE)
@@ -191,7 +195,8 @@ test_that('SimDesign', {
     expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                                replications = 1, parallel=FALSE, save=FALSE, verbose = FALSE))
     expect_error(runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                               replications = 1, parallel=TRUE, save=FALSE, verbose = FALSE))
+                               replications = 1, parallel=TRUE, ncores=2L,
+                               save=FALSE, verbose = FALSE))
 
     mysim <- function(condition, fixed_objects = NULL){
         stop('something silly', call.=FALSE)
@@ -236,7 +241,7 @@ test_that('SimDesign', {
     expect_true(any(grepl('WARNING:', names(results))))
     results <- runSimulation(Design, replications = 1, packages = 'mvtnorm',
                   generate=mygenerate, analyse=mycompute, summarise=mycollect,
-                  parallel=TRUE, save=FALSE, verbose = FALSE)
+                  parallel=TRUE, ncores=2L, save=FALSE, verbose = FALSE)
     expect_true(any(grepl('WARNING:', names(results))))
 
     #aggregate different files
@@ -324,5 +329,40 @@ test_that('SimDesign', {
                            replications = 2, parallel=FALSE, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
 
+    # dummy run with no design
+    Generate <- function(condition, fixed_objects = NULL)
+        rnorm(100, mean = 10)
+    Analyse <- function(condition, dat, fixed_objects = NULL)
+        t.test(dat)$conf.int
+    Analyse2 <- function(condition, dat, fixed_objects = NULL){
+        CIs <- t.test(dat)$conf.int
+        names(CIs) <- c('lower', 'upper')
+        CIs
+    }
+    Summarise <- function(condition, results, fixed_objects = NULL)
+        ECR(results, 10)
+
+    results <- runSimulation(replications = 10, generate = Generate,
+                             analyse=Analyse, verbose=FALSE)
+    expect_is(results, 'matrix')
+    expect_equal(ncol(results), 2L)
+
+    results <- runSimulation(replications = 10, generate = Generate,
+                             analyse=Analyse2, summarise = Summarise, verbose=FALSE)
+    expect_is(results, 'data.frame')
+    expect_equal(ncol(results), 3L)
+
+    # dummy run with no design and returning lists
+    Generate <- function(condition, fixed_objects = NULL)
+        rnorm(100, mean = 10)
+    Analyse <- function(condition, dat, fixed_objects = NULL){
+        ret <- list(val1=0, val2=t.test(dat)$conf.int)
+        ret
+    }
+    results <- runSimulation(replications = 10, generate = Generate,
+                             analyse=Analyse, verbose=FALSE)
+    expect_equal(length(results), 10L)
+    expect_equal(length(results[[1L]]), 2L)
+    expect_equal(length(results[[1L]][[2]]), 2L)
 })
 

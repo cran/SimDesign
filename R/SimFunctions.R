@@ -2,8 +2,10 @@
 #'
 #' This function prints skeleton versions of the required functions and work-flow required
 #' to run simulations, complete with the correct inputs, class of outputs, and option comments to
-#' help with the initial definitions. Use this at the start
-#' when defining your simulation.
+#' help with the initial definitions. Use this at the start when defining your simulation. The
+#' recommended approach when using the \code{RStudio} IDE is to write the simulation template to two
+#' separate files for easier debugging/sourcing.
+#' For a didactic presentation of the package refer to Sigal and Chalmers (in press).
 #'
 #' The function \code{SimDesign_functions} is deprecated and will be
 #' removed in a future release.
@@ -24,6 +26,10 @@
 #'
 #' @export SimFunctions
 #'
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (in press). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education}.
+#'
 #' @examples
 #'
 #' SimFunctions()
@@ -31,11 +37,11 @@
 #'
 #'\dontrun{
 #'
-#' # write output to two files and include helpful comments
-#' SimFunctions('mysim', comments = TRUE)
+#' # write output to two files (recommended)
+#' SimFunctions('mysim')
 #'
-#' # write output files to a single file without comments
-#' SimFunctions('mysim', singlefile = TRUE)
+#' # write output files to a single file with comments
+#' SimFunctions('mysim', singlefile = TRUE, comments = TRUE)
 #' }
 #'
 SimFunctions <- function(filename = NULL, comments = FALSE, singlefile = FALSE, summarise = TRUE){
