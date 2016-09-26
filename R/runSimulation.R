@@ -392,6 +392,10 @@
 #'   but will not be run when \code{MPI = TRUE}.
 #'   Default is \code{NULL}, indicating that no seed is set for each condition
 #'
+#' @param progress logical; display a progress bar for each simulation condition?
+#'   This is useful when simulations conditions take a long time to run.
+#'   Uses the \code{pbapply} package to display the progress. Default is \code{FALSE}
+#'
 #' @param verbose logical; print messages to the R console? Default is \code{TRUE}
 #'
 #' @return a \code{data.frame} (also of class \code{'SimDesign'})
@@ -596,7 +600,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           load_seed = NULL, seed = NULL,
                           parallel = FALSE, ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
                           max_errors = 50, as.factor = TRUE, save_generate_data = FALSE,
-                          save_details = list(), edit = 'none', verbose = TRUE)
+                          save_details = list(), edit = 'none', progress = FALSE, verbose = TRUE)
 {
     stopifnot(!missing(generate) || !missing(analyse))
     if(!all(names(save_results) %in%
@@ -629,6 +633,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         design <- data.frame(dummy_run=NA)
         dummy_run <- TRUE
     }
+    if(nrow(design) == 1L) verbose <- FALSE
     stopifnot(!missing(replications))
     if(!is.null(seed))
         stopifnot(nrow(design) == length(seed))
@@ -799,11 +804,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         c(save_generate_data_dirname=save_generate_data_dirname,
           save_results_dirname=save_results_dirname,
           save_seeds_dirname=save_seeds_dirname)
+    if(progress) verbose <- TRUE
     for(i in start:end){
         if(summarise_asis){
             if(verbose)
-                cat(sprintf('\rCompleted: %i%s,   Previous condition time: %.1f,  Total elapsed time: %.1f ',
-                            round((i-1)/(nrow(design))*100), '%', time1 - time0, sum(stored_time)))
+                print_progress(i, nrow(design), time1=time1, time0=time0,
+                               stored_time=stored_time, progress=progress)
             time0 <- proc.time()[3]
             Result_list[[i]] <- Analysis(Functions=Functions,
                                          condition=design[i,],
@@ -817,14 +823,15 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          save_seeds=save_seeds, summarise_asis=summarise_asis,
                                          save_seeds_dirname=save_seeds_dirname,
                                          max_errors=max_errors, packages=packages,
-                                         load_seed=load_seed, export_funs=export_funs)
+                                         load_seed=load_seed, export_funs=export_funs,
+                                         progress=progress)
             time1 <- proc.time()[3]
             stored_time <- stored_time + (time1 - time0)
         } else {
             stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
             if(verbose)
-                cat(sprintf('\rCompleted: %i%s,   Previous condition time: %.1f,  Total elapsed time: %.1f ',
-                            round((i-1)/(nrow(design))*100), '%', time1 - time0, sum(stored_time)))
+                print_progress(i, nrow(design), time1=time1, time0=time0,
+                               stored_time=stored_time, progress=progress)
             time0 <- proc.time()[3]
             if(save_generate_data)
                 dir.create(paste0(save_generate_data_dirname, '/design-row-', i), showWarnings = FALSE)
@@ -843,7 +850,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                                               save_seeds=save_seeds, summarise_asis=summarise_asis,
                                                               save_seeds_dirname=save_seeds_dirname,
                                                               max_errors=max_errors, packages=packages,
-                                                              load_seed=load_seed, export_funs=export_funs)),
+                                                              load_seed=load_seed, export_funs=export_funs,
+                                                              progress=progress)),
                                            check.names=FALSE)
             time1 <- proc.time()[3]
             Result_list[[i]]$SIM_TIME <- time1 - time0
@@ -853,8 +861,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     attr(Result_list, 'SimDesign_names') <- NULL
     if(summarise_asis){
         if(verbose)
-            cat(sprintf('\rCompleted: %i%s,   Previous condition time: %.1f,  Total elapsed time: %.1f ',
-                        100, '%', time1 - time0, sum(stored_time)))
+            print_progress(nrow(design), nrow(design), time1=time1, time0=time0,
+                           stored_time=stored_time, progress=progress)
         design$ID <- NULL
         nms <- colnames(design)
         nms2 <- matrix(character(0), nrow(design), ncol(design))
@@ -867,8 +875,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
     if(verbose)
-        cat(sprintf('\rCompleted: %i%s,   Previous condition time: %.1f,  Total elapsed time: %.1f ',
-                    100, '%', time1 - time0, sum(stored_time)))
+        print_progress(nrow(design), nrow(design), time1=time1, time0=time0,
+                       stored_time=stored_time, progress=progress)
     Final <- plyr::rbind.fill(Result_list)
     SIM_TIME <- Final$SIM_TIME
     REPLICATIONS <- Final$REPLICATIONS
@@ -941,12 +949,16 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
 #' @param drop.design logical; don't include information about the (potentially factorized) simulation design?
 #'   This may be useful if you wish to \code{cbind()} the original design \code{data.frame} to the simulation
 #'   results instead of using the auto-factorized version. Default is \code{FALSE}
+#' @param format.time logical; format \code{SIM_TIME} into a day/hour/min/sec character vector? Default is
+#'   \code{TRUE}
 #' @export
-print.SimDesign <- function(x, drop.extras = FALSE, drop.design = FALSE, ...){
+print.SimDesign <- function(x, drop.extras = FALSE, drop.design = FALSE, format.time = TRUE, ...){
     att <- attr(x, 'design_names')
     if(drop.extras) x <- x[ ,c(att$design, att$sim), drop=FALSE]
     if(drop.design) x <- x[ ,!(names(x) %in% att$design), drop=FALSE]
     class(x) <- 'data.frame'
+    if(format.time)
+        x$SIM_TIME <- sapply(x$SIM_TIME, timeFormater, TRUE)
     ldots <- list(...)
     if(is.null(ldots$print)) print(x, ...)
     else return(x)
@@ -974,5 +986,6 @@ tail.SimDesign <- function(x, ...){
 #' @export
 summary.SimDesign <- function(object, ...){
     ret <- attr(object, 'extra_info')
+    ret$total_elapsed_time <- timeFormater(ret$total_elapsed_time, TRUE)
     ret
 }
