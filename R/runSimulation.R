@@ -239,12 +239,13 @@
 #' @param analyse user-defined computation function which acts on the data generated from
 #'   \code{\link{Generate}}. See \code{\link{Analyse}} for details
 #'
-#' @param summarise (optional but recommended) user-defined summary function to be used
+#' @param summarise optional (but recommended) user-defined summary function to be used
 #'   after all the replications have completed within each \code{design} condition. Omitting this function
 #'   will return a list of matrices (or a single matrix, if only one row in \code{design} is supplied)
-#'   containing only the results returned form \code{\link{Analyse}}.
+#'   or more general objects (such as lists) containing the results returned form \code{\link{Analyse}}.
 #'   Ommiting this function is only recommended for didactic purposes because it leaves out a large amount of
-#'   information and generally is not as flexible internally
+#'   information (e.g., try-errors, warning messages, etc) and generally is not as flexible internally. See
+#'   the \code{save_results} option for a better alternative to storing the Generate-Analyse results
 #'
 #' @param replications number of replication to perform per condition (i.e., each row in \code{design}).
 #'   Must be greater than 0
@@ -284,7 +285,8 @@
 #'   results (as a \code{list} or \code{matrix}), and try-errors. When \code{TRUE}, a temp file will be used to track the simulation
 #'   state (in case of power outages, crashes, etc). When \code{TRUE}, temporary files will also be saved
 #'   to the working directory (in the same was as when \code{save = TRUE} to better track the state of the simulation.
-#'   Default is \code{FALSE}
+#'   See \code{\link{SimResults}} for an example of how to read these \code{.rds} files back into R
+#'   after the simulation is complete. Default is \code{FALSE}
 #'
 #' @param save_seeds logical; save the \code{.Random.seed} states prior to performing each replication into
 #'   plain text files located in the defined \code{save_seeds_dirname} directory/folder?
@@ -407,7 +409,7 @@
 #' @aliases runSimulation
 #'
 #' @seealso \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
-#'   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}},
+#'   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
 #'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}
 #'
 #' @export runSimulation
@@ -418,12 +420,93 @@
 #'
 #' @examples
 #'
+#' #-------------------------------------------------------------------------------
+#' # Example 1: Sampling distribution of mean
+#'
+#' # This example demonstrate some of the simpler uses of SimDesign,
+#' # particularly for classroom settings. The only factor varied in this simulation
+#' # is sample size.
+#'
 #' # skeleton functions to be saved and edited
 #' SimFunctions()
 #'
 #' #### Step 1 --- Define your conditions under study and create design data.frame
 #'
-#' # (use EXPLICIT names, avoid things like N <- 100. That's fine in functions, not here)
+#' Design <- data.frame(N = c(10, 20, 30))
+#'
+#' #~~~~~~~~~~~~~~~~~~~~~~~~
+#' #### Step 2 --- Define generate, analyse, and summarise functions
+#'
+#' # help(Generate)
+#' Generate <- function(condition, fixed_objects = NULL){
+#'     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
+#'     dat
+#' }
+#'
+#' # help(Analyse)
+#' Analyse <- function(condition, dat, fixed_objects = NULL){
+#'     ret <- mean(dat) # mean of the sample data vector
+#'     ret
+#' }
+#'
+#' # help(Summarise)
+#' Summarise <- function(condition, results, fixed_objects = NULL){
+#'     ret <- c(mu=mean(results), SE=sd(results)) # mean and SD summary of the sample means
+#'     ret
+#' }
+#'
+#'
+#' #~~~~~~~~~~~~~~~~~~~~~~~~
+#' #### Step 3 --- Collect results by looping over the rows in design
+#'
+#' # run the simulation
+#' Final <- runSimulation(design=Design, replications=1000,
+#'                        generate=Generate, analyse=Analyse, summarise=Summarise)
+#' Final
+#'
+#'
+#' #~~~~~~~~~~~~~~~~~~~~~~~~
+#' #### Extras
+#' # compare SEs estimates to the true SEs from the formula sigma/sqrt(N)
+#' 5 / sqrt(Design$N)
+#'
+#' # To store the results from the analyse function either
+#' #   a) omit a definition of of summarise(), or
+#' #   b) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
+#'
+#' # e.g., the a) approach
+#' results <- runSimulation(design=Design, replications=1000,
+#'                        generate=Generate, analyse=Analyse)
+#' str(results)
+#' head(results[[1]])
+#'
+#' # or b) approach
+#' Final <- runSimulation(design=Design, replications=1000, save_results=TRUE,
+#'                        generate=Generate, analyse=Analyse, summarise=Summarise)
+#' results <- SimResults(Final)
+#' str(results)
+#' head(results[[1]]$results)
+#'
+#' # remove the saved results from the hard-drive if you no longer want them
+#' SimClean(results = TRUE)
+#'
+#'
+#'
+#'
+#' #-------------------------------------------------------------------------------
+#' # Example 2: t-test and Welch test when varying sample size, group sizes, and SDs
+#'
+#' # skeleton functions to be saved and edited
+#' SimFunctions()
+#'
+#' \dontrun{
+#' # in real-world simulations it's often better/easier to save
+#' # these functions directly to your hard-drive with
+#' SimFunctions('my-simulation')
+#' }
+#'
+#' #### Step 1 --- Define your conditions under study and create design data.frame
+#'
 #' Design <- expand.grid(sample_size = c(30, 60, 90, 120),
 #'                       group_size_ratio = c(1, 4, 8),
 #'                       standard_deviation_ratio = c(.5, 1, 2))
@@ -433,7 +516,6 @@
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Step 2 --- Define generate, analyse, and summarise functions
 #'
-#' # help(Generate)
 #' Generate <- function(condition, fixed_objects = NULL){
 #'     N <- condition$sample_size      # alternatively, could use Attach() to make objects available
 #'     grs <- condition$group_size_ratio
@@ -451,7 +533,6 @@
 #'     dat
 #' }
 #'
-#' # help(Analyse)
 #' Analyse <- function(condition, dat, fixed_objects = NULL){
 #'     welch <- t.test(DV ~ group, dat)
 #'     ind <- t.test(DV ~ group, dat, var.equal=TRUE)
@@ -462,7 +543,6 @@
 #'     ret
 #' }
 #'
-#' # help(Summarise)
 #' Summarise <- function(condition, results, fixed_objects = NULL){
 #'     #find results of interest here (e.g., alpha < .1, .05, .01)
 #'     ret <- EDR(results, alpha = .05)
@@ -473,21 +553,10 @@
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Step 3 --- Collect results by looping over the rows in design
 #'
-#' # test to see if it works and for debugging
+#' # first, test to see if it works
 #' Final <- runSimulation(design=Design, replications=5,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' head(Final)
-#'
-#' # didactic demonstration when summarise function is not supplied (returns list of matrices)
-#' Final2 <- runSimulation(design=Design, replications=5,
-#'                        generate=Generate, analyse=Analyse)
-#' print(Final2[1:3])
-#'
-#' # or a single condition
-#' Final3 <- runSimulation(design=Design[1, ], replications=5,
-#'                        generate=Generate, analyse=Analyse)
-#' Final3
-#'
 #'
 #' \dontrun{
 #' # complete run with 1000 replications per condition
@@ -496,9 +565,9 @@
 #' head(Final, digits = 3)
 #' View(Final)
 #'
-#' ## save results to a file upon completion (not run)
-#' # runSimulation(design=Design, replications=1000, parallel=TRUE, save=TRUE, filename = 'mysim',
-#' #               generate=Generate, analyse=Analyse, summarise=Summarise)
+#' ## save final results to a file upon completion (not run)
+#' runSimulation(design=Design, replications=1000, parallel=TRUE, save=TRUE, filename = 'mysim',
+#'               generate=Generate, analyse=Analyse, summarise=Summarise)
 #'
 #'
 #'
@@ -554,9 +623,9 @@
 #' #                        generate=Generate, analyse=Analyse, summarise=Summarise, cl=cl)
 #'
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
-#' # Step 4 --- Post-analysis: Create a new R file for analyzing the Final data.frame with R based
-#' # regression stuff, so use the lm() function to find main effects, interactions, plots, etc.
-#' # This is where you get to be a data analyst!
+#' ###### Post-analysis: Analyze the results via functions like lm() or SimAnova(), and create
+#' ###### tables(dplyr) or plots (ggplot2) to help visualize the results.
+#' ###### This is where you get to be a data analyst!
 #'
 #' library(dplyr)
 #' Final2 <- tbl_df(Final)
@@ -620,6 +689,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             filename <- gsub('\\.rds', '', filename)
     }
     if(!is.null(cl)) parallel <- TRUE
+    edit <- tolower(edit)
     summarise_asis <- FALSE
     if(missing(summarise)){
         summarise <- function(condition, results, fixed_objects = NULL) results
@@ -870,13 +940,15 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             nms2[,i] <- paste0(nms[i], '=', design[,i], if(i < ncol(design)) '; ')
         nms2 <- apply(nms2, 1, paste0, collapse='')
         names(Result_list) <- nms2
+        if(is.list(Result_list[[1L]][[1L]]))
+            for(i in 1L:length(Result_list))
+                attr(Result_list[[i]][[1L]], 'try_errors') <- NULL
         if(nrow(design) == 1L) Result_list <- Result_list[[1L]]
         return(Result_list)
     }
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
     if(verbose)
-        print_progress(nrow(design), nrow(design), time1=time1, time0=time0,
-                       stored_time=stored_time, progress=progress)
+        message('\nSimulation complete. Total execution time: ', timeFormater(sum(stored_time)))
     Final <- plyr::rbind.fill(Result_list)
     SIM_TIME <- Final$SIM_TIME
     REPLICATIONS <- Final$REPLICATIONS
@@ -923,12 +995,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             versions[i] <- as.character(packageVersion(pack[i]))
         pack_vers <- data.frame(packages=pack, versions=versions)
     } else pack_vers <- NULL
+    pick <- c(save_generate_data, save_results, save_seeds)
+    if(!is.null(filename)) pick <- c(save, pick)
     attr(Final, 'extra_info') <- list(sessionInfo = sessionInfo(), packages=pack_vers,
                                       save_info = c(filename=filename,
                                                     save_generate_data_dirname=save_generate_data_dirname,
                                                     save_results_dirname=save_results_dirname,
-                                                    save_seeds_dirname=save_seeds_dirname)[
-                                                            c(save, save_generate_data, save_results, save_seeds)],
+                                                    save_seeds_dirname=save_seeds_dirname)[pick],
                                       ncores = if(parallel) length(cl) else if(MPI) NA else 1,
                                       number_of_conditions = nrow(design),
                                       date_completed = date(), total_elapsed_time = sum(Final$SIM_TIME))
