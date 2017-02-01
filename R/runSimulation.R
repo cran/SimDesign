@@ -9,7 +9,7 @@
 #' For convenience, all functions available in the R workspace are exported across all computational nodes
 #' so that they are more easily accessible (however, other R objects are not, and therefore
 #' must be passed to the \code{fixed_objects} input to become available across nodes).
-#' For a didactic presentation of the package refer to Sigal and Chalmers (in press).
+#' For a didactic presentation of the package refer to Sigal and Chalmers (2016).
 #'
 #' The strategy for organizing the Monte Carlo simulation work-flow is to
 #'
@@ -41,7 +41,9 @@
 #' Additional information for each condition are also contained in the \code{data.frame} object returned by
 #' \code{runSimulation}: \code{REPLICATIONS} to indicate the number of Monte Carlo replications,
 #' \code{SIM_TIME} to indicate how long (in seconds) it took to complete
-#' all the Monte Carlo replications for each respective design condition, \code{SEED} if the \code{seed} argument
+#' all the Monte Carlo replications for each respective design condition,
+#' \code{COMPLETED} to indicate the date in which the given simulation condition completed,
+#' \code{SEED} if the \code{seed} argument
 #' was used, columns containing the number of replications which had to be re-run due to errors (where the error messages
 #' represent the names of the columns prefixed with a \code{ERROR:} string), and
 #' columns containing the number of warnings prefixed with a \code{WARNING:} string.
@@ -403,20 +405,20 @@
 #' @return a \code{data.frame} (also of class \code{'SimDesign'})
 #'   with the original \code{design} conditions in the left-most columns,
 #'   simulation results and ERROR/WARNING's (if applicable) in the middle columns,
-#'   and additional information (such as REPLICATIONS, SIM_TIME, and SEED) in the right-most
+#'   and additional information (such as REPLICATIONS, SIM_TIME, COMPLETED, and SEED) in the right-most
 #'   columns.
 #'
 #' @aliases runSimulation
 #'
 #' @seealso \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
 #'   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-#'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}
+#'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
 #'
 #' @export runSimulation
 #'
 #' @references
-#' Sigal, M. J., & Chalmers, R. P. (in press). Play it again: Teaching statistics with Monte
-#' Carlo simulation. \code{Journal of Statistics Education}.
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #'
 #' @examples
 #'
@@ -675,7 +677,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!all(names(save_results) %in%
             c('compname', 'tmpfilename', 'save_results_dirname', 'save_generate_data_dirname')))
         stop('save_details contains elements that are not supported', call.=FALSE)
-    compname <- save_details$compname; tmpfilename <- save_details$tempfilename; safe <- save_details$safe
+    compname <- save_details$compname; tmpfilename <- save_details$tmpfilename; safe <- save_details$safe
     save_results_dirname <- save_details$save_results_dirname; save_seeds_dirname <- save_details$save_seeds_dirname
     save_generate_data_dirname <- save_details$save_generate_data_dirname
     if(is.null(compname)) compname <- Sys.info()['nodename']
@@ -925,6 +927,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                            check.names=FALSE)
             time1 <- proc.time()[3]
             Result_list[[i]]$SIM_TIME <- time1 - time0
+            Result_list[[i]]$COMPLETED <- date()
             if(save || save_results || save_generate_data) saveRDS(Result_list, tmpfilename)
         }
     }
@@ -951,9 +954,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         message('\nSimulation complete. Total execution time: ', timeFormater(sum(stored_time)))
     Final <- plyr::rbind.fill(Result_list)
     SIM_TIME <- Final$SIM_TIME
+    COMPLETED <- Final$COMPLETED
     REPLICATIONS <- Final$REPLICATIONS
-    Final$SIM_TIME <- Final$ID <- Final$REPLICATIONS <- NULL
-    Final <- data.frame(Final, REPLICATIONS, SIM_TIME, check.names=FALSE)
+    Final$SIM_TIME <- Final$ID <- Final$REPLICATIONS <- Final$COMPLETED <-NULL
+    Final <- data.frame(Final, REPLICATIONS, SIM_TIME, COMPLETED, check.names=FALSE)
     if(!is.null(seed)) Final$SEED <- seed
     if(!is.null(filename) && safe){ #save file
         files <- dir()
@@ -984,7 +988,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     ten <- colnames(Final)[grepl('ERROR:', colnames(Final))]
     wen <- colnames(Final)[grepl('WARNING:', colnames(Final))]
-    en <- c('REPLICATIONS', 'SIM_TIME')
+    en <- c('REPLICATIONS', 'SIM_TIME', 'COMPLETED')
     if(!is.null(seed)) en <- c(en, 'SEED')
     sn <- colnames(Final)[!(colnames(Final) %in% c(dn, en, ten, wen))]
     attr(Final, 'design_names') <- list(design=dn, sim=sn, extra=en, errors=ten, warnings=wen)
@@ -1027,11 +1031,11 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
 #' @export
 print.SimDesign <- function(x, drop.extras = FALSE, drop.design = FALSE, format.time = TRUE, ...){
     att <- attr(x, 'design_names')
+    if(format.time)
+        x$SIM_TIME <- sapply(x$SIM_TIME, timeFormater, TRUE)
     if(drop.extras) x <- x[ ,c(att$design, att$sim), drop=FALSE]
     if(drop.design) x <- x[ ,!(names(x) %in% att$design), drop=FALSE]
     class(x) <- 'data.frame'
-    if(format.time)
-        x$SIM_TIME <- sapply(x$SIM_TIME, timeFormater, TRUE)
     ldots <- list(...)
     if(is.null(ldots$print)) print(x, ...)
     else return(x)

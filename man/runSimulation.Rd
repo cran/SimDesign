@@ -217,7 +217,7 @@ results instead of using the auto-factorized version. Default is \code{FALSE}}
 a \code{data.frame} (also of class \code{'SimDesign'})
   with the original \code{design} conditions in the left-most columns,
   simulation results and ERROR/WARNING's (if applicable) in the middle columns,
-  and additional information (such as REPLICATIONS, SIM_TIME, and SEED) in the right-most
+  and additional information (such as REPLICATIONS, SIM_TIME, COMPLETED, and SEED) in the right-most
   columns.
 }
 \description{
@@ -230,7 +230,7 @@ stopping when functions fail too often, even across nodes), and tracking of erro
 For convenience, all functions available in the R workspace are exported across all computational nodes
 so that they are more easily accessible (however, other R objects are not, and therefore
 must be passed to the \code{fixed_objects} input to become available across nodes).
-For a didactic presentation of the package refer to Sigal and Chalmers (in press).
+For a didactic presentation of the package refer to Sigal and Chalmers (2016).
 }
 \details{
 The strategy for organizing the Monte Carlo simulation work-flow is to
@@ -263,7 +263,9 @@ than worrying about the administrative code-work required to organize the simula
 Additional information for each condition are also contained in the \code{data.frame} object returned by
 \code{runSimulation}: \code{REPLICATIONS} to indicate the number of Monte Carlo replications,
 \code{SIM_TIME} to indicate how long (in seconds) it took to complete
-all the Monte Carlo replications for each respective design condition, \code{SEED} if the \code{seed} argument
+all the Monte Carlo replications for each respective design condition,
+\code{COMPLETED} to indicate the date in which the given simulation condition completed,
+\code{SEED} if the \code{seed} argument
 was used, columns containing the number of replications which had to be re-run due to errors (where the error messages
 represent the names of the columns prefixed with a \code{ERROR:} string), and
 columns containing the number of warnings prefixed with a \code{WARNING:} string.
@@ -708,12 +710,12 @@ ggplot(dd, aes(factor(group_size_ratio), value, fill = factor(standard_deviation
 
 }
 \references{
-Sigal, M. J., & Chalmers, R. P. (in press). Play it again: Teaching statistics with Monte
-Carlo simulation. \code{Journal of Statistics Education}.
+Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 }
 \seealso{
 \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-  \code{\link{aggregate_simulations}}, \code{\link{Attach}}
+  \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
 }
 
