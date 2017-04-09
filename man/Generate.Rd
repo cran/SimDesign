@@ -15,10 +15,14 @@ simulation conditions}
 \value{
 returns a single object containing the data to be analyzed (usually a
   \code{vector}, \code{matrix}, or \code{data.frame}),
-  or \code{list})
+  or \code{list}
 }
 \description{
-Generate data from a single row in the \code{design} input (see \code{\link{runSimulation}}).
+Generate data from a single row in the \code{design} input (see \code{\link{runSimulation}}). R contains
+numerous approaches to generate data, some of which are contained in the base package, as well
+as in \code{SimDesign} (e.g., \code{\link{rmgh}}, \code{\link{rValeMaurelli}}, \code{\link{rHeadrick}}).
+However the majority can be found in external packages. See CRAN's list of possible distributions here:
+\url{https://CRAN.R-project.org/view=Distributions}
 }
 \examples{
 \dontrun{
@@ -68,6 +72,6 @@ mygenerate3 <- function(condition, fixed_objects = NULL){
 
 }
 \seealso{
-\code{\link{add_missing}}, \code{\link{Attach}}
+\code{\link{add_missing}}, \code{\link{Attach}},
+  \code{\link{rmgh}}, \code{\link{rValeMaurelli}}, \code{\link{rHeadrick}}
 }
-

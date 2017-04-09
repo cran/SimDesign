@@ -1,6 +1,6 @@
 Package: SimDesign
 Title: Structure for Organizing Monte Carlo Simulation Designs
-Version: 1.5
+Version: 1.6
 Authors@R: person("Phil", "Chalmers", email = "rphilip.chalmers@gmail.com",
            role = c("aut", "cre"))
 Description: Provides tools to help safely and efficiently organize Monte Carlo simulations in R.
@@ -17,10 +17,10 @@ License: GPL (>= 2)
 LazyData: true
 URL: https://github.com/philchalmers/SimDesign,
         https://github.com/philchalmers/SimDesign/wiki
-RoxygenNote: 5.0.1
+RoxygenNote: 6.0.1
 NeedsCompilation: no
-Packaged: 2017-01-31 17:24:55 UTC; phil
+Packaged: 2017-04-09 20:07:39 UTC; phil
 Author: Phil Chalmers [aut, cre]
 Maintainer: Phil Chalmers <rphilip.chalmers@gmail.com>
 Repository: CRAN
-Date/Publication: 2017-02-01 01:29:58
+Date/Publication: 2017-04-09 21:02:33 UTC

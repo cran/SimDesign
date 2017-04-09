@@ -1,6 +1,10 @@
 #' Generate data
 #'
-#' Generate data from a single row in the \code{design} input (see \code{\link{runSimulation}}).
+#' Generate data from a single row in the \code{design} input (see \code{\link{runSimulation}}). R contains
+#' numerous approaches to generate data, some of which are contained in the base package, as well
+#' as in \code{SimDesign} (e.g., \code{\link{rmgh}}, \code{\link{rValeMaurelli}}, \code{\link{rHeadrick}}).
+#' However the majority can be found in external packages. See CRAN's list of possible distributions here:
+#' \url{https://CRAN.R-project.org/view=Distributions}
 #'
 #' @param condition a single row from the \code{design} input (as a \code{data.frame}), indicating the
 #'   simulation conditions
@@ -9,11 +13,12 @@
 #'
 #' @return returns a single object containing the data to be analyzed (usually a
 #'   \code{vector}, \code{matrix}, or \code{data.frame}),
-#'   or \code{list})
+#'   or \code{list}
 #'
 #' @aliases Generate
 #'
-#' @seealso \code{\link{add_missing}}, \code{\link{Attach}}
+#' @seealso \code{\link{add_missing}}, \code{\link{Attach}},
+#'   \code{\link{rmgh}}, \code{\link{rValeMaurelli}}, \code{\link{rHeadrick}}
 #'
 #' @examples
 #' \dontrun{
@@ -67,19 +72,19 @@ Generate <- function(condition, fixed_objects = NULL) NULL
 
 #' Compute estimates and statistics
 #'
-#' Computes all relevant test statistics, parameter estimates, detection rates, and so on.
+#' Compute all relevant test statistics, parameter estimates, detection rates, and so on.
 #' This is the computational heavy lifting portion of the Monte Carlo simulation.
 #'
 #' In some cases, it may be easier to change the output to a named \code{list} containing
 #' different parameter configurations (e.g., when
 #' determining RMSE values for a large set of population parameters).
 #'
-#' The use of \code{\link{try}} functions is generally not required because the function
+#' The use of \code{\link{try}} functions is generally not required in this function because \code{Analyse}
 #' is internally wrapped in a \code{\link{try}} call. Therefore, if a function stops early
 #' then this will cause the function to halt internally, the message which triggered the \code{\link{stop}}
 #' will be recorded, and \code{\link{Generate}} will be called again to obtain a different dataset.
-#' That being said, it may be useful for users to throw their own \code{\link{stop}} commands if the data
-#' should be redrawn for other reasons (e.g., a model terminated correctly but the maximum number of
+#' That said, it may be useful for users to throw their own \code{\link{stop}} commands if the data
+#' should be re-drawn for other reasons (e.g., an estimated model terminated correctly but the maximum number of
 #' iterations were reached).
 #'
 #' @param dat the \code{dat} object returned from the \code{\link{Generate}} function
@@ -94,7 +99,7 @@ Generate <- function(condition, fixed_objects = NULL) NULL
 #'   (e.g., p-values, effects sizes, etc), or a \code{list} containing values of interest
 #'   (e.g., separate matrix and vector of parameter estimates corresponding to elements in
 #'   \code{parameters}). If a \code{data.frame} is returned with more than 1 row then these
-#'   objects will be wrapped into \code{list} objects
+#'   objects will be wrapped into suitable \code{list} objects
 #'
 #' @seealso \code{\link{stop}}
 #' @aliases Analyse
@@ -131,7 +136,8 @@ Analyse <- function(condition, dat, fixed_objects = NULL) NULL
 #' Summarise simulated data using various population comparison statistics
 #'
 #' This collapses the simulation results within each condition to composite
-#' estimates such as RMSE, bias, Type I error rates, coverage rates, etc.
+#' estimates such as RMSE, bias, Type I error rates, coverage rates, etc. See the
+#' \code{See Also} section below for useful functions to be used within \code{Summarise}.
 #'
 #' @param results a \code{data.frame} (if \code{Analyse} returned a numeric vector) or a \code{list}
 #'   (if \code{Analyse} returned a list or multi-rowed data.frame) containing the analysis
@@ -246,9 +252,12 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
         res <- try(withCallingHandlers(analyse(dat=simlist, condition=condition,
                            fixed_objects=fixed_objects), warning=wHandler), silent=TRUE)
         if(!is.null(Warnings)){
-            Warnings <- sapply(1L:length(Warnings), function(i, Warnings) {
-                paste0('Warning in ', deparse(Warnings[[i]]$call), ' : ', Warnings[[i]]$message)
-            }, Warnings)
+            Warnings <- sapply(1L:length(Warnings), function(i, warn) {
+                paste0('Warning in ', paste0(deparse(warn[[i]]$call), collapse = ''),
+                       ' : ', warn[[i]]$message)
+            }, warn=Warnings)
+            Warnings <- gsub('Warning in analyse(dat = simlist, condition = condition, fixed_objects = fixed_objects) : ',
+                 replacement = '', Warnings, fixed = TRUE)
         }
         if(any(is.na(res))){
             NA_names <- names(res)[is.na(res)]
@@ -263,7 +272,7 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
             if(length(try_error) == max_errors){
                 res[1L] <-
                     gsub('Error in analyse\\(dat = simlist, condition = condition, fixed_objects = fixed_objects) : \\n  ',
-                         replacement = 'Error : ', res[1L])
+                         replacement = '', res[1L])
                 stop(paste0('Row ', condition$ID, ' in design was terminated because it had ', max_errors,
                             ' consecutive errors. \n\nLast error message was: \n\n  ', res[1L]), call.=FALSE)
             }
