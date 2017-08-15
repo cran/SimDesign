@@ -20,6 +20,11 @@
 #' @param subset an optional argument to be passed to \code{\link{subset}} with the same name. Used to
 #'   subset the results object while preserving the associated attributes
 #'
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#'
 #' @aliases SimAnova
 #' @export
 #'
@@ -95,7 +100,7 @@ SimAnova <- function(formula, dat, subset = NULL, rates = TRUE){
         ys <- attributes(dat)$design_names$sim
         ret <- vector('list', length(ys))
         names(ret) <- ys
-        for(i in 1L:length(ys)){
+        for(i in seq_len(length(ys))){
             f2 <- update.formula(formula, as.formula(paste0(ys[[i]], ' ~ .')))
             ret[[i]] <- SimAnova(formula=f2, dat=dat, rates=rates)
         }

@@ -34,6 +34,11 @@
 #'       could indicate validity issues with the simulation that should be noted}
 #'   }
 #'
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#'
 #' @examples
 #'
 #' \dontrun{
@@ -65,7 +70,7 @@ SimResults <- function(results, which, wd = getwd()){
     file_nums <- as.numeric(gsub('.rds', '', file_nums))
     files <- data.frame(file_nums, files, stringsAsFactors = FALSE)
     ret <- vector('list', length(which))
-    for(i in 1L:length(which)){
+    for(i in seq_len(length(which))){
         pick <- which(files$file_num == which[i])
         ret[[i]] <- readRDS(files$files[pick])
     }

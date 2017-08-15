@@ -427,7 +427,7 @@
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' DOI: 10.1080/10691898.2016.1246953
+#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
 #'
 #' @examples
 #'
@@ -954,7 +954,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         nms2 <- apply(nms2, 1, paste0, collapse='')
         names(Result_list) <- nms2
         if(is.list(Result_list[[1L]][[1L]]))
-            for(i in 1L:length(Result_list))
+            for(i in seq_len(length(Result_list)))
                 attr(Result_list[[i]][[1L]], 'try_errors') <- NULL
         if(nrow(design) == 1L) Result_list <- Result_list[[1L]]
         return(Result_list)

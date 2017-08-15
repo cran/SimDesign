@@ -17,6 +17,10 @@
 #'   of the simulation results. Otherwise, if \code{dirs} is used, the function returns NULL
 #'
 #' @aliases aggregate_simulations
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
 #'
 #' @seealso \code{\link{runSimulation}}
 #'
@@ -92,7 +96,7 @@ aggregate_simulations <- function(files = NULL, dirs = NULL, results_dirname = '
     stopifnot(all(sapply(readin, function(x) length(unique(x$REPLICATIONS)) == 1L)))
     weights <- weights / sum(weights)
     message('Aggregating ', length(filenames), ' simulation files.')
-    for(i in 1L:length(filenames)){
+    for(i in seq_len(length(filenames))){
         tmp <- stats::na.omit(match(nms, names(errors[[i]])))
         if(length(tmp) > 0L){
             try_errors[,match(nms, names(try_errors))] <- errors[[i]][ ,tmp] +
