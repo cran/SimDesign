@@ -274,12 +274,15 @@
 #'   object will automatically set the \code{parallel} argument to \code{TRUE}
 #'
 #' @param packages a character vector of external packages to be used during the simulation (e.g.,
-#'   \code{c('MASS', 'mvtnorm', 'simsem')} ). Use this input when \code{parallel = TRUE} or
+#'   \code{c('MASS', 'extraDistr', 'simsem')} ). Use this input when \code{parallel = TRUE} or
 #'   \code{MPI = TRUE} to use non-standard functions from additional packages,
 #'   otherwise the functions must be made available by using explicit
 #'   \code{\link{library}} or \code{\link{require}} calls within the provided simulation functions.
 #'   Alternatively, functions can be called explicitly without attaching the package with the \code{::} operator
-#'   (e.g., \code{mvtnorm::rmvnorm()})
+#'   (e.g., \code{extraDistr::rgumbel()})
+#'
+#' @param warnings_as_errors logical; treat warning messages as errors during the simulation? Default is FALSE,
+#'   therefore warnings are only collected and not used to restart the data generation step
 #'
 #' @param as.factor logical; coerce the input \code{design} elements into \code{factor}s when the
 #'   simulation is complete? If the columns inputs are numeric then these will be treated
@@ -423,6 +426,8 @@
 #'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
 #'
 #' @export runSimulation
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #'
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
@@ -676,6 +681,7 @@
 runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL,
                           filename = 'SimDesign-results',
+                          warnings_as_errors = FALSE,
                           save = FALSE, save_results = FALSE, save_seeds = FALSE,
                           load_seed = NULL, seed = NULL,
                           parallel = FALSE, ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
@@ -906,6 +912,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          save_seeds_dirname=save_seeds_dirname,
                                          max_errors=max_errors, packages=packages,
                                          load_seed=load_seed, export_funs=export_funs,
+                                         warnings_as_errors=warnings_as_errors,
                                          progress=progress)
             time1 <- proc.time()[3]
             stored_time <- stored_time + (time1 - time0)
@@ -933,6 +940,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                                               save_seeds_dirname=save_seeds_dirname,
                                                               max_errors=max_errors, packages=packages,
                                                               load_seed=load_seed, export_funs=export_funs,
+                                                              warnings_as_errors=warnings_as_errors,
                                                               progress=progress)),
                                            check.names=FALSE)
             time1 <- proc.time()[3]

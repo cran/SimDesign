@@ -11,8 +11,8 @@
 \usage{
 runSimulation(design, replications, generate, analyse, summarise,
   fixed_objects = NULL, packages = NULL, filename = "SimDesign-results",
-  save = FALSE, save_results = FALSE, save_seeds = FALSE,
-  load_seed = NULL, seed = NULL, parallel = FALSE,
+  warnings_as_errors = FALSE, save = FALSE, save_results = FALSE,
+  save_seeds = FALSE, load_seed = NULL, seed = NULL, parallel = FALSE,
   ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
   max_errors = 50, as.factor = TRUE, save_generate_data = FALSE,
   save_details = list(), edit = "none", progress = FALSE,
@@ -59,18 +59,21 @@ that should be used across all conditions and replications (e.g., including a fi
 for linear regression), or simply control constant global elements such as sample size}
 
 \item{packages}{a character vector of external packages to be used during the simulation (e.g.,
-\code{c('MASS', 'mvtnorm', 'simsem')} ). Use this input when \code{parallel = TRUE} or
+\code{c('MASS', 'extraDistr', 'simsem')} ). Use this input when \code{parallel = TRUE} or
 \code{MPI = TRUE} to use non-standard functions from additional packages,
 otherwise the functions must be made available by using explicit
 \code{\link{library}} or \code{\link{require}} calls within the provided simulation functions.
 Alternatively, functions can be called explicitly without attaching the package with the \code{::} operator
-(e.g., \code{mvtnorm::rmvnorm()})}
+(e.g., \code{extraDistr::rgumbel()})}
 
 \item{filename}{(optional) the name of the \code{.rds} file to save the final simulation results to
 when \code{save = TRUE}. If the same file name already exists in the working
 directly at the time of saving then a new
 file will be generated instead and a warning will be thrown. This helps to avoid accidentally overwriting
 existing files. Default is \code{'SimDesign-results'}}
+
+\item{warnings_as_errors}{logical; treat warning messages as errors during the simulation? Default is FALSE,
+therefore warnings are only collected and not used to restart the data generation step}
 
 \item{save}{logical; save the simulation state and final results to the hard-drive? This is useful
 for simulations which require an extended amount of time. When \code{TRUE}, a temp file
@@ -730,4 +733,7 @@ Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
+}
+\author{
+Phil Chalmers \email{rphilip.chalmers@gmail.com}
 }

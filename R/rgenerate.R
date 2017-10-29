@@ -11,7 +11,7 @@
 #' @param mean a vector of k elements for the mean of the variables
 #' @param sigma desired k x k covariance matrix between bivariate non-normal variables
 #'
-#' @author Phil Chalmers
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
@@ -86,7 +86,7 @@ rmgh <- function(n, g, h, mean = rep(0, length(g)), sigma = diag(length(mean))) 
 #' Vale, C. & Maurelli, V. (1983). Simulating multivariate nonnormal distributions.
 #' \emph{Psychometrika, 48}(3), 465-471.
 #'
-#' @author Phil Chalmers
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #' @aliases rValeMaurelli
 #' @export
 #' @examples
@@ -224,7 +224,7 @@ rValeMaurelli <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mea
 #' Method to Generate Multivariate, Nonnormal Data for Simulation Purposes.
 #' \emph{Educational and Psychological Measurement, 75}, 541-567.
 #'
-#' @author Oscar L. Olvera Astivia and Phil Chalmers
+#' @author Oscar L. Olvera Astivia and Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #' @aliases rHeadrick
 #' @export
 #' @examples
@@ -721,4 +721,162 @@ rHeadrick <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
     if(return_coefs) Y <- data.frame(skew=skew, kurt=kurt, conv.tol=summary.poly.coeff[1L,],
                                        gam3=gam3, gam4=gam4, t(summary.poly.coeff)[,-1L])
     Y
+}
+
+#' Generate data with the multivariate normal (i.e., Gaussian) distribution
+#'
+#' Function generates data from the multivariate normal distribution given some mean vector and/or
+#' covariance matrix.
+#'
+#' @param n number of observations to generate
+#'
+#' @param mean mean vector, default is \code{rep(0, length = ncol(sigma))}
+#'
+#' @param sigma positive definite covariance matrix, default is \code{diag(length(mean))}
+#'
+#' @return a numeric matrix with columns equal to \code{length(mean)}
+#'
+#' @seealso \code{\link{runSimulation}}
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
+#'
+#' @export
+#'
+#' @examples
+#'
+#' # random normal values with mean [5, 10] and variances [3,6], and covariance 2
+#' sigma <- matrix(c(3,2,2,6), 2, 2)
+#' mu <- c(5,10)
+#' x <- rmvnorm(1000, mean = mu, sigma = sigma)
+#' head(x)
+#' summary(x)
+#' plot(x[,1], x[,2])
+#'
+#'
+rmvnorm <- function (n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)))
+{
+    # code borrowed and modified from mvtnorm package, October 21, 2017
+    if (!isSymmetric(sigma, tol = sqrt(.Machine$double.eps),
+                     check.attributes = FALSE))
+        stop("sigma must be a symmetric matrix")
+    if (length(mean) != nrow(sigma))
+        stop("mean and sigma have non-conforming size")
+    ev <- eigen(sigma, symmetric = TRUE)
+    if (!all(ev$values >= -sqrt(.Machine$double.eps) * abs(ev$values[1])))
+        warning("sigma is numerically not positive semi-definite")
+    R <- t(ev$vectors %*% (t(ev$vectors) * sqrt(pmax(ev$values, 0))))
+    retval <- matrix(rnorm(n * ncol(sigma)), nrow = n) %*% R
+    retval <- sweep(retval, 2, mean, "+")
+    colnames(retval) <- names(mean)
+    retval
+}
+
+#' Generate data with the multivariate t distribution
+#'
+#' Function generates data from the multivariate t distribution given a covariance matrix,
+#' non-centrality parameter (or mode), and degrees of freedom.
+#'
+#' @param n number of observations to generate
+#'
+#' @param sigma positive definite covariance matrix
+#'
+#' @param df degrees of freedom. \code{df = 0} and \code{df = Inf}
+#'   corresponds to the multivariate normal distribution
+#'
+#' @param delta the vector of noncentrality parameters of length \code{n}
+#'   which specifies the either the modes (default) or non-centrality parameters
+#'
+#' @param Kshirsagar logical; triggers whether to generate data with non-centrality parameters
+#'   or to adjust the simulated data to the mode of the distribution. The default uses the mode
+#'
+#' @return a numeric matrix with columns equal to \code{ncol(sigma)}
+#'
+#' @seealso \code{\link{runSimulation}}
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
+#'
+#' @export
+#'
+#' @examples
+#'
+#' # random t values given variances [3,6], covariance 2, and df = 15
+#' sigma <- matrix(c(3,2,2,6), 2, 2)
+#' x <- rmvt(1000, sigma = sigma, df = 15)
+#' head(x)
+#' summary(x)
+#' plot(x[,1], x[,2])
+#'
+#'
+rmvt <- function (n, sigma, df, delta = rep(0, nrow(sigma)),
+                  Kshirsagar = FALSE)
+{
+    # code borrowed and modified from mvtnorm package, October 21, 2017
+    stopifnot(!missing(n))
+    stopifnot(!missing(sigma))
+    stopifnot(!missing(df))
+    if (length(delta) != nrow(sigma))
+        stop("delta and sigma have non-conforming size")
+    stopifnot(df >= 0)
+    if (df == 0 || !is.finite(df))
+        return(rmvnorm(n, mean = delta, sigma = sigma))
+    ret <- if(Kshirsagar){
+        rmvnorm(n, mean = delta, sigma = sigma) / sqrt(rchisq(n, df)/df)
+    } else {
+        sims <- rmvnorm(n, sigma = sigma) / sqrt(rchisq(n, df)/df)
+        sweep(sims, 2, delta, "+")
+    }
+    ret
+}
+
+#' Generate data with the inverse Wishart distribution
+#'
+#' Function generates data in the form of symmetric matrices from the inverse
+#' Wishart distribution given a covariance matrix and degrees of freedom.
+#'
+#' @param n number of matrix observations to generate. By default \code{n = 1}, which returns a single
+#'   symmetric matrix. If \code{n > 1} then a list of \code{n} symmetric matrices are returned instead
+#'
+#' @param sigma positive definite covariance matrix
+#'
+#' @param df degrees of freedom
+#'
+#' @return a numeric matrix with columns equal to \code{ncol(sigma)} when \code{n = 1}, or a list
+#'   of \code{n} matrices with the same properties
+#'
+#' @seealso \code{\link{runSimulation}}
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
+#'
+#' @export
+#'
+#' @examples
+#'
+#' # random inverse Wishart matrix given variances [3,6], covariance 2, and df=15
+#' sigma <- matrix(c(3,2,2,6), 2, 2)
+#' x <- rinvWishart(sigma = sigma, df = 15)
+#' x
+#'
+#' # list of matrices
+#' x <- rinvWishart(20, sigma = sigma, df = 15)
+#' x
+#'
+rinvWishart <- function(n = 1, df, sigma){
+    ret <- rWishart(n, df=df, Sigma = solve(sigma))
+    ret <- apply(ret, 3, solve)
+    ret <- lapply(1L:ncol(ret), function(ind, mats)
+        matrix(mats[,ind], ncol(sigma), ncol(sigma)), mats=ret)
+    if(n == 1L) ret <- ret[[1L]]
+    ret
 }

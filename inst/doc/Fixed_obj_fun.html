@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="author" content="Phil Chalmers" />
+
+<meta name="date" content="2017-10-29" />
+
+<title>Exporting objects and functions from the workspace</title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+
+
+<link href="data:text/css;charset=utf-8,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20700px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%201%2E35%3B%0A%7D%0A%23header%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%2010px%3B%0Apadding%3A%204px%3B%0Awidth%3A%20400px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%20%7B%0Amargin%3A%201em%20auto%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%200%2E25em%200%2E75em%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0Awhite%2Dspace%3A%20pre%2Dwrap%3B%20%0A%7D%0Apre%20%7B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200px%2010px%200px%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0Afont%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%200px%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%3A%201px%20solid%20%23DDDDDD%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%20code%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" rel="stylesheet" type="text/css" />
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Exporting objects and functions from the workspace</h1>
+<h4 class="author"><em>Phil Chalmers</em></h4>
+<h4 class="date"><em>2017-10-29</em></h4>
+
+
+
+<div id="including-fixed-objects" class="section level1">
+<h1>Including fixed objects</h1>
+<p>R generally has a recursive strategy when attempting to find objects within functions. If an object can’t be found, R will look just outside the function to see if the object can be located there, and if not, look one level higher….and so on, until it searches for the object in the user workspace. This is a strange feature to most programmers who come from other languages, and when writing simulations may cause some initially unwanted issues. This tutorial demonstrates how to make sure all required user-defined objects are visible to <code>SimDesign</code>.</p>
+<div id="scoping" class="section level3">
+<h3>Scoping</h3>
+<p>To demonstrate the issue, let’s define two objects and a function which uses these objects.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">obj1 &lt;-<span class="st"> </span><span class="dv">10</span>
+obj2 &lt;-<span class="st"> </span><span class="dv">20</span></code></pre></div>
+<p>When evaluated, these objects are visible to the user, and can be seen by typing in the R console by typing <code>ls()</code>. Functions which do not define objects with the same name will also be able to locate these values.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">myfun &lt;-<span class="st"> </span>function(x) obj1 +<span class="st"> </span>obj2
+<span class="kw">myfun</span>(<span class="dv">1</span>)</code></pre></div>
+<pre><code>## [1] 30</code></pre>
+<p>This behavior is indeed a bit strange, but it’s one of R’s quirks. Unfortunately, when running code in parallel across different cores these objects <em>will not be visible</em>, and therefore must be exported using other methods (e.g., in the <code>parallel</code> package this is done with <code>clusterExport()</code>).</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(parallel)
+cl &lt;-<span class="st"> </span><span class="kw">makeCluster</span>(<span class="dv">2</span>)
+res &lt;-<span class="st"> </span><span class="kw">try</span>(<span class="kw">parSapply</span>(<span class="dt">cl=</span>cl, <span class="dv">1</span>:<span class="dv">4</span>, myfun))
+res</code></pre></div>
+<pre><code>## Error in checkForRemoteErrors(val) : 
+##   2 nodes produced errors; first error: object 'obj1' not found</code></pre>
+<p>Exporting the objects to the cluster fixes the issue.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">clusterExport</span>(<span class="dt">cl=</span>cl, <span class="kw">c</span>(<span class="st">'obj1'</span>, <span class="st">'obj2'</span>))
+<span class="kw">parSapply</span>(<span class="dt">cl=</span>cl, <span class="dv">1</span>:<span class="dv">4</span>, myfun)</code></pre></div>
+<pre><code>## [1] 30 30 30 30</code></pre>
+<p>The same reasoning above applies to functions defined in the R workspace as well, including functions defined within external R packages. Hence, in order to use functions from other packages they must either be explicitly loaded with <code>require()</code> or <code>library()</code> within the distributed code, or referenced via their Namespace with the <code>::</code> operator (e.g., <code>mvtnorm::rmvtnorm()</code>).</p>
+</div>
+</div>
+<div id="exporting-objects-example" class="section level1">
+<h1>Exporting objects example</h1>
+<p>In order to make objects safely visible in <code>SimDesign</code> the strategy is very simple: wrap all desired objects into a named list, and pass this to the <code>fixed_objects</code> argument. From here, elements can be indexed using the <code>$</code> operator or <code>with()</code> function, or whatever other method may be convenient. However, this is only required for defined <em>objects</em> not <em>functions</em> — <code>SimDesign</code> automatically makes user-defined functions available across all nodes.</p>
+<p>Note: An alternative approach is simply to define/source the objects within the respective <code>SimDesign</code> functions, that way they will clearly be visible at runtime. The following approach is really only useful when the defined objects contain a large amount of code.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(SimDesign)
+<span class="co">#SimFunctions(comments = FALSE)</span>
+
+### Define design conditions and number of replications
+Design &lt;-<span class="st"> </span><span class="kw">expand.grid</span>(<span class="dt">N =</span> <span class="kw">c</span>(<span class="dv">10</span>, <span class="dv">20</span>, <span class="dv">30</span>))
+replications &lt;-<span class="st"> </span><span class="dv">1000</span>
+
+<span class="co"># define custom functions and objects (or use source() to read these in from an external file)</span>
+SD &lt;-<span class="st"> </span><span class="dv">2</span>
+my_gen_fun &lt;-<span class="st"> </span>function(n, sd) <span class="kw">rnorm</span>(n, <span class="dt">sd =</span> sd)
+my_analyse_fun &lt;-<span class="st"> </span>function(x) <span class="kw">c</span>(<span class="dt">p =</span> <span class="kw">t.test</span>(x)$p.value)
+fixed_objects &lt;-<span class="st"> </span><span class="kw">list</span>(<span class="dt">SD=</span>SD)
+
+<span class="co">#---------------------------------------------------------------------------</span>
+
+Generate &lt;-<span class="st"> </span>function(condition, <span class="dt">fixed_objects =</span> <span class="ot">NULL</span>) {
+    <span class="kw">Attach</span>(condition) <span class="co"># make condition names available (e.g., N)</span>
+    
+    <span class="co"># further, can use with() to use 'SD' directly instead of 'fixed_objects$SD'</span>
+    ret &lt;-<span class="st"> </span><span class="kw">with</span>(fixed_objects, <span class="kw">my_gen_fun</span>(N, <span class="dt">sd=</span>SD))
+    ret
+}
+
+Analyse &lt;-<span class="st"> </span>function(condition, dat, <span class="dt">fixed_objects =</span> <span class="ot">NULL</span>) {
+    ret &lt;-<span class="st"> </span><span class="kw">my_analyse_fun</span>(dat)
+    ret
+}
+
+Summarise &lt;-<span class="st"> </span>function(condition, results, <span class="dt">fixed_objects =</span> <span class="ot">NULL</span>) {
+    ret &lt;-<span class="st"> </span><span class="kw">EDR</span>(results, <span class="dt">alpha =</span> .<span class="dv">05</span>)
+    ret
+}
+
+<span class="co">#---------------------------------------------------------------------------</span>
+
+### Run the simulation
+results &lt;-<span class="st"> </span><span class="kw">runSimulation</span>(Design, replications, <span class="dt">verbose=</span><span class="ot">FALSE</span>, <span class="dt">fixed_objects=</span>fixed_objects,
+                         <span class="dt">generate=</span>Generate, <span class="dt">analyse=</span>Analyse, <span class="dt">summarise=</span>Summarise, <span class="dt">edit=</span><span class="st">'none'</span>)
+results</code></pre></div>
+<pre><code>##    N     p REPLICATIONS SIM_TIME                COMPLETED
+## 1 10 0.041         1000    0.24s Sun Oct 29 19:05:23 2017
+## 2 20 0.052         1000    0.24s Sun Oct 29 19:05:23 2017
+## 3 30 0.061         1000    0.24s Sun Oct 29 19:05:24 2017</code></pre>
+<p>By placing objects in a list and passing this to <code>fixed_objects</code>, the objects are safely made available to all relevant functions. Furthermore, running this code in parallel will also be valid as a consequence (see below). Remember, this is only required for R <strong>objects</strong>, NOT user-defined functions!</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">results &lt;-<span class="st"> </span><span class="kw">runSimulation</span>(Design, replications, <span class="dt">verbose=</span><span class="ot">FALSE</span>, <span class="dt">fixed_objects=</span>fixed_objects,
+                         <span class="dt">generate=</span>Generate, <span class="dt">analyse=</span>Analyse, <span class="dt">summarise=</span>Summarise, <span class="dt">edit=</span><span class="st">'none'</span>,
+                         <span class="dt">parallel =</span> <span class="ot">TRUE</span>)</code></pre></div>
+</div>
+
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

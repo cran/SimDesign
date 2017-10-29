@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+
+<meta charset="utf-8" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<meta name="generator" content="pandoc" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="author" content="Phil Chalmers" />
+
+<meta name="date" content="2017-10-29" />
+
+<title>Introduction to the SimDesign package</title>
+
+
+
+<style type="text/css">code{white-space: pre;}</style>
+<style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+code > span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code > span.dt { color: #902000; } /* DataType */
+code > span.dv { color: #40a070; } /* DecVal */
+code > span.bn { color: #40a070; } /* BaseN */
+code > span.fl { color: #40a070; } /* Float */
+code > span.ch { color: #4070a0; } /* Char */
+code > span.st { color: #4070a0; } /* String */
+code > span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code > span.ot { color: #007020; } /* Other */
+code > span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code > span.fu { color: #06287e; } /* Function */
+code > span.er { color: #ff0000; font-weight: bold; } /* Error */
+code > span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #880000; } /* Constant */
+code > span.sc { color: #4070a0; } /* SpecialChar */
+code > span.vs { color: #4070a0; } /* VerbatimString */
+code > span.ss { color: #bb6688; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #19177c; } /* Variable */
+code > span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #666666; } /* Operator */
+code > span.bu { } /* BuiltIn */
+code > span.ex { } /* Extension */
+code > span.pp { color: #bc7a00; } /* Preprocessor */
+code > span.at { color: #7d9029; } /* Attribute */
+code > span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code > span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+</style>
+
+
+
+<link href="data:text/css;charset=utf-8,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20700px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%201%2E35%3B%0A%7D%0A%23header%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%2010px%3B%0Apadding%3A%204px%3B%0Awidth%3A%20400px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%20%7B%0Amargin%3A%201em%20auto%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%200%2E25em%200%2E75em%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0Awhite%2Dspace%3A%20pre%2Dwrap%3B%20%0A%7D%0Apre%20%7B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200px%2010px%200px%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0Afont%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%200px%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%3A%201px%20solid%20%23DDDDDD%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%20code%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" rel="stylesheet" type="text/css" />
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Introduction to the SimDesign package</h1>
+<h4 class="author"><em>Phil Chalmers</em></h4>
+<h4 class="date"><em>2017-10-29</em></h4>
+
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>Designing Monte Carlo simulations can be a fun and rewarding experience. Whether you are interested in evaluating the performance of a new optimizer, re-evaluating previous research claims (like the ANOVA is ‘robust’ to violations of normality), determine power rates for an upcoming research proposal, or simply to appease a strange thought in your head about a new statistical idea you heard about, Monte Carlo simulations can be incredibly rewarding and are extremely important to the statistically oriented. However, organizing simulations can be a challenge, and all to often people resort to the dreaded for “loop-nesting”, <em>for</em>-ever resulting in confusing, error prone, and simulation specific code. The package <code>SimDesign</code> is one attempt to fix these and other issue that arise when designing Monte Carlo experiments.</p>
+<p>Generally speaking, Monte Carlo simulations can be broken into three major operations:</p>
+<ul>
+<li><strong>generate</strong> your data from some model given some <strong>design</strong> conditions to be studied (e.g., sample size, distributions, group sizes, etc),</li>
+<li><strong>analyse</strong> the generated data using whatever statistical analyses you are interested in (e.g., t-test, ANOVA, SEMs, IRT, etc), and collect the statistics/CIs/p-values/parameter estimates you are interested in, and</li>
+<li><strong>summarise</strong> the results after repeating the simulations <span class="math inline">\(R\)</span> number of times.</li>
+</ul>
+<p>Each operation above represents the essential components of the <code>SimDesign</code> package. The <strong>design</strong> component is represented by a <code>data.frame</code> object containing the simulation conditions to be investigated, while <strong>generate</strong>, <strong>analyse</strong>, and <strong>summarise</strong> represent user defined functions which comprise the three steps in the simulation. Each of these components are constructed and passed to the <code>runSimulation()</code> function where the simulation steps are evaluated, ultimately returning a <code>data.frame</code> object containing the simulation results.</p>
+<p>After loading the <code>SimDesign</code> package, we begin by defining the required user-constructed functions. To expedite this process, a call to <code>SimFunctions()</code> will create a template to be filled in, where all the necessary functional arguments have been pre-assigned. The documentation of each argument can be found in the respective R help files, however there organization is very simple conceptually.</p>
+<p>To begin, the following code should be copied and saved to an external source (i.e., text) file.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">library</span>(SimDesign)
+<span class="kw">SimFunctions</span>()</code></pre></div>
+<pre><code>#-------------------------------------------------------------------
+
+library(SimDesign)
+
+Design &lt;- expand.grid(condition1 = NA,
+                      condition2 = NA)
+
+#-------------------------------------------------------------------
+
+Generate &lt;- function(condition, fixed_objects = NULL) {
+    dat &lt;- data.frame()
+    dat
+}
+
+Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
+    ret &lt;- c(stat1 = NaN, stat2 = NaN)
+    ret
+}
+
+Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+    ret &lt;- c(bias = NaN, RMSE = NaN)
+    ret
+}
+
+#-------------------------------------------------------------------
+
+results &lt;- runSimulation(design=Design, replications=1000, generate=Generate, 
+                         analyse=Analyse, summarise=Summarise)</code></pre>
+<p>Alternatively, if you are lazy or just don’t like copy-and-pasting, <code>SimFunctions()</code> can write the output to a file by providing a <code>filename</code> argument. The following creates a file (<code>mysim.R</code>) containing the simulation design/execution and required user-defined functions.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">SimFunctions</span>(<span class="st">'mysim'</span>)</code></pre></div>
+<p>Alternatively, for larger simulations you may want to use two files, and if you’d prefer to have helpful comments included then these can be achieved with the <code>singlefile</code> and <code>comments</code> arguments, respectively.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">SimFunctions</span>(<span class="st">'mysim'</span>, <span class="dt">singlefile =</span> <span class="ot">FALSE</span>, <span class="dt">comments =</span> <span class="ot">TRUE</span>)</code></pre></div>
+<p>Personally, I find keeping the design and functions separate when writing real-world simulations, though there are some other reasons to keep them separate. For example, when debugging code (either through the <code>edit</code> arguments or by explicitly using <code>browser()</code> calls) GUIs such as <code>Rstudio</code> are usually better at tracking the debugged functions. As a good amount of your time will initially be spent debugging, it’s good to make this as painless as possible. Second, it’s easier and more fluid to simply <code>source()</code> (keyboard shortcut <code>ctrl + shift + s</code>) the file containing functions and not worry that you might accidentally start running your simulation; though this is a matter of preference. Finally, the structure may be more readable, especially when you return sometime in the future after you’ve long forgotten what you’ve done. In the design file you can describe the simulation study more thoroughly with comments and generally outline the specifics of how the simulation is to be run, while the functions file simply contains the underlying mechanics and cogs required to run the simulation machine.</p>
+</div>
+<div id="simulation-determine-estimator-efficiency" class="section level1">
+<h1>Simulation: Determine estimator efficiency</h1>
+<p>As a toy example, let’s consider how the following question can be investigated with <code>SimDesign</code>:</p>
+<p><em>Question</em>: How does trimming affect recovering the mean of a distribution? Investigate this using different sample size with Gaussian and <span class="math inline">\(\chi^2\)</span> distributions. Also demonstrate the effect of using the median to recover the mean.</p>
+<div id="define-the-conditions" class="section level3">
+<h3>Define the conditions</h3>
+<p>First, define the condition combinations that should be investigated. In this case we wish to study 4 different sample sizes, and use a symmetric and skewed distribution. The use of <code>expand.grid()</code> is extremely helpful here to create a completely crossed-design for each combination (there are 8 in total).</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Design &lt;-<span class="st"> </span><span class="kw">expand.grid</span>(<span class="dt">sample_size =</span> <span class="kw">c</span>(<span class="dv">30</span>, <span class="dv">60</span>, <span class="dv">120</span>, <span class="dv">240</span>), 
+                      <span class="dt">distribution =</span> <span class="kw">c</span>(<span class="st">'norm'</span>, <span class="st">'chi'</span>))
+Design</code></pre></div>
+<pre><code>##   sample_size distribution
+## 1          30         norm
+## 2          60         norm
+## 3         120         norm
+## 4         240         norm
+## 5          30          chi
+## 6          60          chi
+## 7         120          chi
+## 8         240          chi</code></pre>
+<p>Each row in <code>Design</code> represents a unique condition to be studied in the simulation. In this case, the first condition to be studied comes from row 1, where <span class="math inline">\(N=30\)</span> and the distribution should be normal.</p>
+</div>
+<div id="define-the-functions" class="section level3">
+<h3>Define the functions</h3>
+<p>We first start by defining the <code>generate</code> component. The only argument accepted by this function is <code>condition</code>, which will always be a <em>single row from the Design data.frame object</em> and will be of class <code>data.frame</code>. Conditions are run sequentially from row 1 to the last row in <code>Design</code>. It is also possible to pass a <code>fixed_objects</code> object to the function for including fixed sets of population parameters and other conditions, however for this simple simulation this input is not required.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Generate &lt;-<span class="st"> </span>function(condition, <span class="dt">fixed_objects =</span> <span class="ot">NULL</span>) {
+    N &lt;-<span class="st"> </span>condition$sample_size
+    dist &lt;-<span class="st"> </span>condition$distribution
+    if(dist ==<span class="st"> 'norm'</span>){
+        dat &lt;-<span class="st"> </span><span class="kw">rnorm</span>(N, <span class="dt">mean =</span> <span class="dv">3</span>)
+    } else if(dist ==<span class="st"> 'chi'</span>){
+        dat &lt;-<span class="st"> </span><span class="kw">rchisq</span>(N, <span class="dt">df =</span> <span class="dv">3</span>)
+    }
+    dat
+}</code></pre></div>
+<p>As we can see from above, <code>Generate()</code> will return a numeric vector of length <span class="math inline">\(N\)</span> containing the data to be analysed each with a population mean of 3 (because a <span class="math inline">\(\chi^2\)</span> distribution has a mean equal to its df). Next, we define the <code>analyse</code> component to analyse said data:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Analyse &lt;-<span class="st"> </span>function(condition, dat, <span class="dt">fixed_objects =</span> <span class="ot">NULL</span>) {
+    M0 &lt;-<span class="st"> </span><span class="kw">mean</span>(dat)
+    M1 &lt;-<span class="st"> </span><span class="kw">mean</span>(dat, <span class="dt">trim =</span> .<span class="dv">1</span>)
+    M2 &lt;-<span class="st"> </span><span class="kw">mean</span>(dat, <span class="dt">trim =</span> .<span class="dv">2</span>)
+    med &lt;-<span class="st"> </span><span class="kw">median</span>(dat)
+    
+    ret &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dt">mean_no_trim=</span>M0, <span class="dt">mean_trim.1=</span>M1, <span class="dt">mean_trim.2=</span>M2, <span class="dt">median=</span>med)
+    ret
+}</code></pre></div>
+<p>This function accepts the data previously returned from <code>Generate()</code> (<code>dat</code>), the condition vector previously mentioned.</p>
+<p>At this point we may conceptually think of the first two functions as being run <span class="math inline">\(R\)</span> times to obtain <span class="math inline">\(R\)</span> sets of results. In other words, if we wanted the number of replications to be 100, the first two functions would be independently run (at least) 100 times, the results from <code>Analyse()</code> would be stored, and we would then need to summarise these 100 elements into meaningful meta statistics to describe their empirical properties. This is where computing meta-statistics such as bias, root mean-square error, detection rates, and so on are of primary importance. Unsurprisingly, this is the purpose of the <code>summarise</code> component:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">Summarise &lt;-<span class="st"> </span>function(condition, results, <span class="dt">fixed_objects =</span> <span class="ot">NULL</span>) {
+    obs_bias &lt;-<span class="st"> </span><span class="kw">bias</span>(results, <span class="dt">parameter =</span> <span class="dv">3</span>)
+    obs_RMSE &lt;-<span class="st"> </span><span class="kw">RMSE</span>(results, <span class="dt">parameter =</span> <span class="dv">3</span>)
+    ret &lt;-<span class="st"> </span><span class="kw">c</span>(<span class="dt">bias=</span>obs_bias, <span class="dt">RMSE=</span>obs_RMSE, <span class="dt">RE=</span><span class="kw">RE</span>(obs_RMSE))
+    ret
+}</code></pre></div>
+<p>Again, <code>condition</code> is the same as was defined before, while <code>results</code> is a <code>matrix</code> containing all the results from <code>Analyse()</code>, where each row represents the result returned from each respective replication and the number of columns is equal to the length of a single vector returned by <code>Analyse()</code>.</p>
+<p>That sounds much more complicated than it is — all you really need to know for this simulation is that an <span class="math inline">\(R\)</span> x 4 matrix called <code>results</code> is available to build a suitable summary. Because the results is a matrix, <code>apply()</code> is useful to apply a function over each respective row. The bias and RMSE are obtained for each respective statistic, and the overall result is returned as a vector.</p>
+<p>Stopping for a moment and thinking now, each <code>condition</code> will be paired with a unique vector returned from <code>Summarise()</code>. Therefore, you might be thinking that the result returned from the simulation will be in a rectangular form, such as in a <code>matrix</code> or <code>data.frame</code>. Well, you’d be right — good on you for thinking.</p>
+</div>
+<div id="putting-it-all-together" class="section level3">
+<h3>Putting it all together</h3>
+<p>The last stage of the <code>SimDesign</code> work-flow is to pass the four defined elements to the <code>runSimulation()</code> function which, unsurprisingly, runs the simulation. There are numerous options available in the function, and these should be investigated by reading the <code>help(runSimulation)</code> HTML file. Options for performing simulations in parallel, storing/resuming temporary results, debugging functions, and so on are available. Below we simply request that each condition be run 1000 times on a single processor, and finally store the results to an object called <code>results</code>.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">results &lt;-<span class="st"> </span><span class="kw">runSimulation</span>(Design, <span class="dt">replications =</span> <span class="dv">1000</span>, <span class="dt">generate=</span>Generate, 
+                         <span class="dt">analyse=</span>Analyse, <span class="dt">summarise=</span>Summarise)</code></pre></div>
+<pre><code>## 
+Design row: 1/8;   Started: Sun Oct 29 19:05:26 2017;   Total elapsed time: 0.00s 
+## 
+Design row: 2/8;   Started: Sun Oct 29 19:05:26 2017;   Total elapsed time: 0.29s 
+## 
+Design row: 3/8;   Started: Sun Oct 29 19:05:26 2017;   Total elapsed time: 0.59s 
+## 
+Design row: 4/8;   Started: Sun Oct 29 19:05:27 2017;   Total elapsed time: 0.88s 
+## 
+Design row: 5/8;   Started: Sun Oct 29 19:05:27 2017;   Total elapsed time: 1.20s 
+## 
+Design row: 6/8;   Started: Sun Oct 29 19:05:27 2017;   Total elapsed time: 1.53s 
+## 
+Design row: 7/8;   Started: Sun Oct 29 19:05:28 2017;   Total elapsed time: 1.82s 
+## 
+Design row: 8/8;   Started: Sun Oct 29 19:05:28 2017;   Total elapsed time: 2.12s</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">results</code></pre></div>
+<pre><code>##   sample_size distribution bias.mean_no_trim bias.mean_trim.1
+## 1          30         norm           0.00082         -0.00018
+## 2          60         norm           0.00182          0.00086
+## 3         120         norm           0.00618          0.00521
+## 4         240         norm          -0.00041         -0.00071
+## 5          30          chi           0.00978         -0.30932
+## 6          60          chi           0.00832         -0.32727
+## 7         120          chi          -0.00017         -0.34301
+## 8         240          chi          -0.00207         -0.34972
+##   bias.mean_trim.2 bias.median RMSE.mean_no_trim RMSE.mean_trim.1
+## 1           0.0015     0.00507             0.179            0.184
+## 2           0.0022     0.00224             0.129            0.132
+## 3           0.0050     0.00334             0.085            0.088
+## 4          -0.0008    -0.00056             0.065            0.066
+## 5          -0.4558    -0.60211             0.434            0.515
+## 6          -0.4720    -0.62121             0.323            0.447
+## 7          -0.4871    -0.62316             0.225            0.403
+## 8          -0.4932    -0.63021             0.153            0.380
+##   RMSE.mean_trim.2 RMSE.median RE.mean_no_trim RE.mean_trim.1
+## 1            0.192        0.22               1            1.1
+## 2            0.136        0.16               1            1.1
+## 3            0.092        0.11               1            1.1
+## 4            0.068        0.08               1            1.0
+## 5            0.619        0.77               1            1.4
+## 6            0.563        0.71               1            1.9
+## 7            0.530        0.67               1            3.2
+## 8            0.515        0.65               1            6.2
+##   RE.mean_trim.2 RE.median REPLICATIONS SIM_TIME                COMPLETED
+## 1            1.2       1.5         1000    0.29s Sun Oct 29 19:05:26 2017
+## 2            1.1       1.5         1000    0.30s Sun Oct 29 19:05:26 2017
+## 3            1.2       1.6         1000    0.29s Sun Oct 29 19:05:27 2017
+## 4            1.1       1.5         1000    0.32s Sun Oct 29 19:05:27 2017
+## 5            2.0       3.2         1000    0.33s Sun Oct 29 19:05:27 2017
+## 6            3.0       4.8         1000    0.29s Sun Oct 29 19:05:28 2017
+## 7            5.5       8.7         1000    0.30s Sun Oct 29 19:05:28 2017
+## 8           11.4      18.3         1000    0.33s Sun Oct 29 19:05:28 2017</code></pre>
+<p>As can be seen from the printed results, each result from the <code>Summarise()</code> function has been paired with the respective conditions, statistics have been properly named, and two additional columns have been appended to the results: <code>REPLICATIONS</code>, which indicates how many time the conditions were performed, and <code>SIM_TIME</code> indicating the time (in seconds) it took to completely finish the respective conditions. A call to <code>View()</code> in the R console may also be a nice way to sift through the <code>results</code> object.</p>
+</div>
+<div id="interpreting-the-results" class="section level3">
+<h3>Interpreting the results</h3>
+<p>In this case visually inspecting the simulation table is enough to understand what is occurring, though for other Monte Carlo simulations use of ANOVAs, marginalized tables, and graphics should be used to capture the essentially phenomenon in the results. Monte Carlo simulations are just like collecting data for experiments, so be an analyst and present your data as though it were data collected from the real world.</p>
+<p>In this particular simulation, it is readily clear that using the un-adjusted mean will adequately recover the population mean with little bias. The precision also seems to increase as sample sizes increase, which is indicated by the decreasing RMSE statistics. Generally, trimming causes less efficiency in the estimates, where greater amounts of trimming result in even less efficiency, and using the median as a proxy to estimate the mean is the least effective method. This can be seen rather clearly in the following table, which prints the relative efficiency of the estimators:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">REs &lt;-<span class="st"> </span>results[,<span class="kw">grepl</span>(<span class="st">'RE</span><span class="ch">\\</span><span class="st">.'</span>, <span class="kw">colnames</span>(results))]
+<span class="kw">data.frame</span>(Design, REs)</code></pre></div>
+<pre><code>##   sample_size distribution RE.mean_no_trim RE.mean_trim.1 RE.mean_trim.2
+## 1          30         norm               1            1.1            1.2
+## 2          60         norm               1            1.1            1.1
+## 3         120         norm               1            1.1            1.2
+## 4         240         norm               1            1.0            1.1
+## 5          30          chi               1            1.4            2.0
+## 6          60          chi               1            1.9            3.0
+## 7         120          chi               1            3.2            5.5
+## 8         240          chi               1            6.2           11.4
+##   RE.median
+## 1       1.5
+## 2       1.5
+## 3       1.6
+## 4       1.5
+## 5       3.2
+## 6       4.8
+## 7       8.7
+## 8      18.3</code></pre>
+<p>Finally, when the <span class="math inline">\(\chi^2\)</span> distribution was investigated only the un-adjusted mean accurately portrayed the population mean. This isn’t surprising, because the trimmed mean is after all making inferences about the population trimmed mean, and the median is making inferences about, well, the median. Only when the distributions under investigation are symmetric will the statistics be able to make the same inferences about the mean of the population.</p>
+</div>
+</div>
+<div id="conceptual-walk-through-of-what-runsimulation-is-doing" class="section level1">
+<h1>Conceptual walk-through of what runSimulation() is doing</h1>
+<p>The following is a conceptual breakdown of what <code>runSimulation()</code> is actually doing behind the scenes. Here we demonstrate the results from the first condition (row 1 of <code>Design</code>) to show what each function returns.</p>
+<p>A single replication in a Monte Carlo simulation results in the following objects:</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">(condition &lt;-<span class="st"> </span>Design[<span class="dv">1</span>, ])</code></pre></div>
+<pre><code>##   sample_size distribution
+## 1          30         norm</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">dat &lt;-<span class="st"> </span><span class="kw">Generate</span>(condition)
+dat</code></pre></div>
+<pre><code>##  [1] 2.37 3.18 2.16 4.60 3.33 2.18 3.49 3.74 3.58 2.69 4.51 3.39 2.38 0.79
+## [15] 4.12 2.96 2.98 3.94 3.82 3.59 3.92 3.78 3.07 1.01 3.62 2.94 2.84 1.53
+## [29] 2.52 3.42</code></pre>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r">res &lt;-<span class="st"> </span><span class="kw">Analyse</span>(condition, dat)
+res</code></pre></div>
+<pre><code>## mean_no_trim  mean_trim.1  mean_trim.2       median 
+##          3.1          3.2          3.2          3.3</code></pre>
+<p>We can see here that <code>Generate()</code> returns a <code>numeric</code> vector which is accepted by <code>Analyse()</code>. The <code>Analyse()</code> function then completes the analysis portion using the generated data, and returns a named vector with the observed parameter estimates. Of course, this is only a single replication and therefore is not really meaningful in the grand scheme of things, so it must be repeated a number of times.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="co"># repeat 1000x</span>
+results &lt;-<span class="st"> </span><span class="kw">matrix</span>(<span class="dv">0</span>, <span class="dv">1000</span>, <span class="dv">4</span>)
+<span class="kw">colnames</span>(results) &lt;-<span class="st"> </span><span class="kw">names</span>(res)
+for(i in <span class="dv">1</span>:<span class="dv">1000</span>){
+    dat &lt;-<span class="st"> </span><span class="kw">Generate</span>(condition)
+    res &lt;-<span class="st"> </span><span class="kw">Analyse</span>(condition, dat)
+    results[i, ] &lt;-<span class="st"> </span>res
+}
+<span class="kw">head</span>(results)</code></pre></div>
+<pre><code>##      mean_no_trim mean_trim.1 mean_trim.2 median
+## [1,]          3.1         3.1         3.1    2.9
+## [2,]          3.1         3.1         3.1    3.1
+## [3,]          3.1         3.1         3.0    2.8
+## [4,]          2.7         2.6         2.6    2.7
+## [5,]          3.2         3.2         3.2    3.0
+## [6,]          3.1         3.1         3.0    3.1</code></pre>
+<p>The matrix stored in <code>results</code> contains 1000 parameter estimates returned from each statistic. After this is obtained we can move on to summarising the output through the <code>Summarise()</code> function to obtain average estimates, their associated sampling error, their efficiency, and so on.</p>
+<div class="sourceCode"><pre class="sourceCode r"><code class="sourceCode r"><span class="kw">Summarise</span>(condition, results) </code></pre></div>
+<pre><code>## bias.mean_no_trim  bias.mean_trim.1  bias.mean_trim.2       bias.median 
+##           -0.0011           -0.0031           -0.0035           -0.0037 
+## RMSE.mean_no_trim  RMSE.mean_trim.1  RMSE.mean_trim.2       RMSE.median 
+##            0.1739            0.1777            0.1859            0.2146 
+##   RE.mean_no_trim    RE.mean_trim.1    RE.mean_trim.2         RE.median 
+##            1.0000            1.0442            1.1425            1.5225</code></pre>
+<p>This scheme is then repeated for each row in the <code>Design</code> object until the entire simulation study is complete.</p>
+<p>Of course, <code>runSimulation()</code> does much more than this conceptual outline which is why it exists. Namely, errors and warnings are controlled and tracked, data is re-drawn when needed, parallel processing is supported, debugging is easier with the <code>edit</code> input, temporary and full results can be saved to external files, the simulation state can be saved/restored, contains build-in saftey features, and more. The point, however, is that you as the user do not need to be bogged down with the nitty-gritty details of setting up the simulation work-flow/features, and instead can focus all your time on the important generate-analyse-summarise steps needed to get your results.</p>
+<p>To access further examples and instructions feel free to visit the <a href="https://github.com/philchalmers/SimDesign/wiki">package wiki on Github</a></p>
+</div>
+
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 Package: SimDesign
 Title: Structure for Organizing Monte Carlo Simulation Designs
-Version: 1.7
+Version: 1.8
 Authors@R: c(person("Phil", "Chalmers", email = "rphilip.chalmers@gmail.com", role = c("aut", "cre")),
              person("Matthew", "Sigal", email = "matthewsigal@gmail.com", role = c("ctb")))
 Description: Provides tools to help safely and efficiently organize Monte Carlo simulations in R.
@@ -10,18 +10,19 @@ Description: Provides tools to help safely and efficiently organize Monte Carlo 
     back-end and MPI distributed computations, save and restore temporary files,
     aggregate results across independent nodes, and provide native support for debugging.
 VignetteBuilder: knitr
-Depends: R (>= 3.0.2)
+Depends: R (>= 3.2.1)
 Imports: foreach, methods, parallel, plyr, pbapply (>= 1.3-0), stats
-Suggests: knitr, dplyr, ggplot2, shiny, doMPI
+Suggests: knitr, dplyr, ggplot2, shiny, doMPI, copula, extraDistr
 License: GPL (>= 2)
+ByteCompile: yes
 LazyData: true
 URL: https://github.com/philchalmers/SimDesign,
         https://github.com/philchalmers/SimDesign/wiki
 RoxygenNote: 6.0.1
 NeedsCompilation: no
-Packaged: 2017-08-15 02:59:45 UTC; phil
+Packaged: 2017-10-29 23:05:29 UTC; phil
 Author: Phil Chalmers [aut, cre],
   Matthew Sigal [ctb]
 Maintainer: Phil Chalmers <rphilip.chalmers@gmail.com>
 Repository: CRAN
-Date/Publication: 2017-08-15 03:19:43 UTC
+Date/Publication: 2017-10-29 23:15:10 UTC
