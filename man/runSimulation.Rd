@@ -6,15 +6,18 @@
 \alias{head.SimDesign}
 \alias{tail.SimDesign}
 \alias{summary.SimDesign}
+\alias{extract_results}
 \alias{as.data.frame.SimDesign}
 \title{Run a Monte Carlo simulation given a data.frame of conditions and simulation functions}
 \usage{
 runSimulation(design, replications, generate, analyse, summarise,
-  fixed_objects = NULL, packages = NULL, filename = "SimDesign-results",
-  warnings_as_errors = FALSE, save = FALSE, save_results = FALSE,
-  save_seeds = FALSE, load_seed = NULL, seed = NULL, parallel = FALSE,
+  fixed_objects = NULL, packages = NULL, bootSE = FALSE,
+  boot_draws = 1000L, filename = "SimDesign-results",
+  seed = rint(nrow(design), min = 1L, max = 2147483647L), save = FALSE,
+  save_results = FALSE, store_results = FALSE, warnings_as_errors = FALSE,
+  save_seeds = FALSE, load_seed = NULL, parallel = FALSE,
   ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
-  max_errors = 50, as.factor = TRUE, save_generate_data = FALSE,
+  max_errors = 50L, as.factor = TRUE, save_generate_data = FALSE,
   save_details = list(), edit = "none", progress = FALSE,
   verbose = TRUE)
 
@@ -26,6 +29,8 @@ runSimulation(design, replications, generate, analyse, summarise,
 \method{tail}{SimDesign}(x, ...)
 
 \method{summary}{SimDesign}(object, ...)
+
+extract_results(object)
 
 \method{as.data.frame}{SimDesign}(x, ...)
 }
@@ -42,14 +47,15 @@ See \code{\link{Generate}} for details}
 \item{analyse}{user-defined computation function which acts on the data generated from
 \code{\link{Generate}}. See \code{\link{Analyse}} for details}
 
-\item{summarise}{optional (but recommended) user-defined summary function to be used
+\item{summarise}{optional (but highly recommended) user-defined summary function to be used
 after all the replications have completed within each \code{design} condition. Omitting this function
 will return a list of matrices (or a single matrix, if only one row in \code{design} is supplied)
 or, for more general objects (such as lists), a list containing the results returned form \code{\link{Analyse}}.
 Ommiting this function is only recommended for didactic purposes because it leaves out a large amount of
 information (e.g., try-errors, warning messages, etc), can witness memory related issues,
 and generally is not as flexible internally. See
-the \code{save_results} option for a better alternative to storing the Generate-Analyse results}
+the \code{save_results} option for a more RAM friendly alternative to storing all the Generate-Analyse results
+in the working enviroment}
 
 \item{fixed_objects}{(optional) an object (usually a named \code{list})
 containing additional user-defined objects
@@ -66,14 +72,35 @@ otherwise the functions must be made available by using explicit
 Alternatively, functions can be called explicitly without attaching the package with the \code{::} operator
 (e.g., \code{extraDistr::rgumbel()})}
 
+\item{bootSE}{logical; perform a non-parametric bootstrap to compute bootstrap standard error
+  estimates for the respective meta-statistics computed by the \code{Summarise} function?
+  When \code{TRUE}, bootstrap samples for each row in \code{Design} will be obtained after
+  the generate-analyse steps have obtain the simulation results to be summarised so that
+  standard errors for each statistic can be computed. To compute large-sample confidence
+  intervals given the bootstrap SE estimates see \code{\link{SimBoot}}.
+
+  This option is useful to approximate how accurate the resulting meta-statatistic estimates
+  were, particularly if the number of \code{replications} was relatively low (e.g., less than
+  5000). If users prefer to obtain alternative bootstrap estimates then consider passing
+  \code{save_results = TRUE}, reading the generate-analyse data into R via
+  \code{\link{SimResults}}, and performing the bootstrap manually with function found in the
+  external \code{boot} package}
+
+\item{boot_draws}{number of non-parametric bootstrap draws to sample for the \code{summarise}
+function after the generate-analyse replications are collected. Default is 1000}
+
 \item{filename}{(optional) the name of the \code{.rds} file to save the final simulation results to
 when \code{save = TRUE}. If the same file name already exists in the working
 directly at the time of saving then a new
 file will be generated instead and a warning will be thrown. This helps to avoid accidentally overwriting
 existing files. Default is \code{'SimDesign-results'}}
 
-\item{warnings_as_errors}{logical; treat warning messages as errors during the simulation? Default is FALSE,
-therefore warnings are only collected and not used to restart the data generation step}
+\item{seed}{a vector of integers to be used for reproducibility.
+The length of the vector must be equal the number of rows in \code{design}.
+This argument calls \code{\link{set.seed}} or
+\code{\link{clusterSetRNGStream}} for each condition, respectively,
+but will not be run when \code{MPI = TRUE}.
+Default randomly generates seeds within the range 1 to 2147483647 for each condition.}
 
 \item{save}{logical; save the simulation state and final results to the hard-drive? This is useful
 for simulations which require an extended amount of time. When \code{TRUE}, a temp file
@@ -96,6 +123,15 @@ be saved to the working directory, and the temp file will be removed. Default is
   WARNING: saving results to your hard-drive can fill up space very quickly for larger simulations. Be sure to
   test this option using a smaller number of replications before the full Monte Carlo simulation is performed.}
 
+\item{store_results}{logical; store the complete tables of simulation results
+in the returned object? This is \code{FALSE} by default to help avoid RAM
+issues (see \code{save_results} as a more suitable alternative). To extract these results
+pass the returned object to \code{\link{extract_results}}, which will return a named list
+of all the simulation results for each condition}
+
+\item{warnings_as_errors}{logical; treat warning messages as errors during the simulation? Default is FALSE,
+therefore warnings are only collected and not used to restart the data generation step}
+
 \item{save_seeds}{logical; save the \code{.Random.seed} states prior to performing each replication into
 plain text files located in the defined \code{save_seeds_dirname} directory/folder?
 Use this if you would like to keep track of the simulation state within each replication and design
@@ -111,13 +147,6 @@ be saved (after a call with \code{save_seeds = TRUE}). E.g., \code{load_seed = '
 will load the first seed in the second row of the \code{design} input. Note that it is important NOT
 to modify the \code{design} input object, otherwise the path may not point to the correct saved location.
 Default is \code{NULL}}
-
-\item{seed}{a vector of integers to be used for reproducibility.
-The length of the vector must be equal the number of rows in \code{design}.
-This argument calls \code{\link{set.seed}} or
-\code{\link{clusterSetRNGStream}} for each condition, respectively,
-but will not be run when \code{MPI = TRUE}.
-Default is \code{NULL}, indicating that no seed is set for each condition}
 
 \item{parallel}{logical; use parallel processing from the \code{parallel} package over each
 unique condition?}
@@ -236,12 +265,13 @@ design conditions, and number of replications. Results can be saved as temporary
 and may be restored by re-running \code{runSimulation}, provided that the respective temp
 file can be found in the working directory. \code{runSimulation} supports parallel
 and cluster computing, global and local debugging, error handling (including fail-safe
-stopping when functions fail too often, even across nodes), and tracking of error and warning messages.
+stopping when functions fail too often, even across nodes), provides bootstrap estimates of the
+sampling variability (optional), and tracking of error and warning messages.
 For convenience, all functions available in the R workspace are exported across all computational nodes
 so that they are more easily accessible (however, other R objects are not, and therefore
 must be passed to the \code{fixed_objects} input to become available across nodes).
 For a didactic presentation of the package refer to Sigal and Chalmers
-(2016; \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}), and see the associated
+(2016; \doi{10.1080/10691898.2016.1246953}), and see the associated
 wiki on Github (\url{https://github.com/philchalmers/SimDesign/wiki})
 for other tutorial material, examples, and applications of \code{SimDesign} to real-world simulations.
 }
@@ -268,6 +298,18 @@ The strategy for organizing the Monte Carlo simulation work-flow is to
      (\code{\link{SimAnova}}) and generating suitable plots and tables}
 }
 
+More succinctly, the functions to be called follow the following form with the exact inputs required
+by the \code{SimDesign} package
+
+\describe{
+  \item{\code{Design <- expand.grid(...)}}{}
+  \item{\code{Generate <- function(condition, fixed_objects = NULL) \{...\} }}{}
+  \item{\code{Analyse <- function(condition, dat, fixed_objects = NULL) \{...\} }}{}
+  \item{\code{Summarise <- function(condition, results, fixed_objects = NULL) \{...\} }}{}
+  \item{\code{results <- runSimulation(design=Design, replications, generate=Generate,
+        analyse=Analyse, summarise=Summarise)}}{}
+}
+
 For a skeleton version of the work-flow, which is often useful when initially defining a simulation,
 see \code{\link{SimFunctions}}. This function will write template simulation code
 to one/two files so that modifying the required functions and objects can begin immediately
@@ -279,10 +321,12 @@ Additional information for each condition are also contained in the \code{data.f
 \code{SIM_TIME} to indicate how long (in seconds) it took to complete
 all the Monte Carlo replications for each respective design condition,
 \code{COMPLETED} to indicate the date in which the given simulation condition completed,
-\code{SEED} if the \code{seed} argument
-was used, columns containing the number of replications which had to be re-run due to errors (where the error messages
+\code{SEED} for the integer values in the \code{seed} argument,
+columns containing the number of replications which had to be re-run due to errors (where the error messages
 represent the names of the columns prefixed with a \code{ERROR:} string), and
-columns containing the number of warnings prefixed with a \code{WARNING:} string.
+columns containing the number of warnings prefixed with a \code{WARNING:} string. Finally,
+if \code{bootSE = TRUE} was included then the final right-most columns will contain the labels
+\code{BOOT_SE.} followed by the name of the associated meta-statistic defined in \code{summarise()}.
 
 Additional examples, presentation files, and tutorials can be found on the package wiki located at
 \url{https://github.com/philchalmers/SimDesign/wiki}.
@@ -525,6 +569,11 @@ Final <- runSimulation(design=Design, replications=1000,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 Final
 
+# reproduce exact simulation
+Final_rep <- runSimulation(design=Design, replications=1000, seed=Final$SEED,
+                       generate=Generate, analyse=Analyse, summarise=Summarise)
+Final_rep
+
 
 #~~~~~~~~~~~~~~~~~~~~~~~~
 #### Extras
@@ -615,7 +664,7 @@ Summarise <- function(condition, results, fixed_objects = NULL){
 #### Step 3 --- Collect results by looping over the rows in design
 
 # first, test to see if it works
-Final <- runSimulation(design=Design, replications=5,
+Final <- runSimulation(design=Design, replications=5, store_results=TRUE,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 head(Final)
 
@@ -727,12 +776,12 @@ ggplot(dd, aes(factor(group_size_ratio), value, fill = factor(standard_deviation
 \references{
 Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-\url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+\doi{10.1080/10691898.2016.1246953}
 }
 \seealso{
 \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-  \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
+  \code{\link{SimBoot}}, \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

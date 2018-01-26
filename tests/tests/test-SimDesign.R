@@ -85,6 +85,12 @@ test_that('SimDesign', {
     expect_is(Final, 'data.frame')
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                           replications = 2, parallel=FALSE, save=FALSE, verbose = FALSE,
+                           store_results = TRUE)
+    out <- extract_results(Final)
+    expect_equal(nrow(out[[1L]]), 2L)
+
+    Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                            replications = parallel::detectCores(),
                            parallel=TRUE, ncores=2L, save=FALSE, verbose = FALSE)
     expect_is(Final, 'data.frame')
@@ -312,7 +318,7 @@ test_that('SimDesign', {
                              generate=mygenerate, analyse=mycompute, summarise=mycollect,
                              parallel=FALSE, save=FALSE, verbose = FALSE)
     expect_equal(names(results)[5], "ERROR: .Error : The following return NA/NaN and required redrawing: ret\n")
-    expect_equal(results[,5], c(1,2,1,1,2,4,1,NA))
+    expect_equal(results[,5], c(NA,1,NA,3,4,1,NA,4))
 
     #data.frame test
     mysim <- function(condition, fixed_objects = NULL){
@@ -379,7 +385,7 @@ test_that('SimDesign', {
     results <- runSimulation(replications = 10, generate = Generate,
                              analyse=Analyse2, summarise = Summarise, verbose=FALSE)
     expect_is(results, 'data.frame')
-    expect_equal(ncol(results), 4L)
+    expect_equal(ncol(results), 5L)
 
     # dummy run with no design and returning lists
     Generate <- function(condition, fixed_objects = NULL)

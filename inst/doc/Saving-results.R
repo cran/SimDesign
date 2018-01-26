@@ -101,3 +101,9 @@ str(input)
 ## ------------------------------------------------------------------------
 SimClean(results = TRUE)
 
+## ------------------------------------------------------------------------
+results <- runSimulation(Design, replications = 3, store_results=TRUE,
+              generate=Generate, analyse=Analyse, summarise=Summarise)
+list_results <- extract_results(results)
+list_results
+

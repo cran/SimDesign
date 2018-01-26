@@ -1,19 +1,8 @@
-# Function for computing Monte Carlo simulation results for each unique condition
-#
-# @param Functions list of functions
-# @param condition a single row from the design input
-# @param replications number of times to repeat the Monte Carlo simulations
-# @param fixed_objects optional object containing fixed conditions across design
-# @param cl cluster object defined from the parallel package
-# @param MPI logical; flag passed down from the runSimulation function
-# @param save_results logical; save the results to .rds files
-# @param results_filename the file name used to store results in
-#
 Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI, seed,
-                     save_results, save_results_dirname, max_errors,
+                     save_results, save_results_dirname, max_errors, bootSE, boot_draws,
                      save_generate_data, save_generate_data_dirname,
                      save_seeds, save_seeds_dirname, load_seed, export_funs, packages,
-                     summarise_asis, warnings_as_errors, progress)
+                     summarise_asis, warnings_as_errors, progress, store_results)
 {
     # This defines the work-flow for the Monte Carlo simulation given the condition (row in Design)
     #  and number of replications desired
@@ -76,14 +65,19 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
             }
         }
     }
-    if(summarise_asis){
-        if(is.data.frame(results[[1]]) && nrow(results[[1]]) == 1L){
-            return(plyr::rbind.fill(results))
-        } else if(is.data.frame(results[[1]]) && nrow(results[[1]]) > 1L){
-            return(results)
+    if(summarise_asis || store_results){
+        tabled_results <- if(is.data.frame(results[[1]]) && nrow(results[[1]]) == 1L){
+            plyr::rbind.fill(results)
+        } else if((is.data.frame(results[[1]]) && nrow(results[[1]]) > 1L) || is.list(results[[1L]])){
+            results
+        } else {
+            do.call(rbind, results)
         }
-        if(is.list(results[[1L]])) return(results)
-        return(do.call(rbind, results))
+        if(save_results){
+            tmpfilename <- paste0(save_results_dirname, '/results-row-', condition$ID, '.rds')
+            saveRDS(list(condition=condition, results=tabled_results), tmpfilename)
+        }
+        if(summarise_asis) return(tabled_results)
     }
 
     try_errors <- do.call(c, lapply(results, function(x) attr(x, 'try_errors')))
@@ -127,7 +121,21 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
             names(sim_results) <- 'value'
     if(!is.vector(sim_results) || is.null(names(sim_results)))
         stop('summarise() must return a named vector or data.frame object with 1 row', call.=FALSE)
-    sim_results <- c(sim_results, 'REPLICATIONS'=replications, 'ERROR: '=try_errors,
-                     'WARNING: '=warnings)
-    return(sim_results)
+    ret <- c(sim_results, 'REPLICATIONS'=replications, 'ERROR: '=try_errors,
+             'WARNING: '=warnings)
+    if(bootSE){
+        # could parallelize, TODO
+        SE_sim_results <- sapply(1L:boot_draws, function(r){
+            pick <- rint(n = replications, min = 1L, max = replications)
+            # results could be a list? TODO
+            tmp <- results[pick, , drop=FALSE]
+            Functions$summarise(results=tmp, condition=condition, fixed_objects=fixed_objects)
+        })
+        SE_sim_results <- apply(SE_sim_results, 1L, sd)
+        names(SE_sim_results) <- paste0("BOOT_SE.", names(sim_results))
+        ret <- c(ret, SE_sim_results)
+    }
+    if(store_results)
+        attr(ret, 'full_results') <- tabled_results
+    ret
 }

@@ -1,4 +1,4 @@
-#' Compute (relative) bias summary statistic
+#' Compute (relative/standardized) bias summary statistic
 #'
 #' Computes the (relative) bias of a sample estimate from the parameter value.
 #' Accepts estimate and parameter values, as well as estimate values which are in deviation form.
@@ -15,16 +15,21 @@
 #'   If \code{NULL} then it will be assumed that the \code{estimate} input is in a deviation
 #'   form (therefore \code{mean(estimate))} will be returned)
 #'
-#' @param relative logical; compute the relative bias statistic (i.e., divide the bias by the value
-#'   in \code{parameter})? Default is \code{FALSE}
+#' @param type type of bias statistic to return. Default (\code{'bias'}) computes the standard bias
+#'   (average difference between sample and population), \code{'relative'} computes
+#'   the relative bias statistic (i.e., divide the bias by the value
+#'   in \code{parameter}; note that multiplying this by 100 gives the "percent bias" measure),
+#'   and \code{'standardized'} computes the standardized bias estimate
+#'   (standard bias divided by the standard deviation of the sample estimates)
 #'
-#' @return returns a \code{numeric} vector indicating the overall (relative) bias in the estimates
+#' @return returns a \code{numeric} vector indicating the overall (relative/standardized)
+#'   bias in the estimates
 #'
 #' @seealso \code{\link{RMSE}}
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @aliases bias
 #'
@@ -37,7 +42,8 @@
 #' pop <- 2
 #' samp <- rnorm(100, 2, sd = 0.5)
 #' bias(samp, pop)
-#' bias(samp, pop, relative = TRUE)
+#' bias(samp, pop, type = 'relative')
+#' bias(samp, pop, type = 'standardized')
 #'
 #' dev <- samp - pop
 #' bias(dev)
@@ -48,6 +54,8 @@
 #' # matrix input
 #' mat <- cbind(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
 #' bias(mat, parameter = 2)
+#' bias(mat, parameter = 2, type = 'relative')
+#' bias(mat, parameter = 2, type = 'standardized')
 #'
 #' # same, but with data.frame
 #' df <- data.frame(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
@@ -59,7 +67,7 @@
 #' bias(estimates, parameters)
 #'
 #'
-bias <- function(estimate, parameter = NULL, relative = FALSE){
+bias <- function(estimate, parameter = NULL, type = 'bias'){
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -67,13 +75,15 @@ bias <- function(estimate, parameter = NULL, relative = FALSE){
         colnames(estimate) <- nms
     }
     stopifnot(is.matrix(estimate))
+    stopifnot(type %in% c('bias', 'standardized', 'relative'))
     n_col <- ncol(estimate)
-    if(relative) stopifnot(!is.null(parameter))
+    if(type == "relative") stopifnot(!is.null(parameter))
     if(is.null(parameter)) parameter <- 0
     stopifnot(is.vector(parameter))
     if(length(parameter) == 1L) parameter <- rep(parameter, n_col)
     ret <- colMeans(t(t(estimate) - parameter))
-    if(relative) ret <- ret / parameter
+    if(type == 'relative') ret <- ret / parameter
+    else if(type == 'standardized') ret <- ret / apply(estimate, 2, sd)
     ret
 }
 
@@ -111,7 +121,7 @@ bias <- function(estimate, parameter = NULL, relative = FALSE){
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @export RMSE
 #'
@@ -206,7 +216,7 @@ RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE){
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @seealso RMSE
 #'
@@ -281,7 +291,7 @@ MAE <- function(estimate, parameter = NULL, type = 'MAE'){
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @export RE
 #'
@@ -334,7 +344,7 @@ RE <- function(x, MSE = FALSE){
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @export RD
 #'
@@ -390,7 +400,7 @@ RD <- function(est, pop, as.vector = TRUE){
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @examples
 #'
@@ -422,7 +432,8 @@ EDR <- function(p, alpha = .05){
 #'
 #' Computes the detection rate for determining empirical Type I error and power rates using information
 #' from the confidence intervals. Note that using \code{1 - ECR(CIs, parameter)} will provide the empirical
-#' detection rate.
+#' detection rate. Also supports computing the average width of the CIs, which may be useful when comparing
+#' the efficiency of CI estimators.
 #'
 #' @param CIs a \code{numeric} vector or \code{matrix} of confidence interval values for a
 #'   given parameter value, where the first element/column indicates the lower confidence interval
@@ -440,6 +451,10 @@ EDR <- function(p, alpha = .05){
 #'   useful when the coverage region is not expected to be symmetric, and therefore is generally not
 #'   required. Note that \code{1 - sum(ECR(CIs, parameter, tails=TRUE)) == ECR(CIs, parameter)}
 #'
+#' @param CI_width logical; rather than returning the overall coverage rate, return the
+#'   average width of the CIs instead? Useful when comparing the efficiency of different CI
+#'   estimators
+#'
 #' @param names an optional character vector used to name the returned object. Generally useful
 #'   when more than one CI estimate is investigated at once
 #'
@@ -449,7 +464,7 @@ EDR <- function(p, alpha = .05){
 #' @references
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \url{http://www.tandfonline.com/doi/full/10.1080/10691898.2016.1246953}
+#' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @export ECR
 #'
@@ -478,21 +493,27 @@ EDR <- function(p, alpha = .05){
 #' parameters <- parameters + rnorm(10)
 #' ECR(CIs, parameters)
 #'
+#' # average width of CIs
+#' ECR(CIs, parameters, CI_width=TRUE)
+#'
 #' # ECR() for multiple CI estimates in the same object
 #' parameter <- 10
 #' CIs <- data.frame(lowerCI_1=parameter - runif(10),
 #'                   upperCI_1=parameter + runif(10),
-#'                   lowerCI_2=parameter - runif(10),
-#'                   upperCI_2=parameter + runif(10))
+#'                   lowerCI_2=parameter - 2*runif(10),
+#'                   upperCI_2=parameter + 2*runif(10))
 #' head(CIs)
 #' ECR(CIs, parameter)
 #' ECR(CIs, parameter, tails=TRUE)
+#' ECR(CIs, parameter, CI_width=TRUE)
 #'
 #' # often a good idea to provide names for the output
 #' ECR(CIs, parameter, names = c('this', 'that'))
+#' ECR(CIs, parameter, CI_width=TRUE, names = c('this', 'that'))
 #' ECR(CIs, parameter, tails=TRUE, names = c('this', 'that'))
 #'
-ECR <- function(CIs, parameter, tails = FALSE, names = NULL){
+ECR <- function(CIs, parameter, tails = FALSE, CI_width = FALSE, names = NULL){
+    if(CI_width) tails <- FALSE
     if(is.data.frame(CIs)) CIs <- as.matrix(CIs)
     if(length(CIs) == 2L) CIs <- matrix(CIs, 1L, 2L)
     stopifnot(ncol(CIs) %% 2 == 0L)
@@ -501,7 +522,8 @@ ECR <- function(CIs, parameter, tails = FALSE, names = NULL){
         ind <- 1L
         for(i in seq(1L, ncol(CIs), by=2L)){
             ret <- c(ret, ECR(CIs[,c(i, i+1L)], parameter=parameter,
-                                  tails=tails, names=names[ind]))
+                              tails=tails, names=names[ind],
+                              CI_width=CI_width))
             ind <- ind + 1L
         }
         return(ret)
@@ -512,6 +534,12 @@ ECR <- function(CIs, parameter, tails = FALSE, names = NULL){
     if(CIs[1,1] > CIs[1,2]){
         warning('First column not less than second. Temporarily switching')
         CIs <- cbind(CIs[,2L], CIs[,1L])
+    }
+    if(CI_width){
+        ret <- mean(CIs[,2L] - CIs[,1L])
+        if(!is.null(names))
+            names(ret) <- names
+        return(ret)
     }
     ends <- c(mean(CIs[,1L] > parameter), mean(parameter > CIs[,2L]))
     if(tails){
