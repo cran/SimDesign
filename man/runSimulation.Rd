@@ -42,10 +42,13 @@ be studied, where each row represents a unique condition and each column a facto
 Must be greater than 0}
 
 \item{generate}{user-defined data and parameter generating function.
-See \code{\link{Generate}} for details}
+See \code{\link{Generate}} for details. Note that this argument may be omitted by the
+user if they wish to generate the data with the \code{analyse} step, but for real-world
+simulations this is generally not recommended}
 
 \item{analyse}{user-defined computation function which acts on the data generated from
-\code{\link{Generate}}. See \code{\link{Analyse}} for details}
+\code{\link{Generate}} (or, if \code{generate} was omitted, both generates and
+analyses the simulated data). See \code{\link{Analyse}} for details}
 
 \item{summarise}{optional (but highly recommended) user-defined summary function to be used
 after all the replications have completed within each \code{design} condition. Omitting this function
@@ -55,7 +58,7 @@ Ommiting this function is only recommended for didactic purposes because it leav
 information (e.g., try-errors, warning messages, etc), can witness memory related issues,
 and generally is not as flexible internally. See
 the \code{save_results} option for a more RAM friendly alternative to storing all the Generate-Analyse results
-in the working enviroment}
+in the working environment}
 
 \item{fixed_objects}{(optional) an object (usually a named \code{list})
 containing additional user-defined objects
@@ -79,7 +82,7 @@ Alternatively, functions can be called explicitly without attaching the package 
   standard errors for each statistic can be computed. To compute large-sample confidence
   intervals given the bootstrap SE estimates see \code{\link{SimBoot}}.
 
-  This option is useful to approximate how accurate the resulting meta-statatistic estimates
+  This option is useful to approximate how accurate the resulting meta-statistic estimates
   were, particularly if the number of \code{replications} was relatively low (e.g., less than
   5000). If users prefer to obtain alternative bootstrap estimates then consider passing
   \code{save_results = TRUE}, reading the generate-analyse data into R via
@@ -193,6 +196,9 @@ as \code{ordered}. Default is \code{TRUE}}
       to be modified, but in the event that a manual node breaks down while running a simulation the
       results from the temp files may be resumed on another computer by changing the name of the
       node to match the broken computer. Default is the result of evaluating \code{unname(Sys.info()['nodename'])}}
+
+    \item{\code{out_rootdir}}{root directory to save all files to. Default uses the
+       current working directory}
 
     \item{\code{tmpfilename}}{the name of the temporary \code{.rds} file when any of the \code{save} flags are used.
        This file will be read-in if it is in the working directory and the simulation will continue
@@ -310,6 +316,16 @@ by the \code{SimDesign} package
         analyse=Analyse, summarise=Summarise)}}{}
 }
 
+The \code{condition} object represents a single row from the \code{design} object, indicating
+a unique Monte Carlo simulation condition. The \code{condition} object also contains two
+additional elements to help track the simulation's state: an \code{ID} variable, indicating
+the respective row number in the \code{design} object, and a \code{REPLICATION} element
+indicating the replication iteration number. Mainly, these are included to help with debugging,
+where users can easily locate the \code{r}th replication (e.g., \code{REPLICATION == 500})
+within the \code{j}th row in the simulation design (e.g., \code{ID == 2}). The
+\code{REPLICATION} input is also useful when temporarily saving files to the hard-drive
+when calling external command line utilities.
+
 For a skeleton version of the work-flow, which is often useful when initially defining a simulation,
 see \code{\link{SimFunctions}}. This function will write template simulation code
 to one/two files so that modifying the required functions and objects can begin immediately
@@ -382,145 +398,6 @@ nodes automatically}. This makes it convenient when writing code because custom 
 always be available across nodes if they are visible in the R workspace. As well, note the
 \code{packages} input to declare packages which must be loaded via \code{library()} in order to make
 specific non-standard R functions available across nodes.
-}
-
-\section{Cluster computing}{
-
-
-SimDesign code may be released to a computing system which supports parallel cluster computations using
-the industry standard Message Passing Interface (MPI) form. This simply
-requires that the computers be setup using the usual MPI requirements (typically, running some flavor
-of Linux, have password-less open-SSH access, IP addresses have been added to the \code{/etc/hosts} file
-or \code{~/.ssh/config}, etc).
-More generally though, these resources are widely available through professional
-organizations dedicated to super-computing.
-
-To setup the R code for an MPI cluster one need only add the argument \code{MPI = TRUE},
-wrap the appropriate MPI directives around \code{runSimulation}, and submit the
-files using the suitable BASH commands to execute the \code{mpirun} tool. For example,
-
-\describe{
-  \item{\code{library(doMPI)}}{}
-  \item{\code{cl <- startMPIcluster()}}{}
-  \item{\code{registerDoMPI(cl)}}{}
-  \item{\code{runSimulation(design=Design, replications=1000, save=TRUE, filename='mysimulation',
-    generate=Generate, analyse=Analyse, summarise=Summarise,  MPI=TRUE)}}{}
-  \item{\code{closeCluster(cl)}}{}
-  \item{\code{mpi.quit()}}{}
-}
-
-The necessary \code{SimDesign} files must be uploaded to the dedicated master node
-so that a BASH call to \code{mpirun} can be used to distribute the work across slaves.
-For instance, if the following BASH command is run on the master node then 16 processes
-will be summoned (1 master, 15 slaves) across the computers named \code{localhost}, \code{slave1},
-and \code{slave2} in the ssh \code{config} file.
-
-\code{mpirun -np 16 -H localhost,slave1,slave2 R --slave -f simulation.R}
-}
-
-\section{Network computing}{
-
-
-If you access have to a set of computers which can be linked via secure-shell (ssh) on the same LAN network then
-Network computing (a.k.a., a Beowulf cluster) may be a viable and useful option.
-This approach is similar to MPI computing approach
-except that it offers more localized control and requires more hands-on administrative access to the master
-and slave nodes. The setup generally requires that the master node
-has \code{SimDesign} installed and the slave/master nodes have all the required R packages pre-installed
-(Unix utilities such as \code{dsh} are very useful for this purpose). Finally,
-the master node must have ssh access to the slave nodes, each slave node must have ssh access
-with the master node, and a cluster object (\code{cl}) from the \code{parallel} package must be defined on the
-master node.
-
-Setup for network computing is generally more straightforward and controlled
-than the setup for MPI jobs in that it only requires the specification of a) the respective
-IP addresses within a defined R script, and b) the user name
-(if different from the master node's user name. Otherwise, only a) is required).
-However, on Linux I have found it is also important to include relevant information about the host names
-and IP addresses in the \code{/etc/hosts} file on the master and slave nodes, and to ensure that
-the selected port (passed to \code{\link{makeCluster}}) on the master node is not hindered by a firewall.
-
-As an example, using the following code the master node (primary) will spawn 7 slaves and 1 master,
-while a separate computer on the network with the associated IP address will spawn an additional 6 slaves.
-Information will be collected on the master node, which is also where the files
-and objects will be saved using the \code{save} inputs (if requested).
-
-\describe{
-  \item{\code{library(parallel)}}{}
-  \item{\code{primary <- '192.168.2.1'}}{}
-  \item{\code{IPs <- list(list(host=primary, user='myname', ncore=8), list(host='192.168.2.2', user='myname', ncore=6))}}{}
-  \item{\code{spec <- lapply(IPs, function(IP) rep(list(list(host=IP$host, user=IP$user)), IP$ncore))}}{}
-  \item{\code{spec <- unlist(spec, recursive=FALSE)}}{}
-  \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
-  \item{\code{Final <- runSimulation(..., cl=cl)}}{}
-  \item{\code{stopCluster(cl)}}{}
-}
-
-The object \code{cl} is passed to \code{runSimulation} on the master node
-and the computations are distributed across the respective
-IP addresses. Finally, it's usually good practice to use \code{stopCluster(cl)}
-when all the simulations are said and done to release the communication between the computers,
-which is what the above code shows.
-
-Alternatively, if you have provided suitable names for each respective slave node, as well as the master,
-then you can define the \code{cl} object using these instead (rather than supplying the IP addresses in
-your R script). This requires that the master node has itself and all the slave nodes defined in the
-\code{/etc/hosts} and \code{~/.ssh/config} files, while the slave nodes require themselves and the
-master node in the same files (only 2 IP addresses required on each slave).
-Following this setup, and assuming the user name is the same across all nodes,
-the \code{cl} object could instead be defined with
-
-\describe{
-  \item{\code{library(parallel)}}{}
-  \item{\code{primary <- 'master'}}{}
-  \item{\code{IPs <- list(list(host=primary, ncore=8), list(host='slave', ncore=6))}}{}
-  \item{\code{spec <- lapply(IPs, function(IP) rep(list(list(host=IP$host)), IP$ncore))}}{}
-  \item{\code{spec <- unlist(spec, recursive=FALSE)}}{}
-  \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
-  \item{\code{Final <- runSimulation(..., cl=cl)}}{}
-  \item{\code{stopCluster(cl)}}{}
-}
-
-Or, even more succinctly if all communication elements required are identical to the master node,
-
-\describe{
-  \item{\code{library(parallel)}}{}
-  \item{\code{primary <- 'master'}}{}
-  \item{\code{spec <- c(rep(primary, 8), rep('slave', 6))}}{}
-  \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
-  \item{\code{Final <- runSimulation(..., cl=cl)}}{}
-  \item{\code{stopCluster(cl)}}{}
-}
-}
-
-\section{Poor man's cluster computing for independent nodes}{
-
-
-In the event that you do not have access to a Beowulf-type cluster (described in the section on
-"Network Computing") but have multiple personal
-computers then the simulation code can be manually distributed across each independent computer instead.
-This simply requires passing a smaller value to the \code{replications} argument on each computer and later
-aggregating the results using the \code{\link{aggregate_simulations}} function.
-
-For instance, if you have two computers available on different networks and wanted a total of 500 replications you
-could pass \code{replications = 300} to one computer and \code{replications = 200} to the other along
-with a \code{filename} argument (or simply saving the final objects as \code{.rds} files manually after
-\code{runSimulation()} has finished). This will create two distinct \code{.rds} files which can be
-combined later with the \code{\link{aggregate_simulations}} function. The benefit of this approach over
-MPI or setting up a Beowulf cluster is that computers need not be linked on the same network,
-and, should the need arise, the temporary
-simulation results can be migrated to another computer in case of a complete hardware failure by moving the
-saved temp files to another node, modifying
-the suitable \code{compname} input to \code{save_details} (or, if the \code{filename} and \code{tmpfilename}
-were modified, matching those files accordingly), and resuming the simulation as normal.
-
-Note that this is also a useful tactic if the MPI or Network computing options require you to
-submit smaller jobs due to time and resource constraint-related reasons,
-where fewer replications/nodes should be requested. After all the jobs are completed and saved to their
-respective files, \code{\link{aggregate_simulations}}
-can then collapse the files as if the simulations were run all at once. Hence, SimDesign makes submitting
-smaller jobs to super-computing resources considerably less error prone than managing a number of smaller
-jobs manually .
 }
 
 \examples{
@@ -746,7 +623,7 @@ Final2 \%>\% group_by(standard_deviation_ratio, group_size_ratio) \%>\%
 # quick ANOVA analysis method with all two-way interactions
 SimAnova( ~ (sample_size + group_size_ratio + standard_deviation_ratio)^2, Final)
 
-# or more specific anovas
+# or more specific ANOVAs
 SimAnova(independent ~ (group_size_ratio + standard_deviation_ratio)^2,
     Final)
 

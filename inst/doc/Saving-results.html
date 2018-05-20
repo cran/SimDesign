@@ -251,11 +251,11 @@ result &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39
 </code></pre>
 
 <pre><code>## 
-Design row: 1/3;   Started: Fri Jan 26 11:35:06 2018;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Sat May 19 23:24:52 2018;   Total elapsed time: 0.00s 
 ## 
-Design row: 2/3;   Started: Fri Jan 26 11:35:06 2018;   Total elapsed time: 0.22s 
+Design row: 2/3;   Started: Sat May 19 23:24:52 2018;   Total elapsed time: 0.27s 
 ## 
-Design row: 3/3;   Started: Fri Jan 26 11:35:06 2018;   Total elapsed time: 0.43s
+Design row: 3/3;   Started: Sat May 19 23:24:52 2018;   Total elapsed time: 0.49s
 </code></pre>
 
 <p>Check that temporary file exists. </p>
@@ -279,7 +279,7 @@ result &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39
 </code></pre>
 
 <pre><code>## 
-Design row: 3/3;   Started: Fri Jan 26 11:35:06 2018;   Total elapsed time: 0.43s
+Design row: 3/3;   Started: Sat May 19 23:24:53 2018;   Total elapsed time: 0.49s
 </code></pre>
 
 <p>Check which files exist. </p>
@@ -308,11 +308,11 @@ files[grepl(&#39;SIMDESIGN&#39;, files)]
 </code></pre>
 
 <pre><code>## 
-Design row: 1/3;   Started: Fri Jan 26 11:35:07 2018;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Sat May 19 23:24:53 2018;   Total elapsed time: 0.00s 
 ## 
-Design row: 2/3;   Started: Fri Jan 26 11:35:07 2018;   Total elapsed time: 0.20s 
+Design row: 2/3;   Started: Sat May 19 23:24:53 2018;   Total elapsed time: 0.22s 
 ## 
-Design row: 3/3;   Started: Fri Jan 26 11:35:07 2018;   Total elapsed time: 0.40s
+Design row: 3/3;   Started: Sat May 19 23:24:53 2018;   Total elapsed time: 0.48s
 </code></pre>
 
 <pre><code class="r">dir &lt;- dir()
@@ -330,9 +330,10 @@ str(row1)
 </code></pre>
 
 <pre><code>## List of 4
-##  $ condition:&#39;data.frame&#39;:   1 obs. of  2 variables:
-##   ..$ ID: int 1
-##   ..$ N : num 10
+##  $ condition:&#39;data.frame&#39;:   1 obs. of  3 variables:
+##   ..$ ID         : int 1
+##   ..$ REPLICATION: int 0
+##   ..$ N          : num 10
 ##  $ results  : num [1:1000, 1] 0.6354 0.0207 0.3661 0.3016 0.7379 ...
 ##   ..- attr(*, &quot;dimnames&quot;)=List of 2
 ##   .. ..$ : NULL
@@ -348,8 +349,8 @@ str(row1)
 <pre><code class="r">row1$condition
 </code></pre>
 
-<pre><code>##   ID  N
-## 1  1 10
+<pre><code>##   ID REPLICATION  N
+## 1  1           0 10
 </code></pre>
 
 <pre><code class="r">head(row1$results)
@@ -371,9 +372,10 @@ str(row1)
 </code></pre>
 
 <pre><code>## List of 4
-##  $ condition:&#39;data.frame&#39;:   1 obs. of  2 variables:
-##   ..$ ID: int 1
-##   ..$ N : num 10
+##  $ condition:&#39;data.frame&#39;:   1 obs. of  3 variables:
+##   ..$ ID         : int 1
+##   ..$ REPLICATION: int 0
+##   ..$ N          : num 10
 ##  $ results  : num [1:1000, 1] 0.6354 0.0207 0.3661 0.3016 0.7379 ...
 ##   ..- attr(*, &quot;dimnames&quot;)=List of 2
 ##   .. ..$ : NULL
@@ -396,9 +398,10 @@ str(input)
 
 <pre><code>## List of 3
 ##  $ :List of 4
-##   ..$ condition:&#39;data.frame&#39;:    1 obs. of  2 variables:
-##   .. ..$ ID: int 1
-##   .. ..$ N : num 10
+##   ..$ condition:&#39;data.frame&#39;:    1 obs. of  3 variables:
+##   .. ..$ ID         : int 1
+##   .. ..$ REPLICATION: int 0
+##   .. ..$ N          : num 10
 ##   ..$ results  : num [1:1000, 1] 0.6354 0.0207 0.3661 0.3016 0.7379 ...
 ##   .. ..- attr(*, &quot;dimnames&quot;)=List of 2
 ##   .. .. ..$ : NULL
@@ -410,9 +413,10 @@ str(input)
 ##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
 ##   .. .. ..$ warnings: NULL
 ##  $ :List of 4
-##   ..$ condition:&#39;data.frame&#39;:    1 obs. of  2 variables:
-##   .. ..$ ID: int 2
-##   .. ..$ N : num 20
+##   ..$ condition:&#39;data.frame&#39;:    1 obs. of  3 variables:
+##   .. ..$ ID         : int 2
+##   .. ..$ REPLICATION: int 0
+##   .. ..$ N          : num 20
 ##   ..$ results  : num [1:1000, 1] 0.318 0.14 0.253 0.235 0.12 ...
 ##   .. ..- attr(*, &quot;dimnames&quot;)=List of 2
 ##   .. .. ..$ : NULL
@@ -424,9 +428,10 @@ str(input)
 ##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
 ##   .. .. ..$ warnings: NULL
 ##  $ :List of 4
-##   ..$ condition:&#39;data.frame&#39;:    1 obs. of  2 variables:
-##   .. ..$ ID: int 3
-##   .. ..$ N : num 30
+##   ..$ condition:&#39;data.frame&#39;:    1 obs. of  3 variables:
+##   .. ..$ ID         : int 3
+##   .. ..$ REPLICATION: int 0
+##   .. ..$ N          : num 30
 ##   ..$ results  : num [1:1000, 1] 0.717 0.103 0.355 0.973 0.921 ...
 ##   .. ..- attr(*, &quot;dimnames&quot;)=List of 2
 ##   .. .. ..$ : NULL
@@ -455,11 +460,11 @@ str(input)
 </code></pre>
 
 <pre><code>## 
-Design row: 1/3;   Started: Fri Jan 26 11:35:07 2018;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Sat May 19 23:24:54 2018;   Total elapsed time: 0.00s 
 ## 
-Design row: 2/3;   Started: Fri Jan 26 11:35:07 2018;   Total elapsed time: 0.00s 
+Design row: 2/3;   Started: Sat May 19 23:24:54 2018;   Total elapsed time: 0.00s 
 ## 
-Design row: 3/3;   Started: Fri Jan 26 11:35:07 2018;   Total elapsed time: 0.00s
+Design row: 3/3;   Started: Sat May 19 23:24:54 2018;   Total elapsed time: 0.00s
 </code></pre>
 
 <pre><code class="r">list_results &lt;- extract_results(results)

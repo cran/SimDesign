@@ -1,8 +1,9 @@
 Package: SimDesign
 Title: Structure for Organizing Monte Carlo Simulation Designs
-Version: 1.9
+Version: 1.10.1
 Authors@R: c(person("Phil", "Chalmers", email = "rphilip.chalmers@gmail.com", role = c("aut", "cre")),
-             person("Matthew", "Sigal", email = "matthewsigal@gmail.com", role = c("ctb")))
+             person("Matthew", "Sigal", role = c("ctb")),
+             person("Ogreden", family="Oguzhan", role = c("ctb")))
 Description: Provides tools to help safely and efficiently organize Monte Carlo simulations in R.
     The package controls the structure and back-end of Monte Carlo simulations
     by utilizing a general generate-analyse-summarise strategy. The functions provided control
@@ -22,9 +23,10 @@ URL: https://github.com/philchalmers/SimDesign,
         https://github.com/philchalmers/SimDesign/wiki
 RoxygenNote: 6.0.1
 NeedsCompilation: no
-Packaged: 2018-01-26 16:35:10 UTC; phil
+Packaged: 2018-05-20 03:24:57 UTC; phil
 Author: Phil Chalmers [aut, cre],
-  Matthew Sigal [ctb]
+  Matthew Sigal [ctb],
+  Ogreden Oguzhan [ctb]
 Maintainer: Phil Chalmers <rphilip.chalmers@gmail.com>
 Repository: CRAN
-Date/Publication: 2018-01-26 21:33:53 UTC
+Date/Publication: 2018-05-20 03:51:31 UTC

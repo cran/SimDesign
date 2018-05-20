@@ -49,6 +49,16 @@
 #'         analyse=Analyse, summarise=Summarise)}}{}
 #' }
 #'
+#' The \code{condition} object represents a single row from the \code{design} object, indicating
+#' a unique Monte Carlo simulation condition. The \code{condition} object also contains two
+#' additional elements to help track the simulation's state: an \code{ID} variable, indicating
+#' the respective row number in the \code{design} object, and a \code{REPLICATION} element
+#' indicating the replication iteration number. Mainly, these are included to help with debugging,
+#' where users can easily locate the \code{r}th replication (e.g., \code{REPLICATION == 500})
+#' within the \code{j}th row in the simulation design (e.g., \code{ID == 2}). The
+#' \code{REPLICATION} input is also useful when temporarily saving files to the hard-drive
+#' when calling external command line utilities.
+#'
 #' For a skeleton version of the work-flow, which is often useful when initially defining a simulation,
 #' see \code{\link{SimFunctions}}. This function will write template simulation code
 #' to one/two files so that modifying the required functions and objects can begin immediately
@@ -117,148 +127,17 @@
 #' \code{packages} input to declare packages which must be loaded via \code{library()} in order to make
 #' specific non-standard R functions available across nodes.
 #'
-#' @section Cluster computing:
-#'
-#' SimDesign code may be released to a computing system which supports parallel cluster computations using
-#' the industry standard Message Passing Interface (MPI) form. This simply
-#' requires that the computers be setup using the usual MPI requirements (typically, running some flavor
-#' of Linux, have password-less open-SSH access, IP addresses have been added to the \code{/etc/hosts} file
-#' or \code{~/.ssh/config}, etc).
-#' More generally though, these resources are widely available through professional
-#' organizations dedicated to super-computing.
-#'
-#' To setup the R code for an MPI cluster one need only add the argument \code{MPI = TRUE},
-#' wrap the appropriate MPI directives around \code{runSimulation}, and submit the
-#' files using the suitable BASH commands to execute the \code{mpirun} tool. For example,
-#'
-#' \describe{
-#'   \item{\code{library(doMPI)}}{}
-#'   \item{\code{cl <- startMPIcluster()}}{}
-#'   \item{\code{registerDoMPI(cl)}}{}
-#'   \item{\code{runSimulation(design=Design, replications=1000, save=TRUE, filename='mysimulation',
-#'     generate=Generate, analyse=Analyse, summarise=Summarise,  MPI=TRUE)}}{}
-#'   \item{\code{closeCluster(cl)}}{}
-#'   \item{\code{mpi.quit()}}{}
-#' }
-#'
-#' The necessary \code{SimDesign} files must be uploaded to the dedicated master node
-#' so that a BASH call to \code{mpirun} can be used to distribute the work across slaves.
-#' For instance, if the following BASH command is run on the master node then 16 processes
-#' will be summoned (1 master, 15 slaves) across the computers named \code{localhost}, \code{slave1},
-#' and \code{slave2} in the ssh \code{config} file.
-#'
-#' \code{mpirun -np 16 -H localhost,slave1,slave2 R --slave -f simulation.R}
-#'
-#' @section Network computing:
-#'
-#' If you access have to a set of computers which can be linked via secure-shell (ssh) on the same LAN network then
-#' Network computing (a.k.a., a Beowulf cluster) may be a viable and useful option.
-#' This approach is similar to MPI computing approach
-#' except that it offers more localized control and requires more hands-on administrative access to the master
-#' and slave nodes. The setup generally requires that the master node
-#' has \code{SimDesign} installed and the slave/master nodes have all the required R packages pre-installed
-#' (Unix utilities such as \code{dsh} are very useful for this purpose). Finally,
-#' the master node must have ssh access to the slave nodes, each slave node must have ssh access
-#' with the master node, and a cluster object (\code{cl}) from the \code{parallel} package must be defined on the
-#' master node.
-#'
-#' Setup for network computing is generally more straightforward and controlled
-#' than the setup for MPI jobs in that it only requires the specification of a) the respective
-#' IP addresses within a defined R script, and b) the user name
-#' (if different from the master node's user name. Otherwise, only a) is required).
-#' However, on Linux I have found it is also important to include relevant information about the host names
-#' and IP addresses in the \code{/etc/hosts} file on the master and slave nodes, and to ensure that
-#' the selected port (passed to \code{\link{makeCluster}}) on the master node is not hindered by a firewall.
-#'
-#' As an example, using the following code the master node (primary) will spawn 7 slaves and 1 master,
-#' while a separate computer on the network with the associated IP address will spawn an additional 6 slaves.
-#' Information will be collected on the master node, which is also where the files
-#' and objects will be saved using the \code{save} inputs (if requested).
-#'
-#' \describe{
-#'   \item{\code{library(parallel)}}{}
-#'   \item{\code{primary <- '192.168.2.1'}}{}
-#'   \item{\code{IPs <- list(list(host=primary, user='myname', ncore=8), list(host='192.168.2.2', user='myname', ncore=6))}}{}
-#'   \item{\code{spec <- lapply(IPs, function(IP) rep(list(list(host=IP$host, user=IP$user)), IP$ncore))}}{}
-#'   \item{\code{spec <- unlist(spec, recursive=FALSE)}}{}
-#'   \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
-#'   \item{\code{Final <- runSimulation(..., cl=cl)}}{}
-#'   \item{\code{stopCluster(cl)}}{}
-#' }
-#'
-#' The object \code{cl} is passed to \code{runSimulation} on the master node
-#' and the computations are distributed across the respective
-#' IP addresses. Finally, it's usually good practice to use \code{stopCluster(cl)}
-#' when all the simulations are said and done to release the communication between the computers,
-#' which is what the above code shows.
-#'
-#' Alternatively, if you have provided suitable names for each respective slave node, as well as the master,
-#' then you can define the \code{cl} object using these instead (rather than supplying the IP addresses in
-#' your R script). This requires that the master node has itself and all the slave nodes defined in the
-#' \code{/etc/hosts} and \code{~/.ssh/config} files, while the slave nodes require themselves and the
-#' master node in the same files (only 2 IP addresses required on each slave).
-#' Following this setup, and assuming the user name is the same across all nodes,
-#' the \code{cl} object could instead be defined with
-#'
-#' \describe{
-#'   \item{\code{library(parallel)}}{}
-#'   \item{\code{primary <- 'master'}}{}
-#'   \item{\code{IPs <- list(list(host=primary, ncore=8), list(host='slave', ncore=6))}}{}
-#'   \item{\code{spec <- lapply(IPs, function(IP) rep(list(list(host=IP$host)), IP$ncore))}}{}
-#'   \item{\code{spec <- unlist(spec, recursive=FALSE)}}{}
-#'   \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
-#'   \item{\code{Final <- runSimulation(..., cl=cl)}}{}
-#'   \item{\code{stopCluster(cl)}}{}
-#' }
-#'
-#' Or, even more succinctly if all communication elements required are identical to the master node,
-#'
-#' \describe{
-#'   \item{\code{library(parallel)}}{}
-#'   \item{\code{primary <- 'master'}}{}
-#'   \item{\code{spec <- c(rep(primary, 8), rep('slave', 6))}}{}
-#'   \item{\code{cl <- makeCluster(master=primary, spec=spec)}}{}
-#'   \item{\code{Final <- runSimulation(..., cl=cl)}}{}
-#'   \item{\code{stopCluster(cl)}}{}
-#' }
-#'
-#'
-#' @section Poor man's cluster computing for independent nodes:
-#'
-#' In the event that you do not have access to a Beowulf-type cluster (described in the section on
-#' "Network Computing") but have multiple personal
-#' computers then the simulation code can be manually distributed across each independent computer instead.
-#' This simply requires passing a smaller value to the \code{replications} argument on each computer and later
-#' aggregating the results using the \code{\link{aggregate_simulations}} function.
-#'
-#' For instance, if you have two computers available on different networks and wanted a total of 500 replications you
-#' could pass \code{replications = 300} to one computer and \code{replications = 200} to the other along
-#' with a \code{filename} argument (or simply saving the final objects as \code{.rds} files manually after
-#' \code{runSimulation()} has finished). This will create two distinct \code{.rds} files which can be
-#' combined later with the \code{\link{aggregate_simulations}} function. The benefit of this approach over
-#' MPI or setting up a Beowulf cluster is that computers need not be linked on the same network,
-#' and, should the need arise, the temporary
-#' simulation results can be migrated to another computer in case of a complete hardware failure by moving the
-#' saved temp files to another node, modifying
-#' the suitable \code{compname} input to \code{save_details} (or, if the \code{filename} and \code{tmpfilename}
-#' were modified, matching those files accordingly), and resuming the simulation as normal.
-#'
-#' Note that this is also a useful tactic if the MPI or Network computing options require you to
-#' submit smaller jobs due to time and resource constraint-related reasons,
-#' where fewer replications/nodes should be requested. After all the jobs are completed and saved to their
-#' respective files, \code{\link{aggregate_simulations}}
-#' can then collapse the files as if the simulations were run all at once. Hence, SimDesign makes submitting
-#' smaller jobs to super-computing resources considerably less error prone than managing a number of smaller
-#' jobs manually .
-#'
 #' @param design a \code{data.frame} object containing the Monte Carlo simulation conditions to
 #'   be studied, where each row represents a unique condition and each column a factor to be varied
 #'
 #' @param generate user-defined data and parameter generating function.
-#'   See \code{\link{Generate}} for details
+#'   See \code{\link{Generate}} for details. Note that this argument may be omitted by the
+#'   user if they wish to generate the data with the \code{analyse} step, but for real-world
+#'   simulations this is generally not recommended
 #'
 #' @param analyse user-defined computation function which acts on the data generated from
-#'   \code{\link{Generate}}. See \code{\link{Analyse}} for details
+#'   \code{\link{Generate}} (or, if \code{generate} was omitted, both generates and
+#'   analyses the simulated data). See \code{\link{Analyse}} for details
 #'
 #' @param summarise optional (but highly recommended) user-defined summary function to be used
 #'   after all the replications have completed within each \code{design} condition. Omitting this function
@@ -268,7 +147,7 @@
 #'   information (e.g., try-errors, warning messages, etc), can witness memory related issues,
 #'   and generally is not as flexible internally. See
 #'   the \code{save_results} option for a more RAM friendly alternative to storing all the Generate-Analyse results
-#'   in the working enviroment
+#'   in the working environment
 #'
 #' @param replications number of replication to perform per condition (i.e., each row in \code{design}).
 #'   Must be greater than 0
@@ -363,6 +242,9 @@
 #'       results from the temp files may be resumed on another computer by changing the name of the
 #'       node to match the broken computer. Default is the result of evaluating \code{unname(Sys.info()['nodename'])}}
 #'
+#'     \item{\code{out_rootdir}}{root directory to save all files to. Default uses the
+#'        current working directory}
+#'
 #'     \item{\code{tmpfilename}}{the name of the temporary \code{.rds} file when any of the \code{save} flags are used.
 #'        This file will be read-in if it is in the working directory and the simulation will continue
 #'        at the last point this file was saved
@@ -434,7 +316,7 @@
 #'   standard errors for each statistic can be computed. To compute large-sample confidence
 #'   intervals given the bootstrap SE estimates see \code{\link{SimBoot}}.
 #'
-#'   This option is useful to approximate how accurate the resulting meta-statatistic estimates
+#'   This option is useful to approximate how accurate the resulting meta-statistic estimates
 #'   were, particularly if the number of \code{replications} was relatively low (e.g., less than
 #'   5000). If users prefer to obtain alternative bootstrap estimates then consider passing
 #'   \code{save_results = TRUE}, reading the generate-analyse data into R via
@@ -696,7 +578,7 @@
 #' # quick ANOVA analysis method with all two-way interactions
 #' SimAnova( ~ (sample_size + group_size_ratio + standard_deviation_ratio)^2, Final)
 #'
-#' # or more specific anovas
+#' # or more specific ANOVAs
 #' SimAnova(independent ~ (group_size_ratio + standard_deviation_ratio)^2,
 #'     Final)
 #'
@@ -732,15 +614,24 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           max_errors = 50L, as.factor = TRUE, save_generate_data = FALSE,
                           save_details = list(), edit = 'none', progress = FALSE, verbose = TRUE)
 {
-    stopifnot(!missing(generate) || !missing(analyse))
+    stopifnot(!missing(analyse))
+    if(missing(generate) && !missing(analyse))
+        generate <- function(condition, dat, fixed_objects = NULL){}
     if(!all(names(save_results) %in%
             c('compname', 'tmpfilename', 'save_results_dirname', 'save_generate_data_dirname')))
         stop('save_details contains elements that are not supported', call.=FALSE)
-    compname <- save_details$compname; tmpfilename <- save_details$tmpfilename; safe <- save_details$safe
-    save_results_dirname <- save_details$save_results_dirname; save_seeds_dirname <- save_details$save_seeds_dirname
+
+    compname <- save_details$compname
+    safe <- save_details$safe
+    out_rootdir <- save_details$out_rootdir
+    tmpfilename <- save_details$tmpfilename
+    save_results_dirname <- save_details$save_results_dirname
     save_generate_data_dirname <- save_details$save_generate_data_dirname
+    save_seeds_dirname <- save_details$save_seeds_dirname
+
     if(is.null(compname)) compname <- Sys.info()['nodename']
     if(is.null(safe)) safe <- TRUE
+    if(is.null(out_rootdir)) { out_rootdir <- '.' } else { dir.create(out_rootdir, showWarnings=FALSE) }
     if(is.null(tmpfilename)) tmpfilename <- paste0('SIMDESIGN-TEMPFILE_', compname, '.rds')
     if(is.null(save_results_dirname)) save_results_dirname <- paste0('SimDesign-results_', compname)
     if(is.null(save_generate_data_dirname)) save_generate_data_dirname <- paste0('SimDesign-generate-data_', compname)
@@ -782,7 +673,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     start <- 1L; end <- nrow(design)
     if(!is.null(load_seed)){
-        save <- save_results <- save_generate_data <- save_seeds <- parallel <- MPI <- FALSE
+        save <- save_seeds <- parallel <- MPI <- FALSE
         replications <- 1L
         load_seed2 <- gsub('design-row-', '', load_seed)
         start <- end <- as.numeric(gsub('/.*', '', load_seed2))
@@ -808,6 +699,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         stop('number of replications must be greater than or equal to 1', call. = FALSE)
     if(!(edit %in% c('none', 'analyse', 'generate', 'summarise', 'all')))
         stop('edit location is not valid', call. = FALSE)
+    if(!is.null(design$REPLICATION))
+        stop("REPLICATION is a reserved keyword in the design object. Please use another name", call.=FALSE)
+    else design <- data.frame(REPLICATION=integer(nrow(design)), design)
     if(is.null(design$ID)){
         design <- data.frame(ID=1L:nrow(design), design)
     } else stopifnot(length(unique(design$ID)) == nrow(design))
@@ -839,12 +733,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     Result_list <- stored_Results_list <- vector('list', nrow(design))
     names(Result_list) <- names(stored_Results_list) <- rownames(design)
     time0 <- time1 <- proc.time()[3L]
-    files <- dir()
+    files <- dir(out_rootdir)
     if(!MPI && any(files == tmpfilename) && is.null(load_seed)){
         if(verbose)
             message(sprintf('Resuming simulation from %s file with %i replications.',
-                            tmpfilename, replications))
-        Result_list <- readRDS(tmpfilename)
+                            file.path(out_rootdir, tmpfilename), replications))
+        Result_list <- readRDS(file.path(out_rootdir, tmpfilename))
         if(!is.null(Result_list[[1L]]$REPLICATIONS))
             replications <- Result_list[[1L]]$REPLICATIONS
         if(nrow(design) != length(Result_list))
@@ -862,44 +756,44 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     if(save_results){
         save <- TRUE
-        if(!file.exists(tmpfilename)){
+        if(!file.exists(file.path(out_rootdir, tmpfilename))) {
             if(safe){
                 tmp <- save_results_dirname
                 count <- 1L
-                while(dir.exists(save_results_dirname)){
+                while(dir.exists(file.path(out_rootdir, save_results_dirname))) {
                     save_results_dirname <- paste0(tmp, '_', count)
                     count <- count + 1L
                 }
                 if(tmp != save_results_dirname && verbose)
                     message(sprintf('%s already exists; using %s directory instead',
-                                    tmp, save_results_dirname))
+                                    file.path(out_rootdir, tmp), file.path(out_rootdir, save_results_dirname)))
             }
-            dir.create(save_results_dirname)
+            dir.create(file.path(out_rootdir, save_results_dirname))
         }
-        if(length(dir(save_results_dirname)) != (start - 1L))
+        if(length(dir(file.path(out_rootdir, save_results_dirname))) != (start - 1L))
             stop('save_results_dirname not starting from correct location according to tempfile',
                  call.=FALSE)
     }
     if(save_seeds){
         save <- TRUE
-        if(!file.exists(tmpfilename)){
+        if(!file.exists(file.path(out_rootdir, tmpfilename))) {
             if(safe){
                 tmp <- save_seeds_dirname
                 count <- 1L
-                while(dir.exists(save_seeds_dirname)){
+                while(dir.exists(file.path(out_rootdir, save_seeds_dirname))) {
                     save_seeds_dirname <- paste0(tmp, '_', count)
                     count <- count + 1L
                 }
                 if(tmp != save_seeds_dirname && verbose)
                     message(sprintf('%s already exists; using %s directory instead',
-                                    tmp, save_seeds_dirname))
+                                    file.path(out_rootdir, tmp), file.path(out_rootdir, save_seeds_dirname)))
             }
-            dir.create(save_seeds_dirname)
+            dir.create(file.path(out_rootdir, save_seeds_dirname))
         }
     }
     if(save_generate_data){
         save <- TRUE
-        if(!file.exists(tmpfilename)){
+        if(!file.exists(file.path(out_rootdir, tmpfilename))) {
             if(safe){
                 tmp <- save_generate_data_dirname
                 count <- 1L
@@ -909,9 +803,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 }
                 if(tmp != save_generate_data_dirname && verbose)
                     message(sprintf('%s already exists; using %s directory instead',
-                                    tmp, save_generate_data_dirname))
+                                    file.path(out_rootdir, tmp), file.path(out_rootdir, save_generate_data_dirname)))
             }
-            dir.create(save_generate_data_dirname)
+            dir.create(file.path(out_rootdir, save_generate_data_dirname))
         }
     }
     if(safe && (parallel || MPI)){
@@ -934,9 +828,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     if(is.null(attr(Result_list, 'SimDesign_names')))
         attr(Result_list, 'SimDesign_names') <-
-        c(save_generate_data_dirname=save_generate_data_dirname,
-          save_results_dirname=save_results_dirname,
-          save_seeds_dirname=save_seeds_dirname)
+        c(save_generate_data_dirname=file.path(out_rootdir, save_generate_data_dirname),
+          save_results_dirname=file.path(out_rootdir, save_results_dirname),
+          save_seeds_dirname=file.path(out_rootdir, save_seeds_dirname))
     if(progress) verbose <- TRUE
     for(i in start:end){
         if(summarise_asis){
@@ -951,6 +845,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          cl=cl, MPI=MPI, seed=seed,
                                          bootSE=bootSE, boot_draws=boot_draws,
                                          save_results=save_results,
+                                         save_results_out_rootdir=out_rootdir,
                                          save_results_dirname=save_results_dirname,
                                          save_generate_data=save_generate_data,
                                          save_generate_data_dirname=save_generate_data_dirname,
@@ -969,9 +864,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                stored_time=stored_time, progress=progress)
             time0 <- proc.time()[3L]
             if(save_generate_data)
-                dir.create(paste0(save_generate_data_dirname, '/design-row-', i), showWarnings = FALSE)
+                dir.create(file.path(out_rootdir, paste0(save_generate_data_dirname, '/design-row-', i)), showWarnings = FALSE)
             if(save_seeds)
-                dir.create(paste0(save_seeds_dirname, '/design-row-', i), showWarnings = FALSE)
+                dir.create(file.path(out_rootdir, paste0(save_seeds_dirname, '/design-row-', i)), showWarnings = FALSE)
             tmp <- Analysis(Functions=Functions,
                             condition=design[i,],
                             replications=replications,
@@ -979,6 +874,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             cl=cl, MPI=MPI, seed=seed,
                             bootSE=bootSE, boot_draws=boot_draws,
                             save_results=save_results,
+                            save_results_out_rootdir = out_rootdir,
                             save_results_dirname=save_results_dirname,
                             save_generate_data=save_generate_data,
                             save_generate_data_dirname=save_generate_data_dirname,
@@ -997,13 +893,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             time1 <- proc.time()[3L]
             Result_list[[i]]$SIM_TIME <- time1 - time0
             Result_list[[i]]$COMPLETED <- date()
-            if(save || save_results || save_generate_data) saveRDS(Result_list, tmpfilename)
+            if(save || save_results || save_generate_data) saveRDS(Result_list, file.path(out_rootdir, tmpfilename))
 
         }
     }
     attr(Result_list, 'SimDesign_names') <- NULL
     if(summarise_asis){
-        design$ID <- NULL
+        design$ID <- design$REPLICATION <- NULL
         nms <- colnames(design)
         nms2 <- matrix(character(0L), nrow(design), ncol(design))
         for(i in 1L:ncol(design))
@@ -1023,11 +919,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     SIM_TIME <- Final$SIM_TIME
     COMPLETED <- Final$COMPLETED
     REPLICATIONS <- Final$REPLICATIONS
-    Final$SIM_TIME <- Final$ID <- Final$REPLICATIONS <- Final$COMPLETED <- NULL
+    Final$SIM_TIME <- Final$ID <- Final$REPLICATIONS <-
+        Final$COMPLETED <- Final$REPLICATION <- NULL
     Final <- data.frame(Final, REPLICATIONS, SIM_TIME, COMPLETED, check.names=FALSE)
     if(!is.null(seed)) Final$SEED <- seed
     if(!is.null(filename) && safe){ #save file
-        files <- dir()
+        files <- dir(out_rootdir)
         filename0 <- filename
         count <- 1L
         # create a new file name if old one exists, and throw warning
@@ -1044,7 +941,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                Using a unique file name instead.\n'))
     }
     dn <- colnames(design)
-    dn <- dn[dn != 'ID']
+    dn <- dn[!(dn %in% c('ID', 'REPLICATION'))]
     if(as.factor){
         Final[dn] <- lapply(Final[dn], function(x){
             if(is.list(x)) return(x)
@@ -1078,15 +975,15 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                       ncores = if(parallel) length(cl) else if(MPI) NA else 1L,
                                       number_of_conditions = nrow(design),
                                       date_completed = date(), total_elapsed_time = sum(Final$SIM_TIME),
-                                      stored_results = stored_Results_list)
+                                      stored_results = if(store_results) stored_Results_list else NULL)
+    if(dummy_run) Final$dummy_run <- NULL
+    class(Final) <- c('SimDesign', 'data.frame')
     if(!is.null(filename) && save){ #save file
         if(verbose)
             message(paste('\nSaving simulation results to file:', filename))
-        saveRDS(Final, filename)
+        saveRDS(Final, file.path(out_rootdir, filename))
     }
-    if(save || save_results || save_generate_data || save_seeds) file.remove(tmpfilename)
-    if(dummy_run) Final$dummy_run <- NULL
-    class(Final) <- c('SimDesign', 'data.frame')
+    if(save || save_results || save_generate_data || save_seeds) file.remove(file.path(out_rootdir, tmpfilename))
     return(Final)
 }
 
@@ -1103,7 +1000,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
 print.SimDesign <- function(x, drop.extras = FALSE, drop.design = FALSE, format.time = TRUE, ...){
     att <- attr(x, 'design_names')
     if(format.time)
-        x$SIM_TIME <- sapply(x$SIM_TIME, timeFormater, TRUE)
+        if(!is.null(x$SIM_TIME))
+            x$SIM_TIME <- sapply(x$SIM_TIME, timeFormater, TRUE)
     if(drop.extras) x <- x[ ,c(att$design, att$sim), drop=FALSE]
     if(drop.design) x <- x[ ,!(names(x) %in% att$design), drop=FALSE]
     class(x) <- 'data.frame'
@@ -1135,6 +1033,7 @@ tail.SimDesign <- function(x, ...){
 summary.SimDesign <- function(object, ...){
     ret <- attr(object, 'extra_info')
     ret$total_elapsed_time <- timeFormater(ret$total_elapsed_time, TRUE)
+    ret$stored_results <- NULL
     ret
 }
 
@@ -1143,6 +1042,7 @@ summary.SimDesign <- function(object, ...){
 extract_results <- function(object){
     stopifnot(is(object, "SimDesign"))
     extra_info <- attr(object, 'extra_info')
+    if(is.null(extra_info$stored_results)) return(NULL)
     design_names <- attr(object, "design_names")
     pick <- design_names$design
     design <- subset(as.data.frame(object), select=pick)
@@ -1153,8 +1053,6 @@ extract_results <- function(object){
     nms2 <- apply(nms2, 1L, paste0, collapse='')
     ret <- extra_info$stored_results
     names(ret) <- nms2
-    ret
-
     ret
 }
 

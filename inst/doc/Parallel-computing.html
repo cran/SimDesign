@@ -3,7 +3,7 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
 
-<title>Catch Errors</title>
+<title>Cluster computing:</title>
 
 <script type="text/javascript">
 window.onload = function() {
@@ -201,109 +201,132 @@ hr {
 </head>
 
 <body>
-<h1>Catch Errors</h1>
+<h1>Cluster computing:</h1>
 
-<p>Error catching is an important area to consider when creating Monte Carlo simulations. Sometimes, iterative algorithms will &#39;fail to converge&#39;, or otherwise crash for other reasons (e.g., sparse data). However,
-<code>SimDesign</code> makes this process much easier because the internal functions are automatically wrapped within  <code>try</code> blocks, and therefore simulations will not terminate unexpectedly. This type of information is also collected as it may be relevant to the writer that something unknown is going wrong in the code-base. Below we demonstrate what happens when errors are thrown and caught, and how this information is tracked in the returned object.</p>
+<p>SimDesign code may be released to a computing system which supports parallel cluster computations using
+the industry standard Message Passing Interface (MPI) form. This simply
+requires that the computers be setup using the usual MPI requirements (typically, running some flavor
+of Linux, have password-less open-SSH access, IP addresses have been added to the <code>/etc/hosts</code> file
+or <code>~/.ssh/config</code>, etc). More generally though, these resources are widely available through professional
+organizations dedicated to super-computing.</p>
 
-<h3>Define the functions</h3>
+<p>To setup the R code for an MPI cluster one need only add the argument <code>MPI = TRUE</code>,
+wrap the appropriate MPI directives around <code>runSimulation</code>, and submit the
+files using the suitable BASH commands to execute the <code>mpirun</code> tool. For example,</p>
 
-<p>As usual, define the functions of interest.</p>
-
-<pre><code class="r">library(SimDesign)
-# SimFunctions(comments=FALSE)
-
-Design &lt;- data.frame(N = c(10,20,30))
+<pre><code class="r">library(doMPI)
+cl &lt;- startMPIcluster()
+registerDoMPI(cl)
+runSimulation(design=Design, replications=1000, save=TRUE, filename=&#39;mysimulation&#39;,
+    generate=Generate, analyse=Analyse, summarise=Summarise,  MPI=TRUE)
+closeCluster(cl)
+mpi.quit()
 </code></pre>
 
-<pre><code class="r">Generate &lt;- function(condition, fixed_objects = NULL) {
-    ret &lt;- with(condition, rnorm(N))
-    ret
-}
+<p>The necessary <code>SimDesign</code> files must be uploaded to the dedicated master node
+so that a BASH call to <code>mpirun</code> can be used to distribute the work across slaves.
+For instance, if the following BASH command is run on the master node then 16 processes
+will be summoned (1 master, 15 slaves) across the computers named <code>localhost</code>, <code>slave1</code>,
+and <code>slave2</code> in the ssh <code>config</code> file.</p>
 
-Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
-    whc &lt;- sample(c(0,1,2,3), 1, prob = c(.7, .20, .05, .05))
-    if(whc == 0){
-       ret &lt;- mean(dat)
-    } else if(whc == 1){
-        ret &lt;- t.test() # missing arguments
-    } else if(whc == 2){
-        ret &lt;- t.test(&#39;invalid&#39;) # invalid arguments
-    } else if(whc == 3){
-        # throw error manually 
-        stop(&#39;Manual error thrown&#39;) 
-    }
-    # manual warnings
-    if(sample(c(TRUE, FALSE), 1, prob = c(.1, .9)))
-        warning(&#39;This warning happens rarely&#39;)
-    if(sample(c(TRUE, FALSE), 1, prob = c(.5, .5)))
-        warning(&#39;This warning happens much more often&#39;)
-    ret
-}
+<p><code>mpirun -np 16 -H localhost,slave1,slave2 R --slave -f simulation.R</code></p>
 
-Summarise &lt;- function(condition, results, fixed_objects = NULL) {
-    ret &lt;- c(bias = bias(results, 0))
-    ret
-}
+<h1>Network computing:</h1>
+
+<p>If you access have to a set of computers which can be linked via secure-shell (ssh) on the same LAN network then
+Network computing (a.k.a., a Beowulf cluster) may be a viable and useful option.
+This approach is similar to MPI computing approach
+except that it offers more localized control and requires more hands-on administrative access to the master
+and slave nodes. The setup generally requires that the master node
+has <code>SimDesign</code> installed and the slave/master nodes have all the required R packages pre-installed
+(Unix utilities such as <code>dsh</code> are very useful for this purpose). Finally,
+the master node must have ssh access to the slave nodes, each slave node must have ssh access
+with the master node, and a cluster object (<code>cl</code>) from the <code>parallel</code> package must be defined on the
+master node.</p>
+
+<p>Setup for network computing is generally more straightforward and controlled
+than the setup for MPI jobs in that it only requires the specification of a) the respective
+IP addresses within a defined R script, and b) the user name
+(if different from the master node&#39;s user name. Otherwise, only a) is required).
+However, on Linux I have found it is also important to include relevant information about the host names
+and IP addresses in the <code>/etc/hosts</code> file on the master and slave nodes, and to ensure that
+the selected port (passed to <code>makeCluster()</code>) on the master node is not hindered by a firewall.
+As an example, using the following code the master node (primary) will spawn 7 slaves and 1 master,
+while a separate computer on the network with the associated IP address will spawn an additional 6 slaves.
+Information will be collected on the master node, which is also where the files
+and objects will be saved using the <code>save</code> inputs (if requested).</p>
+
+<pre><code class="r">library(parallel)
+primary &lt;- &#39;192.168.2.1&#39;
+IPs &lt;- list(list(host=primary, user=&#39;myname&#39;, ncore=8), list(host=&#39;192.168.2.2&#39;, user=&#39;myname&#39;, ncore=6))
+spec &lt;- lapply(IPs, function(IP) rep(list(list(host=IP$host, user=IP$user)), IP$ncore))
+spec &lt;- unlist(spec, recursive=FALSE)
+cl &lt;- makeCluster(master=primary, spec=spec)
+Final &lt;- runSimulation(..., cl=cl)
+stopCluster(cl)
 </code></pre>
 
-<p>The above simulation is just an example of how errors are tracked in <code>SimDesign</code>, as well as how to 
-throw a manual error in case the data should be re-drawn based on the user&#39;s decision (e.g., when a model converges, but fails to 
-do so before some number of predefined iterations). </p>
+<p>The object <code>cl</code> is passed to <code>runSimulation</code> on the master node
+and the computations are distributed across the respective
+IP addresses. Finally, it&#39;s usually good practice to use <code>stopCluster(cl)</code>
+when all the simulations are said and done to release the communication between the computers,
+which is what the above code shows.</p>
 
-<h3>Run the simulation</h3>
+<p>Alternatively, if you have provided suitable names for each respective slave node, as well as the master,
+then you can define the <code>cl</code> object using these instead (rather than supplying the IP addresses in
+your R script). This requires that the master node has itself and all the slave nodes defined in the
+<code>/etc/hosts</code> and <code>~/.ssh/config</code> files, while the slave nodes require themselves and the
+master node in the same files (only 2 IP addresses required on each slave).
+Following this setup, and assuming the user name is the same across all nodes,
+the <code>cl</code> object could instead be defined with</p>
 
-<pre><code class="r">result &lt;- runSimulation(Design, replications = 100, 
-                       generate=Generate, analyse=Analyse, summarise=Summarise)
+<pre><code class="r">library(parallel)
+primary &lt;- &#39;master&#39;
+IPs &lt;- list(list(host=primary, ncore=8), list(host=&#39;slave&#39;, ncore=6))
+spec &lt;- lapply(IPs, function(IP) rep(list(list(host=IP$host)), IP$ncore))
+spec &lt;- unlist(spec, recursive=FALSE)
+cl &lt;- makeCluster(master=primary, spec=spec)
+Final &lt;- runSimulation(..., cl=cl)
+stopCluster(cl)
 </code></pre>
 
-<pre><code>## 
-Design row: 1/3;   Started: Sat May 19 23:24:50 2018;   Total elapsed time: 0.00s 
-## 
-Design row: 2/3;   Started: Sat May 19 23:24:50 2018;   Total elapsed time: 0.06s 
-## 
-Design row: 3/3;   Started: Sat May 19 23:24:50 2018;   Total elapsed time: 0.12s
+<p>Or, even more succinctly if all communication elements required are identical to the master node,</p>
+
+<pre><code class="r">library(parallel)
+primary &lt;- &#39;master&#39;
+spec &lt;- c(rep(primary, 8), rep(&#39;slave&#39;, 6))
+cl &lt;- makeCluster(master=primary, spec=spec)
+Final &lt;- runSimulation(..., cl=cl)
+stopCluster(cl)
 </code></pre>
 
-<pre><code class="r">print(result)
-</code></pre>
+<h1>Poor man&#39;s cluster computing for independent nodes:</h1>
 
-<pre><code>##    N     bias ERROR: .Error : Manual error thrown\n
-## 1 10  0.03782                                     7
-## 2 20  0.01479                                     8
-## 3 30 -0.01443                                     9
-##   ERROR: .Error in t.test.default(&quot;invalid&quot;) : not enough &#39;x&#39; observations\n
-## 1                                                                          4
-## 2                                                                         17
-## 3                                                                          5
-##   ERROR: .Error in t.test.default() : argument &quot;x&quot; is missing, with no default\n
-## 1                                                                             19
-## 2                                                                             26
-## 3                                                                             32
-##   WARNING: .This warning happens much more often
-## 1                                             44
-## 2                                             40
-## 3                                             47
-##   WARNING: .This warning happens rarely REPLICATIONS SIM_TIME
-## 1                                     5          100    0.06s
-## 2                                     9          100    0.05s
-## 3                                     9          100    0.05s
-##                  COMPLETED       SEED
-## 1 Sat May 19 23:24:50 2018  570175513
-## 2 Sat May 19 23:24:50 2018  799129990
-## 3 Sat May 19 23:24:50 2018 1230193230
-</code></pre>
+<p>In the event that you do not have access to a Beowulf-type cluster (described in the section on
+&ldquo;Network Computing&rdquo;) but have multiple personal
+computers then the simulation code can be manually distributed across each independent computer instead.</p>
 
-<p>What you&#39;ll immediately notice from this output object is that the name of the error/warning thrown, and the function from which the error was thrown, are included as additional columns in the output with the prefix <code>ERROR:</code>. Furthermore, the frequency in which the error occurred are also included for each design condition (here the <code>t.test.default()</code> error, where no inputs were supplied, occurred more often than the manually thrown error as well as the invalid-input error). This behavior is also tracked for <code>WARNING</code> messages as well in case there are clues as to
-why estimation models are having difficulty (or for other reasons whereby the warnings may be more serious).</p>
+<p>This simply requires passing a smaller value to the <code>replications</code> argument on each computer and later
+aggregating the results using the <code>aggregate_simulations()</code> function.
+For instance, if you have two computers available on different networks and wanted a total of 500 replications you
+could pass <code>replications = 300</code> to one computer and<code>replications = 200</code> to the other along
+with a <code>filename</code> argument (or simply saving the final objects as <code>.rds</code> files manually after
+<code>runSimulation()</code> has finished). This will create two distinct <code>.rds</code> files which can be
+combined later with the <code>aggregate_simulations()</code> function. The benefit of this approach over
+MPI or setting up a Beowulf cluster is that computers need not be linked on the same network,
+and, should the need arise, the temporary
+simulation results can be migrated to another computer in case of a complete hardware failure by moving the
+saved temp files to another node, modifying
+the suitable <code>compname</code> input to <code>save_details</code> (or, if the <code>filename</code> and <code>tmpfilename</code>
+were modified, matching those files accordingly), and resuming the simulation as normal.</p>
 
-<p>Finally, <code>SimDesign</code> has a built-in safety feature controlled by with <code>max_errors</code> argument to avoid
-getting stuck in infinite redrawing loops. By default, if more than 50 errors are consecutively returned then the simulation will be halted, and the final error 
-message will be returned. This safety feature is built-in because too many consecutive <code>stop()</code> calls generally indicates a major problem in the simulation code which should be fixed before continuing.</p>
-
-<h3>What to do</h3>
-
-<p>If errors occur too often then these design conditions should either be extracted out of the simulation or further inspected to determine if they can be fixed (e.g., providing better starting values, increasing convergence criteria/number of iterations, etc). The use of the debugging features can also be useful to track down issues as well. For example, manually wrap the problematic functions in a <code>try()</code> call, and add the line <code>if(is(object, &#39;try-error&#39;)) browser()</code> to jump into the location/replication where the object unexpectedly witnessed an error. Jumping into the exact location where the error occurred will greatly help you determine what exactly went wrong in the simulation state, allowing you to quickly locate and fix the issue.</p>
+<p>Note that this is also a useful tactic if the MPI or Network computing options require you to
+submit smaller jobs due to time and resource constraint-related reasons,
+where fewer replications/nodes should be requested. After all the jobs are completed and saved to their
+respective files, <code>aggregate_simulations()</code>
+can then collapse the files as if the simulations were run all at once. Hence, SimDesign makes submitting
+smaller jobs to super-computing resources considerably less error prone than managing a number of smaller
+jobs manually.</p>
 
 </body>
 

@@ -11,7 +11,8 @@
 #'
 #' @param parameter a \code{numeric} scalar/vector indicating the fixed parameters.
 #'   If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame}
-#'   then the value will be recycled for each column.
+#'   then the value will be recycled for each column; otherwise, each element will be associated
+#'   with each respective column in the \code{estimate} input.
 #'   If \code{NULL} then it will be assumed that the \code{estimate} input is in a deviation
 #'   form (therefore \code{mean(estimate))} will be returned)
 #'
@@ -57,6 +58,10 @@
 #' bias(mat, parameter = 2, type = 'relative')
 #' bias(mat, parameter = 2, type = 'standardized')
 #'
+#' # different parameter associated with each column
+#' mat <- cbind(M1=rnorm(1000, 2, sd = 0.25), M2 = rnorm(1000, 3, sd = .25))
+#' bias(mat, parameter = c(2,3))
+#'
 #' # same, but with data.frame
 #' df <- data.frame(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
 #' bias(df, parameter = c(2,2))
@@ -79,8 +84,12 @@ bias <- function(estimate, parameter = NULL, type = 'bias'){
     n_col <- ncol(estimate)
     if(type == "relative") stopifnot(!is.null(parameter))
     if(is.null(parameter)) parameter <- 0
+    if(is.data.frame(parameter)) parameter <- unlist(parameter)
     stopifnot(is.vector(parameter))
     if(length(parameter) == 1L) parameter <- rep(parameter, n_col)
+    equal_len <- length(estimate) == length(parameter)
+    if(!equal_len)
+        stopifnot(ncol(estimate) == length(parameter))
     ret <- colMeans(t(t(estimate) - parameter))
     if(type == 'relative') ret <- ret / parameter
     else if(type == 'standardized') ret <- ret / apply(estimate, 2, sd)
@@ -101,7 +110,8 @@ bias <- function(estimate, parameter = NULL, type = 'bias'){
 #'
 #' @param parameter a \code{numeric} scalar/vector indicating the fixed parameter values.
 #'   If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame} then
-#'   the value will be recycled for each column.
+#'   the value will be recycled for each column; otherwise, each element will be associated
+#'   with each respective column in the \code{estimate} input.
 #'   If \code{NULL} then it will be assumed that the \code{estimate} input is in a deviation
 #'   form (therefore \code{sqrt(mean(estimate^2))} will be returned)
 #'
@@ -147,6 +157,11 @@ bias <- function(estimate, parameter = NULL, type = 'bias'){
 #' # matrix input
 #' mat <- cbind(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
 #' RMSE(mat, parameter = 2)
+#' RMSE(mat, parameter = c(2, 3))
+#'
+#' # different parameter associated with each column
+#' mat <- cbind(M1=rnorm(1000, 2, sd = 0.25), M2 = rnorm(1000, 3, sd = .25))
+#' RMSE(mat, parameter = c(2,3))
 #'
 #' # same, but with data.frame
 #' df <- data.frame(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
@@ -167,8 +182,14 @@ RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE){
     stopifnot(is.matrix(estimate))
     n_col <- ncol(estimate)
     if(is.null(parameter)) parameter <- 0
+    if(is.data.frame(parameter)) parameter <- unlist(parameter)
     stopifnot(is.vector(parameter))
     if(length(parameter) == 1L) parameter <- rep(parameter, n_col)
+    ret <- sapply(1L:ncol(estimate), function(i)
+        sqrt(mean((estimate[,i] - parameter[i])^2)))
+    equal_len <- length(estimate) == length(parameter)
+    if(!equal_len)
+        stopifnot(ncol(estimate) == length(parameter))
     ret <- sqrt(colMeans(t( (t(estimate) - parameter)^2 )))
     if(type == 'NRMSE'){
         diff <- apply(estimate, 2, max) - apply(estimate, 2, min)
@@ -186,6 +207,90 @@ RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE){
     ret
 }
 
+#' Compute the integrated root mean-square error
+#'
+#' Computes the average/cumulative deviation given two continuous functions and an optional
+#' function representing the probability density function. Only one-dimensional integration
+#' is supported.
+#'
+#' The integrated root mean-square error (IRMSE) is of the form
+#' \deqn{IRMSE(\theta) = \sqrt{\int [f(\theta, \hat{\psi}) - f(\theta, \psi)]^2 g(\theta, ...)}}
+#' where \eqn{g(\theta, ...)} is the density function used to marginalize the continuous sample
+#' (\eqn{f(\theta, \hat{\psi})}) and population (\eqn{f(\theta, \psi)}) functions.
+#'
+#' @param estimate a vector of parameter estimates
+#'
+#' @param parameter a vector of population parameters
+#'
+#' @param fn a continuous function where the first argument is to be integrated and the second argument is
+#'   a vector of parameters or parameter estimates. This function
+#'   represents a implied continuous function which uses the sample estimates or population parameters
+#'
+#' @param density (optional) a density function used to marginalize (i.e., average), where the first
+#'   argument is to be integrated, and must be of the form \code{density(theta, ...)} or
+#'   \code{density(theta, param1, param2)}, where \code{param1} is a placeholder name for the
+#'   hyper-parameters associated with the probability density function. If omitted then
+#'   the cumulative different between the respective functions will be computed instead
+#'
+#' @param lower lower bound to begin numerical integration from
+#'
+#' @param upper upper bound to finish numerical integration to
+#'
+#' @param ... additional parameters to pass to \code{fnest}, \code{fnparam}, \code{density},
+#'   and \code{\link{integrate}},
+#'
+#' @return returns a single \code{numeric} term indicating the average/cumulative deviation
+#' given the supplied continuous functions
+#'
+#' @aliases IRMSE
+#'
+#' @seealso \code{\link{RMSE}}
+#'
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \doi{10.1080/10691898.2016.1246953}
+#'
+#' @export IRMSE
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
+#'
+#' @examples
+#'
+#' # logistic regression function with one slope and intercept
+#' fn <- function(theta, param) 1 / (1 + exp(-(param[1] + param[2] * theta)))
+#'
+#' # sample and population sets
+#' est <- c(-0.4951, 1.1253)
+#' pop <- c(-0.5, 1)
+#'
+#' theta <- seq(-10,10,length.out=1000)
+#' plot(theta, fn(theta, pop), type = 'l', col='red', ylim = c(0,1))
+#' lines(theta, fn(theta, est), col='blue', lty=2)
+#'
+#' # cumulative result (i.e., standard integral)
+#' IRMSE(est, pop, fn)
+#'
+#' # integrated RMSE result by marginalizing over a N(0,1) distribution
+#' den <- function(theta, mean, sd) dnorm(theta, mean=mean, sd=sd)
+#'
+#' IRMSE(est, pop, fn, den, mean=0, sd=1)
+#'
+#' # this specification is equivalent to the above
+#' den2 <- function(theta, ...) dnorm(theta, ...)
+#'
+#' IRMSE(est, pop, fn, den2, mean=0, sd=1)
+#'
+IRMSE <- function(estimate, parameter, fn, density = function(theta, ...) 1,
+                  lower = -Inf, upper = Inf, ...){
+    stopifnot(is.function(fn))
+    stopifnot(is.function(density))
+    intfn <- function(theta, estimate, parameter, ...)
+        (fn(theta, estimate) - fn(theta, parameter))^2 * density(theta, ...)
+    res <- integrate(intfn, lower=lower, upper=upper, estimate=estimate,
+                     parameter=parameter, ...)
+    sqrt(res$value)
+}
 
 
 
@@ -200,7 +305,8 @@ RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE){
 #'
 #' @param parameter a \code{numeric} scalar/vector indicating the fixed parameter values.
 #'   If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame} then the value will be
-#'   recycled for each column.
+#'   recycled for each column; otherwise, each element will be associated
+#'   with each respective column in the \code{estimate} input.
 #'   If \code{NULL}, then it will be assumed that the \code{estimate} input is in a deviation
 #'   form (therefore \code{mean(abs(estimate))} will be returned)
 #'
@@ -256,8 +362,12 @@ MAE <- function(estimate, parameter = NULL, type = 'MAE'){
     stopifnot(is.matrix(estimate))
     n_col <- ncol(estimate)
     if(is.null(parameter)) parameter <- 0
+    if(is.data.frame(parameter)) parameter <- unlist(parameter)
     stopifnot(is.vector(parameter))
     if(length(parameter) == 1L) parameter <- rep(parameter, n_col)
+    equal_len <- length(estimate) == length(parameter)
+    if(!equal_len)
+        stopifnot(ncol(estimate) == length(parameter))
     ret <- colMeans(t(abs(t(estimate) - parameter)))
     if(type == 'NMAE'){
         diff <- apply(estimate, 2, max) - apply(estimate, 2, min)
@@ -318,10 +428,86 @@ RE <- function(x, MSE = FALSE){
 }
 
 
+#' Compute the relative performance behavior of collections of standard errors
+#'
+#' The mean-square relative standard error (MSRSE) compares standard error
+#' estimates to the standard deviation of the respective
+#' parameter estimates. Values close to 1 indicate that the behavior of the standard errors
+#' closely matched the sampling variability of the parameter estimates.
+#'
+#' Mean-square relative standard error (MSRSE) is expressed as
+#'
+#' \deqn{MSRSE = \frac{E(SE(\psi)^2)}{SD(\psi)^2} =
+#'   \frac{1/R * \sum_{r=1}^R SE(\psi_r)^2}{SD(\psi)^2} - 1}
+#'
+#' where \eqn{SE(\psi_r)} represents the estimate of the standard error at the \eqn{r}th
+#' simulation replication, and \eqn{SD(\psi)} represents the standard deviation estimate
+#' of the parameters across all \eqn{R} replications. Note that \eqn{SD(\psi)^2} is used,
+#' which corresponds to the variance of \eqn{\psi}.
+#'
+#' @param SE a \code{numeric} scalar/vector indicating the average standard errors across
+#'   the replications, or a \code{matrix} of collected standard error estimates themselves
+#'   to be used to compute the average standard errors. Each column/element in this input
+#'   corresponds to the column/element in \code{SD}
+#'
+#' @param SD a \code{numeric} scalar/vector indicating the standard deviation across
+#'   the replications, or a \code{matrix} of collected parameter estimates themselves
+#'   to be used to compute the standard deviations. Each column/element in this input
+#'   corresponds to the column/element in \code{SE}
+#'
+#' @return returns a \code{vector} of ratios indicating the relative performance
+#'   of the standard error estimates to the observed parameter standard deviation.
+#'   Values less than 0 indicate that the standard errors were larger than the standard
+#'   deviation of the parameters (hence, the SEs are interpreted as more conservative),
+#'   while values greater than 0 were smaller than the standard deviation of the
+#'   parameters (i.e., more liberal SEs)
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
+#' @references
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \doi{10.1080/10691898.2016.1246953}
+#'
+#' @export
+#'
+#' @examples
+#'
+#' Generate <- function(condition, fixed_objects = NULL) {
+#'    X <- rep(0:1, each = 50)
+#'    y <- 10 + 5 * X + rnorm(100, 0, .2)
+#'    data.frame(y, X)
+#' }
+#'
+#' Analyse <- function(condition, dat, fixed_objects = NULL) {
+#'    mod <- lm(y ~ X, dat)
+#'    so <- summary(mod)
+#'    ret <- c(SE = so$coefficients[,"Std. Error"],
+#'             est = so$coefficients[,"Estimate"])
+#'    ret
+#' }
+#'
+#' Summarise <- function(condition, results, fixed_objects = NULL) {
+#'    MSRSE(SE = results[,1:2], SD = results[,3:4])
+#' }
+#'
+#' results <- runSimulation(replications=500, generate=Generate,
+#'                          analyse=Analyse, summarise=Summarise)
+#' results
+#'
+#'
+MSRSE <- function(SE, SD){
+    if(is.matrix(SE) && nrow(SE) > 1L)
+        SE <- apply(SE, 2L, mean)
+    if(is.matrix(SD) && nrow(SD) > 1L)
+        SD <- apply(SD, 2L, sd)
+    SE^2 / SD^2 - 1
+}
+
+
 #' Compute the relative difference
 #'
 #' Computes the relative difference statistic of the form \code{(est - pop)/ pop}, which
-#' is equivalent to the form \code{est/pop - 1}. If matricies are supplied then
+#' is equivalent to the form \code{est/pop - 1}. If matrices are supplied then
 #' an equivalent matrix variant will be used of the form
 #' \code{(est - pop) * solve(pop)}. Values closer to 0 indicate better
 #' relative parameter recovery.
@@ -529,6 +715,7 @@ ECR <- function(CIs, parameter, tails = FALSE, CI_width = FALSE, names = NULL){
         return(ret)
     }
     stopifnot(is.matrix(CIs))
+    if(is.data.frame(parameter)) parameter <- unlist(parameter)
     stopifnot(is.vector(parameter))
     if(length(parameter) != 1L) stopifnot(length(parameter) == nrow(CIs))
     if(CIs[1,1] > CIs[1,2]){

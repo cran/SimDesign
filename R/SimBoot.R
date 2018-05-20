@@ -1,8 +1,8 @@
 #' Function to present bootstrap standard errors estimates for Monte Carlo simulation meta-statistics
 #'
-#' This function generates confidence intervals for the meta-statistics called within the
+#' This function generates bootstrap confidence intervals for the meta-statistics called within the
 #' \code{summarise} function with \code{\link{runSimulation}}
-#' that included the arguemnt \code{bootSE = TRUE}.
+#' that included the argument \code{bootSE = TRUE}.
 #'
 #' @param results object returned from \code{\link{runSimulation}} where \code{bootSE = TRUE}
 #'   was used
@@ -21,6 +21,7 @@
 #'
 #' @examples
 #'
+#' \dontrun{
 #' #SimFunctions()
 #'
 #' Design <- data.frame(N = c(10, 20, 30))
@@ -56,6 +57,8 @@
 #' # point estimates more accurate, smaller BOOT_SE terms
 #' res2
 #' SimBoot(res2) # more reasonable CI range
+#'
+#' }
 #'
 SimBoot <- function(results, CI = .99){
     nms <- attr(results, 'design_names')

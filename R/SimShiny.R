@@ -115,6 +115,8 @@ SimShiny <- function(filename = NULL, dir = getwd(), design, ...){
     for(i in seq_len(3L)){
         if(!is.null(Functions[[i]])){
             output <- capture.output(print(Functions[[i]]))
+            if(grepl('<bytecode: ', output[length(output)]))
+                output <- output[-length(output)]
             output <- paste0(output, '\n', collapse='')
             cat(sprintf('%s <- %s\n', names(Functions[i]), output))
         }
@@ -122,6 +124,7 @@ SimShiny <- function(filename = NULL, dir = getwd(), design, ...){
 
     #ui
     cat('#---------------------------------------------------------\n')
+    cat('library(SimDesign)\n')
     cat('library(shiny)\n\n')
     cat(sprintf('design_is_numeric <- c(%s)\n\n',
                 paste0(design_is_numeric, collapse=',')))
