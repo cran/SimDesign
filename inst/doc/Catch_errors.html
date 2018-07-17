@@ -258,20 +258,23 @@ do so before some number of predefined iterations). </p>
 </code></pre>
 
 <pre><code>## 
-Design row: 1/3;   Started: Sat May 19 23:24:50 2018;   Total elapsed time: 0.00s 
 ## 
-Design row: 2/3;   Started: Sat May 19 23:24:50 2018;   Total elapsed time: 0.06s 
+Design row: 1/3;   Started: Mon Jul 16 21:29:18 2018;   Total elapsed time: 0.00s 
 ## 
-Design row: 3/3;   Started: Sat May 19 23:24:50 2018;   Total elapsed time: 0.12s
+## 
+Design row: 2/3;   Started: Mon Jul 16 21:29:18 2018;   Total elapsed time: 0.11s 
+## 
+## 
+Design row: 3/3;   Started: Mon Jul 16 21:29:18 2018;   Total elapsed time: 0.20s
 </code></pre>
 
 <pre><code class="r">print(result)
 </code></pre>
 
-<pre><code>##    N     bias ERROR: .Error : Manual error thrown\n
-## 1 10  0.03782                                     7
-## 2 20  0.01479                                     8
-## 3 30 -0.01443                                     9
+<pre><code>##    N     bias
+## 1 10  0.03782
+## 2 20  0.01479
+## 3 30 -0.01443
 ##   ERROR: .Error in t.test.default(&quot;invalid&quot;) : not enough &#39;x&#39; observations\n
 ## 1                                                                          4
 ## 2                                                                         17
@@ -280,30 +283,72 @@ Design row: 3/3;   Started: Sat May 19 23:24:50 2018;   Total elapsed time: 0.12
 ## 1                                                                             19
 ## 2                                                                             26
 ## 3                                                                             32
+##   ERROR: .Manual error thrown\n
+## 1                             7
+## 2                             8
+## 3                             9
 ##   WARNING: .This warning happens much more often
 ## 1                                             44
 ## 2                                             40
 ## 3                                             47
 ##   WARNING: .This warning happens rarely REPLICATIONS SIM_TIME
-## 1                                     5          100    0.06s
-## 2                                     9          100    0.05s
-## 3                                     9          100    0.05s
+## 1                                     5          100    0.11s
+## 2                                     9          100    0.08s
+## 3                                     9          100    0.07s
 ##                  COMPLETED       SEED
-## 1 Sat May 19 23:24:50 2018  570175513
-## 2 Sat May 19 23:24:50 2018  799129990
-## 3 Sat May 19 23:24:50 2018 1230193230
+## 1 Mon Jul 16 21:29:18 2018  570175513
+## 2 Mon Jul 16 21:29:18 2018  799129990
+## 3 Mon Jul 16 21:29:18 2018 1230193230
 </code></pre>
 
 <p>What you&#39;ll immediately notice from this output object is that the name of the error/warning thrown, and the function from which the error was thrown, are included as additional columns in the output with the prefix <code>ERROR:</code>. Furthermore, the frequency in which the error occurred are also included for each design condition (here the <code>t.test.default()</code> error, where no inputs were supplied, occurred more often than the manually thrown error as well as the invalid-input error). This behavior is also tracked for <code>WARNING</code> messages as well in case there are clues as to
 why estimation models are having difficulty (or for other reasons whereby the warnings may be more serious).</p>
 
-<p>Finally, <code>SimDesign</code> has a built-in safety feature controlled by with <code>max_errors</code> argument to avoid
-getting stuck in infinite redrawing loops. By default, if more than 50 errors are consecutively returned then the simulation will be halted, and the final error 
-message will be returned. This safety feature is built-in because too many consecutive <code>stop()</code> calls generally indicates a major problem in the simulation code which should be fixed before continuing.</p>
+<p>Finally, <code>SimDesign</code> has a built-in safety feature controlled by with <code>max_errors</code> argument to avoid getting stuck in infinite redrawing loops. By default, if more than 50 errors are consecutively returned then the simulation will be halted, and the final error message will be returned. This safety feature is built-in because too many consecutive <code>stop()</code> calls generally indicates a major problem in the simulation code which should be fixed before continuing.</p>
 
-<h3>What to do</h3>
+<h3>What to do (explicit debug catch)</h3>
 
 <p>If errors occur too often then these design conditions should either be extracted out of the simulation or further inspected to determine if they can be fixed (e.g., providing better starting values, increasing convergence criteria/number of iterations, etc). The use of the debugging features can also be useful to track down issues as well. For example, manually wrap the problematic functions in a <code>try()</code> call, and add the line <code>if(is(object, &#39;try-error&#39;)) browser()</code> to jump into the location/replication where the object unexpectedly witnessed an error. Jumping into the exact location where the error occurred will greatly help you determine what exactly went wrong in the simulation state, allowing you to quickly locate and fix the issue.</p>
+
+<h3>What to do (stored error seed debuging)</h3>
+
+<p>An alternative approach to locating errors in general is to use information stored within the <code>SimDesign</code> objects at the time of completion. By default, all <code>.Random.seed</code> states are stored within the final object, and these can be extracted using the <code>extract_error_seeds()</code> function, which returns a matrix with each seed stored column-wise. </p>
+
+<pre><code class="r">seeds &lt;- extract_error_seeds(result)
+head(seeds[,1:3])
+</code></pre>
+
+<pre><code>##   Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
+## 1                                                                               403
+## 2                                                                               207
+## 3                                                                        1561779751
+## 4                                                                        -764922243
+## 5                                                                       -1307744396
+## 6                                                                       -1528964262
+##   Design_row_1.2..Error.in.t.test.default..invalid.....not.enough..x..observations.
+## 1                                                                               403
+## 2                                                                               251
+## 3                                                                        1561779751
+## 4                                                                        -764922243
+## 5                                                                       -1307744396
+## 6                                                                       -1528964262
+##   Design_row_1.3..Error.in.t.test.default.....argument..x..is.missing..with.no.default.
+## 1                                                                                   403
+## 2                                                                                   272
+## 3                                                                            1561779751
+## 4                                                                            -764922243
+## 5                                                                           -1307744396
+## 6                                                                           -1528964262
+</code></pre>
+
+<p>Given these seeds, replicating an exact error can be achieved by a) extracting a single column into an <code>integer</code> vector, and b) passing this vector to the <code>load_seed</code> input. For example, replicating the first error message can be achieved as follows, where it makes the most sense to immediately go into the debugging mode via the <code>edit</code> inputs. Note that it&#39;s also important to select the correct <code>Design</code> row using this approach; otherwise, the seed will clearly not replicate the exact problem state. </p>
+
+<pre><code class="r">picked_seed &lt;- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
+runSimulation(Design[1,], replications = 100, load_seed=picked_seed, edit=&#39;analyse&#39;,
+              generate=Generate, analyse=Analyse, summarise=Summarise)
+</code></pre>
+
+<p>The <code>.Random.seed</code> state will be loaded at this exact state, and will always be related at this state as well (in case <code>c</code> is typed in the debugger, or somehow the error is harder to find while walking through the debug mode). Hence, users must type <code>Q</code> to exit the debugger after they have better understood the nature of the error message first-hand. </p>
 
 </body>
 

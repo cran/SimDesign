@@ -96,6 +96,15 @@
 #' providing a vector of \code{seeds} is also possible to ensure
 #' that each simulation condition is completely reproducible under the single/multi-core method selected.
 #'
+#' The \code{load_seed} input will also accept an integer vector corresponding to the exact
+#' \code{.Random.seed} state. This is helpful because SimDesign also tracks these seeds for simulation
+#' conditions that threw errors, where these values can be extracted via the \code{extract_error_seeds()}
+#' function. The column names indicate the respective design row (first number), the order in which
+#' the errors were thrown (second number), and finally the error message string (coerced to a proper
+#' data.frame column name). After this data.frame object is extracted, individual columns can be passed to \code{load_seed}
+#' to replicate the exact error issue that appeared (note that the \code{design} object must be indexed
+#' manually to ensure that the correct design conditions is paired with this exact \code{.Random.seed} state).
+#'
 #' Finally, when the Monte Carlo simulation is complete
 #' it is recommended to write the results to a hard-drive for safe keeping, particularly with the
 #' \code{save} and \code{filename} arguments provided (for reasons that are more obvious in the parallel computation
@@ -201,7 +210,7 @@
 #'   Use this if you would like to keep track of the simulation state within each replication and design
 #'   condition. Primarily, this is useful for completely replicating any cell in the simulation if need be,
 #'   especially when tracking down hard-to-find errors and bugs. As well, see the \code{load_seed} input
-#'   to load a given \code{.Random.seed} to exactly replicate the generated data and analysis state (handy
+#'   to load a given \code{.Random.seed} to exactly replicate the generated data and analysis state (mostly useful
 #'   for debugging). When \code{TRUE}, temporary files will also be saved
 #'   to the working directory (in the same way as when \code{save = TRUE}).
 #'   Default is \code{FALSE}
@@ -217,10 +226,15 @@
 #'   a needless amount of disk space, and by-and-large saving data is not required for simulations.
 #'
 #' @param load_seed a character object indicating which file to load from when the \code{.Random.seed}s have
-#'   be saved (after a call with \code{save_seeds = TRUE}). E.g., \code{load_seed = 'design-row-2/seed-1'}
-#'   will load the first seed in the second row of the \code{design} input. Note that it is important NOT
-#'   to modify the \code{design} input object, otherwise the path may not point to the correct saved location.
-#'   Default is \code{NULL}
+#'   be saved (after a call with \code{save_seeds = TRUE}), or an integer vector indicating the actual
+#'   \code{.Random.seed} values. E.g., \code{load_seed = 'design-row-2/seed-1'}
+#'   will load the first seed in the second row of the \code{design} input, or explicilty passing the 626 long
+#'   elements from \code{.Random.seed} (see \code{extract_error_seed()} to extract the seeds associated explicilty
+#'   with errors during the simulation, where each column represents a unique seed).
+#'   If the input is a character vector then it is important NOT
+#'   to modify the \code{design} input object, otherwise the path may not point to the correct saved location, while
+#'   if the input is an integer vector then it WILL be important to modify the \code{design} input in order to load this
+#'   exact seed for the corresponding design row. Default is \code{NULL}
 #'
 #' @param filename (optional) the name of the \code{.rds} file to save the final simulation results to
 #'   when \code{save = TRUE}. If the same file name already exists in the working
@@ -612,7 +626,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           warnings_as_errors = FALSE, save_seeds = FALSE, load_seed = NULL,
                           parallel = FALSE, ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
                           max_errors = 50L, as.factor = TRUE, save_generate_data = FALSE,
-                          save_details = list(), edit = 'none', progress = FALSE, verbose = TRUE)
+                          save_details = list(), edit = 'none', progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
     if(missing(generate) && !missing(analyse))
@@ -629,6 +643,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     save_generate_data_dirname <- save_details$save_generate_data_dirname
     save_seeds_dirname <- save_details$save_seeds_dirname
 
+    if(!verbose) progress <- FALSE
     if(is.null(compname)) compname <- Sys.info()['nodename']
     if(is.null(safe)) safe <- TRUE
     if(is.null(out_rootdir)) { out_rootdir <- '.' } else { dir.create(out_rootdir, showWarnings=FALSE) }
@@ -675,9 +690,14 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!is.null(load_seed)){
         save <- save_seeds <- parallel <- MPI <- FALSE
         replications <- 1L
-        load_seed2 <- gsub('design-row-', '', load_seed)
-        start <- end <- as.numeric(gsub('/.*', '', load_seed2))
-        load_seed <- paste0(save_seeds_dirname, '/', load_seed)
+        if(is.character(load_seed)){
+            load_seed2 <- gsub('design-row-', '', load_seed)
+            start <- end <- as.numeric(gsub('/.*', '', load_seed2))
+            load_seed <- paste0(save_seeds_dirname, '/', load_seed)
+            load_seed <- as.integer(scan(load_seed, sep = ' ', quiet = TRUE))
+        }
+        stopifnot(is.integer(load_seed))
+        stopifnot(length(load_seed) == 626L)
     }
     if(MPI){
         parallel <- FALSE
@@ -890,6 +910,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             }
             Result_list[[i]] <- data.frame(design[i, ], as.list(tmp),
                                            check.names=FALSE)
+            attr(Result_list[[i]], 'error_seeds') <- attr(tmp, 'error_seeds')
             time1 <- proc.time()[3L]
             Result_list[[i]]$SIM_TIME <- time1 - time0
             Result_list[[i]]$COMPLETED <- date()
@@ -908,13 +929,22 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         names(Result_list) <- nms2
         if(is.list(Result_list[[1L]][[1L]]))
             for(i in seq_len(length(Result_list)))
-                attr(Result_list[[i]][[1L]], 'try_errors') <- NULL
+                attr(Result_list[[i]][[1L]], 'try_errors') <-
+            attr(Result_list[[i]][[1L]], 'try_error_seeds') <- NULL
         if(nrow(design) == 1L) Result_list <- Result_list[[1L]]
         return(Result_list)
     }
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
     if(verbose)
         message('\nSimulation complete. Total execution time: ', timeFormater(sum(stored_time)))
+    stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
+    error_seeds <- data.frame(do.call(cbind, lapply(1L:length(Result_list), function(x){
+        ret <- attr(Result_list[[x]], "error_seeds")
+        if(length(ret) == 0L || nrow(ret) == 0L) return(NULL)
+        rownames(ret) <- paste0("Design_row_", x, '.', 1L:nrow(ret), ": ",
+                                rownames(ret))
+        t(ret)
+    })))
     Final <- plyr::rbind.fill(Result_list)
     SIM_TIME <- Final$SIM_TIME
     COMPLETED <- Final$COMPLETED
@@ -975,6 +1005,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                       ncores = if(parallel) length(cl) else if(MPI) NA else 1L,
                                       number_of_conditions = nrow(design),
                                       date_completed = date(), total_elapsed_time = sum(Final$SIM_TIME),
+                                      error_seeds=error_seeds,
                                       stored_results = if(store_results) stored_Results_list else NULL)
     if(dummy_run) Final$dummy_run <- NULL
     class(Final) <- c('SimDesign', 'data.frame')
@@ -1034,6 +1065,7 @@ summary.SimDesign <- function(object, ...){
     ret <- attr(object, 'extra_info')
     ret$total_elapsed_time <- timeFormater(ret$total_elapsed_time, TRUE)
     ret$stored_results <- NULL
+    ret$error_seeds <- NULL
     ret
 }
 
@@ -1053,6 +1085,15 @@ extract_results <- function(object){
     nms2 <- apply(nms2, 1L, paste0, collapse='')
     ret <- extra_info$stored_results
     names(ret) <- nms2
+    ret
+}
+
+#' @rdname runSimulation
+#' @export
+extract_error_seeds <- function(object){
+    stopifnot(is(object, "SimDesign"))
+    extra_info <- attr(object, 'extra_info')
+    ret <- extra_info$error_seeds
     ret
 }
 

@@ -58,3 +58,12 @@ result <- runSimulation(Design, replications = 100,
 ## ------------------------------------------------------------------------
 print(result)
 
+## ------------------------------------------------------------------------
+seeds <- extract_error_seeds(result)
+head(seeds[,1:3])
+
+## ----eval=FALSE----------------------------------------------------------
+#  picked_seed <- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
+#  runSimulation(Design[1,], replications = 100, load_seed=picked_seed, edit='analyse',
+#                generate=Generate, analyse=Analyse, summarise=Summarise)
+

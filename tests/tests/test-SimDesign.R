@@ -182,10 +182,10 @@ test_that('SimDesign', {
     files <- dir(DIR)
     expect_equal(length(files), 16L)
     x <- readRDS(paste0(DIR, '/', files[1]))
-    expect_true(all(names(x) %in% c('condition', 'results', 'errors', 'warnings')))
+    expect_true(all(names(x) %in% c('condition', 'results', 'errors', 'warnings', "error_seeds")))
     row1 <- SimResults(tmp, 1)
     expect_is(row1, 'list')
-    expect_equal(length(row1), 4)
+    expect_equal(length(row1), 5)
     row1to5 <- SimResults(tmp, 1:5)
     expect_is(row1to5, 'list')
     expect_equal(length(row1to5), 5)
@@ -307,6 +307,23 @@ test_that('SimDesign', {
     expect_true(dir.exists('SimDesign_aggregate_results'))
     expect_equal(4, length(readRDS('SimDesign_aggregate_results/results-row-1.rds')$results))
     SimClean(dirs = c('SimDesign_aggregate_results','dir1', 'dir2'))
+
+    mycompute <- function(condition, dat, fixed_objects = NULL){
+        if(sample(c(FALSE, TRUE), 1, prob = c(.5, .5))) warning('This is a warning')
+        if(sample(c(FALSE, TRUE), 1, prob = c(.5, .5))) stop('This is an error')
+        if(sample(c(FALSE, TRUE), 1, prob = c(.5, .5))) stop('This is a different error')
+        list(ret = 1)
+    }
+    results <- runSimulation(Design, replications = 2, packages = 'extraDistr', seed=1:8,
+                             generate=mygenerate, analyse=mycompute, summarise=mycollect, verbose=FALSE)
+    seeds <- extract_error_seeds(results)
+    expect_is(seeds, 'data.frame')
+    expect_true(nrow(seeds) == 626)
+    if(interactive()){
+        results <- runSimulation(Design, replications = 2, packages = 'extraDistr', seed=1:8,
+                                 generate=mygenerate, analyse=mycompute, summarise=mycollect,
+                                 load_seed=seeds$Design_row_1.1..This.is.an.error., edit='analyse')
+    }
 
     # NAs
     mycompute <- function(condition, dat, fixed_objects = NULL){
@@ -437,7 +454,7 @@ test_that('SimDesign', {
     Summarise <- function(condition, results, fixed_objects = NULL)
         bias(results, 0)
     results <- runSimulation(replications = 10, analyse=gen_anal,
-                             summarise=Summarise)
+                             summarise=Summarise, verbose=FALSE)
     expect_is(results, 'SimDesign')
 
 })
