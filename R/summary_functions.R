@@ -20,8 +20,13 @@
 #'   (average difference between sample and population), \code{'relative'} computes
 #'   the relative bias statistic (i.e., divide the bias by the value
 #'   in \code{parameter}; note that multiplying this by 100 gives the "percent bias" measure),
+#'   \code{'abs_relative'} computes the relative bias but the absoluate values of the parameters
+#'   are used in the denominator rather than the (potentially) signed input values,
 #'   and \code{'standardized'} computes the standardized bias estimate
 #'   (standard bias divided by the standard deviation of the sample estimates)
+#'
+#' @param abs logical; find the absoluate bias between the parameters and estimates? This effectively
+#'   just applies the \code{\link{abs}} transformation to the returned result. Default is FALSE
 #'
 #' @return returns a \code{numeric} vector indicating the overall (relative/standardized)
 #'   bias in the estimates
@@ -71,8 +76,11 @@
 #' estimates <- parameters + rnorm(10)
 #' bias(estimates, parameters)
 #'
+#' # relative difference dividing by the magnitude of parameters
+#' bias(estimates, parameters, type = 'abs_relative')
 #'
-bias <- function(estimate, parameter = NULL, type = 'bias'){
+#'
+bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE){
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -80,7 +88,7 @@ bias <- function(estimate, parameter = NULL, type = 'bias'){
         colnames(estimate) <- nms
     }
     stopifnot(is.matrix(estimate))
-    stopifnot(type %in% c('bias', 'standardized', 'relative'))
+    stopifnot(type %in% c('bias', 'standardized', 'relative', 'abs_relative'))
     n_col <- ncol(estimate)
     if(type == "relative") stopifnot(!is.null(parameter))
     if(is.null(parameter)) parameter <- 0
@@ -90,9 +98,12 @@ bias <- function(estimate, parameter = NULL, type = 'bias'){
     equal_len <- length(estimate) == length(parameter)
     if(!equal_len)
         stopifnot(ncol(estimate) == length(parameter))
-    ret <- colMeans(t(t(estimate) - parameter))
-    if(type == 'relative') ret <- ret / parameter
-    else if(type == 'standardized') ret <- ret / apply(estimate, 2, sd)
+    diff <- t(t(estimate) - parameter)
+    ret <- if(type == 'relative') colMeans(diff / parameter)
+        else if(type == 'abs_relative') colMeans(diff / abs(parameter))
+        else if(type == 'standardized') colMeans(diff) / apply(estimate, 2, sd)
+        else colMeans(diff)
+    if(abs) ret <- abs(ret)
     ret
 }
 
@@ -605,7 +616,7 @@ RD <- function(est, pop, as.vector = TRUE){
 #'
 EDR <- function(p, alpha = .05){
     if(is.data.frame(p)) p <- as.matrix(p)
-    stopifnot(all(p <= 1 && p >= 0))
+    stopifnot(all(p <= 1 & p >= 0))
     stopifnot(length(alpha) == 1L)
     stopifnot(alpha <= 1 && alpha >= 0)
     if(is.vector(p)) p <- matrix(p)

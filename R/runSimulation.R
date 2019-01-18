@@ -296,7 +296,12 @@
 #' @param save logical; save the simulation state and final results to the hard-drive? This is useful
 #'   for simulations which require an extended amount of time. When \code{TRUE}, a temp file
 #'   will be created in the working directory which allows the simulation state to be saved
-#'   and recovered (in case of power outages, crashes, etc). To recover your simulation at the last known
+#'   and recovered (in case of power outages, crashes, etc). As well, triggering this flag will
+#'   save any fatal \code{.Random.seed} states when conditions unexpectedly crash (where each seed
+#'   is stored row-wise in an external .rds file), which provides a much easier mechanism
+#'   to debug the issue (see \code{load_seed} for details).
+#'
+#'   To recover your simulation at the last known
 #'   location simply re-run the code you used to initially define the simulation and the external file
 #'   will automatically be detected and read-in. Upon completion, the final results will
 #'   be saved to the working directory, and the temp file will be removed. Default is \code{FALSE}
@@ -697,7 +702,6 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             load_seed <- as.integer(scan(load_seed, sep = ' ', quiet = TRUE))
         }
         stopifnot(is.integer(load_seed))
-        stopifnot(length(load_seed) == 626L)
     }
     if(MPI){
         parallel <- FALSE
@@ -864,6 +868,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          fixed_objects=fixed_objects,
                                          cl=cl, MPI=MPI, seed=seed,
                                          bootSE=bootSE, boot_draws=boot_draws,
+                                         save=save,
                                          save_results=save_results,
                                          save_results_out_rootdir=out_rootdir,
                                          save_results_dirname=save_results_dirname,
@@ -893,6 +898,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             fixed_objects=fixed_objects,
                             cl=cl, MPI=MPI, seed=seed,
                             bootSE=bootSE, boot_draws=boot_draws,
+                            save=save,
                             save_results=save_results,
                             save_results_out_rootdir = out_rootdir,
                             save_results_dirname=save_results_dirname,

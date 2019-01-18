@@ -259,13 +259,13 @@ do so before some number of predefined iterations). </p>
 
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Mon Jul 16 21:29:18 2018;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Fri Jan 18 09:44:16 2019;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Mon Jul 16 21:29:18 2018;   Total elapsed time: 0.11s 
+Design row: 2/3;   Started: Fri Jan 18 09:44:16 2019;   Total elapsed time: 0.12s 
 ## 
 ## 
-Design row: 3/3;   Started: Mon Jul 16 21:29:18 2018;   Total elapsed time: 0.20s
+Design row: 3/3;   Started: Fri Jan 18 09:44:16 2019;   Total elapsed time: 0.21s
 </code></pre>
 
 <pre><code class="r">print(result)
@@ -292,13 +292,13 @@ Design row: 3/3;   Started: Mon Jul 16 21:29:18 2018;   Total elapsed time: 0.20
 ## 2                                             40
 ## 3                                             47
 ##   WARNING: .This warning happens rarely REPLICATIONS SIM_TIME
-## 1                                     5          100    0.11s
-## 2                                     9          100    0.08s
-## 3                                     9          100    0.07s
+## 1                                     5          100    0.12s
+## 2                                     9          100    0.09s
+## 3                                     9          100    0.06s
 ##                  COMPLETED       SEED
-## 1 Mon Jul 16 21:29:18 2018  570175513
-## 2 Mon Jul 16 21:29:18 2018  799129990
-## 3 Mon Jul 16 21:29:18 2018 1230193230
+## 1 Fri Jan 18 09:44:16 2019  570175513
+## 2 Fri Jan 18 09:44:16 2019  799129990
+## 3 Fri Jan 18 09:44:16 2019 1230193230
 </code></pre>
 
 <p>What you&#39;ll immediately notice from this output object is that the name of the error/warning thrown, and the function from which the error was thrown, are included as additional columns in the output with the prefix <code>ERROR:</code>. Furthermore, the frequency in which the error occurred are also included for each design condition (here the <code>t.test.default()</code> error, where no inputs were supplied, occurred more often than the manually thrown error as well as the invalid-input error). This behavior is also tracked for <code>WARNING</code> messages as well in case there are clues as to
@@ -312,7 +312,7 @@ why estimation models are having difficulty (or for other reasons whereby the wa
 
 <h3>What to do (stored error seed debuging)</h3>
 
-<p>An alternative approach to locating errors in general is to use information stored within the <code>SimDesign</code> objects at the time of completion. By default, all <code>.Random.seed</code> states are stored within the final object, and these can be extracted using the <code>extract_error_seeds()</code> function, which returns a matrix with each seed stored column-wise. </p>
+<p>An alternative approach to locating errors in general is to use information stored within the <code>SimDesign</code> objects at the time of completion. By default, all <code>.Random.seed</code> states associated with errors are stored within the final object, and these can be extracted using the <code>extract_error_seeds()</code> function. This function returns a <code>data.frame</code> object with each seed stored column-wise, where the associated error message is contained in the column name itself (and allowed to be coerced into a valid <code>data.frame</code> column name). </p>
 
 <pre><code class="r">seeds &lt;- extract_error_seeds(result)
 head(seeds[,1:3])
@@ -341,7 +341,9 @@ head(seeds[,1:3])
 ## 6                                                                           -1528964262
 </code></pre>
 
-<p>Given these seeds, replicating an exact error can be achieved by a) extracting a single column into an <code>integer</code> vector, and b) passing this vector to the <code>load_seed</code> input. For example, replicating the first error message can be achieved as follows, where it makes the most sense to immediately go into the debugging mode via the <code>edit</code> inputs. Note that it&#39;s also important to select the correct <code>Design</code> row using this approach; otherwise, the seed will clearly not replicate the exact problem state. </p>
+<p>Given these seeds, replicating an exact error can be achieved by a) extracting a single column into an <code>integer</code> vector, and b) passing this vector to the <code>load_seed</code> input. For example, replicating the first error message can be achieved as follows, where it makes the most sense to immediately go into the debugging mode via the <code>edit</code> inputs. </p>
+
+<p>Note: It is important to manually select the correct <code>Design</code> row using this error extraction approach; otherwise, the seed will clearly not replicate the exact problem state. </p>
 
 <pre><code class="r">picked_seed &lt;- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
 runSimulation(Design[1,], replications = 100, load_seed=picked_seed, edit=&#39;analyse&#39;,
