@@ -4,7 +4,8 @@
 \alias{bias}
 \title{Compute (relative/standardized) bias summary statistic}
 \usage{
-bias(estimate, parameter = NULL, type = "bias", abs = FALSE)
+bias(estimate, parameter = NULL, type = "bias", abs = FALSE,
+  percent = FALSE)
 }
 \arguments{
 \item{estimate}{a \code{numeric} vector or \code{matrix}/\code{data.frame}
@@ -23,13 +24,16 @@ form (therefore \code{mean(estimate))} will be returned)}
 (average difference between sample and population), \code{'relative'} computes
 the relative bias statistic (i.e., divide the bias by the value
 in \code{parameter}; note that multiplying this by 100 gives the "percent bias" measure),
-\code{'abs_relative'} computes the relative bias but the absoluate values of the parameters
+\code{'abs_relative'} computes the relative bias but the absolute values of the parameters
 are used in the denominator rather than the (potentially) signed input values,
 and \code{'standardized'} computes the standardized bias estimate
 (standard bias divided by the standard deviation of the sample estimates)}
 
-\item{abs}{logical; find the absoluate bias between the parameters and estimates? This effectively
+\item{abs}{logical; find the absolute bias between the parameters and estimates? This effectively
 just applies the \code{\link{abs}} transformation to the returned result. Default is FALSE}
+
+\item{percent}{logical; change returned result to percentage by multiplying by 100?
+Default is FALSE}
 }
 \value{
 returns a \code{numeric} vector indicating the overall (relative/standardized)
@@ -75,6 +79,9 @@ bias(estimates, parameters)
 
 # relative difference dividing by the magnitude of parameters
 bias(estimates, parameters, type = 'abs_relative')
+
+# relative bias as a percentage
+bias(estimates, parameters, type = 'abs_relative', percent = TRUE)
 
 
 }

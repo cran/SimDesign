@@ -2,7 +2,8 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                      save_results, save_results_out_rootdir, save_results_dirname, max_errors, bootSE, boot_draws,
                      save_generate_data, save_generate_data_dirname,
                      save_seeds, save_seeds_dirname, load_seed, export_funs, packages,
-                     summarise_asis, warnings_as_errors, progress, store_results)
+                     summarise_asis, warnings_as_errors, progress, store_results,
+                     allow_na, allow_nan, use_try)
 {
     # This defines the work-flow for the Monte Carlo simulation given the condition (row in Design)
     #  and number of replications desired
@@ -19,7 +20,8 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                    save_generate_data_dirname=save_generate_data_dirname,
                    save_seeds=save_seeds, load_seed=load_seed,
                    save_seeds_dirname=save_seeds_dirname,
-                   warnings_as_errors=warnings_as_errors)
+                   warnings_as_errors=warnings_as_errors,
+                   allow_na=allow_na, allow_nan=allow_nan, use_try=use_try)
         } else {
             lapply(1L:replications, mainsim, condition=condition,
                    generate=Functions$generate,
@@ -31,7 +33,8 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                    save_generate_data_dirname=save_generate_data_dirname,
                    save_seeds=save_seeds, load_seed=load_seed,
                    save_seeds_dirname=save_seeds_dirname,
-                   warnings_as_errors=warnings_as_errors)
+                   warnings_as_errors=warnings_as_errors,
+                   allow_na=allow_na, allow_nan=allow_nan, use_try=use_try)
         }
     } else {
         if(MPI){
@@ -43,7 +46,8 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                      save_generate_data_dirname=save_generate_data_dirname, packages=packages,
                      save_seeds=save_seeds, save_seeds_dirname=save_seeds_dirname,
                      save_results_out_rootdir=save_results_out_rootdir,
-                     warnings_as_errors=warnings_as_errors)
+                     warnings_as_errors=warnings_as_errors, allow_na=allow_na, allow_nan=allow_nan,
+                     use_try=use_try)
         } else {
             if(!is.null(seed)) parallel::clusterSetRNGStream(cl=cl, seed[condition$ID])
             results <- if(progress){
@@ -55,8 +59,8 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                                     max_errors=max_errors, save_generate_data=save_generate_data,
                                     save_generate_data_dirname=save_generate_data_dirname,
                                     save_seeds=save_seeds, save_seeds_dirname=save_seeds_dirname,
-                                    warnings_as_errors=warnings_as_errors,
-                                  cl=cl)
+                                    warnings_as_errors=warnings_as_errors, allow_na=allow_na, allow_nan=allow_nan,
+                                    use_try=use_try, cl=cl)
             } else {
                 parallel::parLapply(cl, 1L:replications, mainsim,
                                     condition=condition, generate=Functions$generate,
@@ -66,7 +70,8 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                                     max_errors=max_errors, save_generate_data=save_generate_data,
                                     save_generate_data_dirname=save_generate_data_dirname,
                                     save_seeds=save_seeds, save_seeds_dirname=save_seeds_dirname,
-                                    warnings_as_errors=warnings_as_errors)
+                                    warnings_as_errors=warnings_as_errors, allow_na=allow_na,
+                                    allow_nan=allow_nan, use_try=use_try)
             }
         }
     }
@@ -115,20 +120,18 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                      warnings=warnings),
                 file.path(save_results_out_rootdir, tmpfilename))
     }
-    sim_results <- Functions$summarise(results=results,
-                           condition=condition, fixed_objects=fixed_objects)
-    if(is.data.frame(sim_results)){
-        if(nrow(sim_results) > 1L)
-            stop('When returning a data.frame in summarise() there should only be 1 row', call.=FALSE)
-        nms <- names(sim_results)
-        sim_results <- as.numeric(sim_results)
-        names(sim_results) <- nms
+    sim_results <- try(Functions$summarise(results=results,
+                           condition=condition, fixed_objects=fixed_objects), TRUE)
+    if(!use_try){
+        if(is(sim_results, 'try-error')){
+            on.exit(myundebug(Functions$summarise))
+            debug(Functions$summarise)
+            try(Functions$summarise(results=results,
+                                condition=condition, fixed_objects=fixed_objects), TRUE)
+            myundebug(Functions$summarise)
+        }
     }
-    if(length(sim_results) == 1L)
-        if(is.null(names(sim_results)))
-            names(sim_results) <- 'value'
-    if(!is.vector(sim_results) || is.null(names(sim_results)))
-        stop('summarise() must return a named vector or data.frame object with 1 row', call.=FALSE)
+    sim_results <- sim_results_check(sim_results)
     ret <- c(sim_results, 'REPLICATIONS'=replications, 'ERROR: '=try_errors,
              'WARNING: '=warnings)
     if(bootSE){

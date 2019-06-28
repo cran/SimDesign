@@ -152,11 +152,16 @@
 #'   after all the replications have completed within each \code{design} condition. Omitting this function
 #'   will return a list of matrices (or a single matrix, if only one row in \code{design} is supplied)
 #'   or, for more general objects (such as lists), a list containing the results returned form \code{\link{Analyse}}.
-#'   Ommiting this function is only recommended for didactic purposes because it leaves out a large amount of
-#'   information (e.g., try-errors, warning messages, etc), can witness memory related issues,
-#'   and generally is not as flexible internally. See
-#'   the \code{save_results} option for a more RAM friendly alternative to storing all the Generate-Analyse results
-#'   in the working environment
+#'   Alternatively, the value \code{NA} can be passed to let the generate-analyse-summarise process run as usual,
+#'   but that the summarise components are included only as a placeholder.
+#'
+#'   Ommiting this input is only recommended for didactic purposes because it leaves out a large amount of
+#'   information (e.g., try-errors, warning messages, saving files, etc), can witness memory related issues,
+#'   and generally is not as flexible internally. If users do not wish to supply a summarise function then it
+#'   is is recommended to pass the values \code{NA} to indicate this function is deliberately omitted, but that
+#'   the \code{save_results} option should be used to save the results during the simulation. This provides a
+#'   more RAM friendly alternative to storing all the Generate-Analyse results in the working environment, where
+#'   the Analysis results can be summarised at a later time
 #'
 #' @param replications number of replication to perform per condition (i.e., each row in \code{design}).
 #'   Must be greater than 0
@@ -204,6 +209,8 @@
 #'
 #'   WARNING: saving results to your hard-drive can fill up space very quickly for larger simulations. Be sure to
 #'   test this option using a smaller number of replications before the full Monte Carlo simulation is performed.
+#'   See also \code{\link{reSummarise}} for applying summarise functions from saved
+#'   simulation results
 #'
 #' @param save_seeds logical; save the \code{.Random.seed} states prior to performing each replication into
 #'   plain text files located in the defined \code{save_seeds_dirname} directory/folder?
@@ -214,6 +221,8 @@
 #'   for debugging). When \code{TRUE}, temporary files will also be saved
 #'   to the working directory (in the same way as when \code{save = TRUE}).
 #'   Default is \code{FALSE}
+#'
+#' @param edit this argument has been deprecated. Please use \code{debug} instead
 #'
 #' @param save_generate_data logical; save the data returned from \code{\link{Generate}} to external \code{.rds} files
 #'   located in the defined \code{save_generate_data_dirname} directory/folder?
@@ -228,8 +237,8 @@
 #' @param load_seed a character object indicating which file to load from when the \code{.Random.seed}s have
 #'   be saved (after a call with \code{save_seeds = TRUE}), or an integer vector indicating the actual
 #'   \code{.Random.seed} values. E.g., \code{load_seed = 'design-row-2/seed-1'}
-#'   will load the first seed in the second row of the \code{design} input, or explicilty passing the 626 long
-#'   elements from \code{.Random.seed} (see \code{extract_error_seed()} to extract the seeds associated explicilty
+#'   will load the first seed in the second row of the \code{design} input, or explicitly passing the 626 long
+#'   elements from \code{.Random.seed} (see \code{extract_error_seed()} to extract the seeds associated explicitly
 #'   with errors during the simulation, where each column represents a unique seed).
 #'   If the input is a character vector then it is important NOT
 #'   to modify the \code{design} input object, otherwise the path may not point to the correct saved location, while
@@ -288,6 +297,12 @@
 #'   given condition. The purpose of this is to indicate that something fatally problematic is likely going
 #'   wrong in the generate-analyse phases and should be inspected. Default is 50
 #'
+#' @param allow_na logical; should \code{NA}s be allowed in the analyse step as a valid result from the simulation
+#'   analysis? Default is FALSE
+#'
+#' @param allow_nan logical; should \code{NaN}s be allowed in the analyse step as a valid result from the simulation
+#'   analysis? Default is FALSE
+#'
 #' @param ncores number of cores to be used in parallel execution. Default uses all available
 #'
 #' @param MPI logical; use the \code{foreach} package in a form usable by MPI to run simulation
@@ -306,16 +321,18 @@
 #'   will automatically be detected and read-in. Upon completion, the final results will
 #'   be saved to the working directory, and the temp file will be removed. Default is \code{FALSE}
 #'
-#' @param edit a string indicating where to initiate a \code{browser()} call for editing and debugging.
-#'   General options are \code{'none'} (default) and \code{'all'}, which are used
-#'   to disable debugging and to debug all the user defined functions, respectively.
-#'   Specific options include: \code{'generate'}
-#'   to edit the data simulation function, \code{'analyse'} to edit the computational function, and
-#'   \code{'summarise'} to  edit the aggregation function.
+#' @param debug a string indicating where to initiate a \code{browser()} call for editing and debugging.
+#'   General options are \code{'none'} (default; no debugging), \code{'error'}, which starts the debugger
+#'   when any error in the code is detected in one of three generate-analyse-summarise functions,
+#'   and \code{'all'}, which debugs all the user defined functions regardless of whether an error was thrown
+#'   or not. Specific options include: \code{'generate'}
+#'   to debug the data simulation function, \code{'analyse'} to debug the computational function, and
+#'   \code{'summarise'} to debug the aggregation function.
 #'
 #'   Alternatively, users may place \code{\link{browser}} calls within the respective functions for
-#'   debugging at specific lines (note: parallel computation flags will automatically be disabled
-#'   when a \code{browser()} is detected)
+#'   debugging at specific lines, which is useful when debugging based on conditional evaluations (e.g.,
+#'   \code{if(this == 'problem') browser()}). Note that parallel computation flags
+#'   will automatically be disabled when a \code{browser()} is detected
 #'
 #' @param seed a vector of integers to be used for reproducibility.
 #'   The length of the vector must be equal the number of rows in \code{design}.
@@ -362,7 +379,7 @@
 #' @aliases runSimulation
 #'
 #' @seealso \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
-#'   \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
+#'   \code{\link{SimFunctions}}, \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
 #'   \code{\link{SimBoot}}, \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
 #'
 #' @export runSimulation
@@ -537,7 +554,7 @@
 #' ##   ls() to see what has been defined, and type Q to quit the debugger
 #' runSimulation(design=Design, replications=1000,
 #'               generate=Generate, analyse=Analyse, summarise=Summarise,
-#'               parallel=TRUE, edit='generate')
+#'               parallel=TRUE, debug='generate')
 #'
 #' ## Alternatively, place a browser() within the desired function line to
 #' ##   jump to a specific location
@@ -631,11 +648,26 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           warnings_as_errors = FALSE, save_seeds = FALSE, load_seed = NULL,
                           parallel = FALSE, ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
                           max_errors = 50L, as.factor = TRUE, save_generate_data = FALSE,
-                          save_details = list(), edit = 'none', progress = TRUE, verbose = TRUE)
+                          save_details = list(), debug = 'none', progress = TRUE,
+                          allow_na = FALSE, allow_nan = FALSE, edit = 'none', verbose = TRUE)
 {
+    if(edit != 'none'){
+        warning('The edit argument has been deprecated. Please use \'debug\' instead.', call. = FALSE)
+        debug <- edit
+    }
     stopifnot(!missing(analyse))
     if(missing(generate) && !missing(analyse))
         generate <- function(condition, dat, fixed_objects = NULL){}
+    NA_summarise <- FALSE
+    if(!missing(summarise)){
+        NA_summarise <- if(!is.function(summarise) && is.na(summarise)) TRUE else FALSE
+        if(NA_summarise){
+            summarise <- function(condition, results, fixed_objects = NULL){0}
+            if(!save_results)
+                message('NA value for summarise input supplied; automatically setting save_results to TRUE\n')
+            save <- save_results <- TRUE
+        }
+    }
     if(!all(names(save_results) %in%
             c('compname', 'tmpfilename', 'save_results_dirname', 'save_generate_data_dirname')))
         stop('save_details contains elements that are not supported', call.=FALSE)
@@ -662,13 +694,16 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     if(!is.null(cl)) parallel <- TRUE
     if(!is.null(load_seed)) seed <- NULL
-    edit <- tolower(edit)
+    debug <- tolower(debug)
     summarise_asis <- FALSE
     if(missing(summarise)){
         summarise <- function(condition, results, fixed_objects = NULL) results
         summarise_asis <- TRUE
         save_generate_data <- FALSE
         stored_time <- 0
+        if(save || save_results)
+            message("save-based inputs not used when summarise input is missing. Consider passing summarise=NA instead")
+        save <- save_results <- FALSE
     }
     Functions <- list(generate=generate, analyse=analyse, summarise=summarise)
     dummy_run <- FALSE
@@ -680,7 +715,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     stopifnot(!missing(replications))
     if(!is.null(seed))
         stopifnot(nrow(design) == length(seed))
-    edit <- tolower(edit)
+    debug <- tolower(debug)
     if(!save && any(save_results, save_generate_data, save_seeds)) filename <- NULL
     for(i in names(Functions)){
         fms <- names(formals(Functions[[i]]))
@@ -721,29 +756,26 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         stop('design must be a data.frame object', call. = FALSE)
     if(replications < 1L)
         stop('number of replications must be greater than or equal to 1', call. = FALSE)
-    if(!(edit %in% c('none', 'analyse', 'generate', 'summarise', 'all')))
-        stop('edit location is not valid', call. = FALSE)
+    if(!(debug %in% c('none', 'analyse', 'generate', 'summarise', 'all', 'recover', 'error')))
+        stop('debug input is not valid', call. = FALSE)
     if(!is.null(design$REPLICATION))
         stop("REPLICATION is a reserved keyword in the design object. Please use another name", call.=FALSE)
     else design <- data.frame(REPLICATION=integer(nrow(design)), design)
     if(is.null(design$ID)){
         design <- data.frame(ID=1L:nrow(design), design)
     } else stopifnot(length(unique(design$ID)) == nrow(design))
-    if(edit != 'none'){
+    use_try  <- !(debug %in% c('error', 'recover'))
+    if(debug != 'none'){
         save <- save_results <- save_generate_data <- save_seeds <- FALSE
-        if(!(edit %in% 'summarise')) parallel <- MPI <- FALSE
-        if(edit == 'recover'){
-            old_recover <- getOption('error')
-            options(error = utils::recover)
-            on.exit(options(error = old_recover))
-        } else if(edit == 'all'){
+        if(!(debug %in% 'summarise')) parallel <- MPI <- FALSE
+        if(debug == 'all'){
             debug(Functions[['generate']]); debug(Functions[['analyse']])
             debug(Functions[['summarise']])
             on.exit({undebug(Functions[['generate']]); undebug(Functions[['analyse']])
                 undebug(Functions[['summarise']])})
         } else {
-            debug(Functions[[edit]])
-            on.exit(undebug(Functions[[edit]]))
+            debug(Functions[[debug]])
+            on.exit(undebug(Functions[[debug]]))
         }
     }
     export_funs <- parent_env_fun()
@@ -794,7 +826,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             }
             dir.create(file.path(out_rootdir, save_results_dirname))
         }
-        if(length(dir(file.path(out_rootdir, save_results_dirname))) != (start - 1L))
+        if(!(length(dir(file.path(out_rootdir, save_results_dirname))) %in% c(start - 1L, start)))
             stop('save_results_dirname not starting from correct location according to tempfile',
                  call.=FALSE)
     }
@@ -868,7 +900,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          fixed_objects=fixed_objects,
                                          cl=cl, MPI=MPI, seed=seed,
                                          bootSE=bootSE, boot_draws=boot_draws,
-                                         save=save,
+                                         save=save, allow_na=allow_na, allow_nan=allow_nan,
                                          save_results=save_results,
                                          save_results_out_rootdir=out_rootdir,
                                          save_results_dirname=save_results_dirname,
@@ -879,7 +911,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          max_errors=max_errors, packages=packages,
                                          load_seed=load_seed, export_funs=export_funs,
                                          warnings_as_errors=warnings_as_errors,
-                                         progress=progress, store_results=FALSE)
+                                         progress=progress, store_results=FALSE, use_try=use_try)
             time1 <- proc.time()[3L]
             stored_time <- stored_time + (time1 - time0)
         } else {
@@ -887,18 +919,20 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             if(verbose)
                 print_progress(i, nrow(design), time1=time1, time0=time0,
                                stored_time=stored_time, progress=progress)
-            time0 <- proc.time()[3L]
             if(save_generate_data)
-                dir.create(file.path(out_rootdir, paste0(save_generate_data_dirname, '/design-row-', i)), showWarnings = FALSE)
+                dir.create(file.path(out_rootdir,
+                                     paste0(save_generate_data_dirname, '/design-row-', i)), showWarnings = FALSE)
             if(save_seeds)
-                dir.create(file.path(out_rootdir, paste0(save_seeds_dirname, '/design-row-', i)), showWarnings = FALSE)
+                dir.create(file.path(out_rootdir,
+                                     paste0(save_seeds_dirname, '/design-row-', i)), showWarnings = FALSE)
+            time0 <- proc.time()[3L]
             tmp <- Analysis(Functions=Functions,
                             condition=design[i,],
                             replications=replications,
                             fixed_objects=fixed_objects,
                             cl=cl, MPI=MPI, seed=seed,
                             bootSE=bootSE, boot_draws=boot_draws,
-                            save=save,
+                            save=save, allow_na=allow_na, allow_nan=allow_nan,
                             save_results=save_results,
                             save_results_out_rootdir = out_rootdir,
                             save_results_dirname=save_results_dirname,
@@ -909,7 +943,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             max_errors=max_errors, packages=packages,
                             load_seed=load_seed, export_funs=export_funs,
                             warnings_as_errors=warnings_as_errors,
-                            progress=progress, store_results=store_results)
+                            progress=progress, store_results=store_results, use_try=use_try)
             if(store_results){
                 stored_Results_list[[i]] <- attr(tmp, 'full_results')
                 attr(tmp, 'full_results') <- NULL
@@ -920,11 +954,17 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             time1 <- proc.time()[3L]
             Result_list[[i]]$SIM_TIME <- time1 - time0
             Result_list[[i]]$COMPLETED <- date()
-            if(save || save_results || save_generate_data) saveRDS(Result_list, file.path(out_rootdir, tmpfilename))
-
+            if(save || save_results || save_generate_data)
+                saveRDS(Result_list, file.path(out_rootdir, tmpfilename))
         }
     }
     attr(Result_list, 'SimDesign_names') <- NULL
+    if(NA_summarise){
+        Result_list <- lapply(Result_list, function(x){
+            x$value <- NULL
+            x
+        })
+    }
     if(summarise_asis){
         design$ID <- design$REPLICATION <- NULL
         nms <- colnames(design)

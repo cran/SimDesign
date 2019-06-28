@@ -19,8 +19,9 @@ runSimulation(design, replications, generate, analyse, summarise,
   warnings_as_errors = FALSE, save_seeds = FALSE, load_seed = NULL,
   parallel = FALSE, ncores = parallel::detectCores(), cl = NULL,
   MPI = FALSE, max_errors = 50L, as.factor = TRUE,
-  save_generate_data = FALSE, save_details = list(), edit = "none",
-  progress = TRUE, verbose = TRUE)
+  save_generate_data = FALSE, save_details = list(), debug = "none",
+  progress = TRUE, allow_na = FALSE, allow_nan = FALSE,
+  edit = "none", verbose = TRUE)
 
 \method{print}{SimDesign}(x, drop.extras = FALSE, drop.design = FALSE,
   format.time = TRUE, ...)
@@ -54,14 +55,19 @@ simulations this is generally not recommended}
 analyses the simulated data). See \code{\link{Analyse}} for details}
 
 \item{summarise}{optional (but highly recommended) user-defined summary function to be used
-after all the replications have completed within each \code{design} condition. Omitting this function
-will return a list of matrices (or a single matrix, if only one row in \code{design} is supplied)
-or, for more general objects (such as lists), a list containing the results returned form \code{\link{Analyse}}.
-Ommiting this function is only recommended for didactic purposes because it leaves out a large amount of
-information (e.g., try-errors, warning messages, etc), can witness memory related issues,
-and generally is not as flexible internally. See
-the \code{save_results} option for a more RAM friendly alternative to storing all the Generate-Analyse results
-in the working environment}
+  after all the replications have completed within each \code{design} condition. Omitting this function
+  will return a list of matrices (or a single matrix, if only one row in \code{design} is supplied)
+  or, for more general objects (such as lists), a list containing the results returned form \code{\link{Analyse}}.
+  Alternatively, the value \code{NA} can be passed to let the generate-analyse-summarise process run as usual,
+  but that the summarise components are included only as a placeholder.
+
+  Ommiting this input is only recommended for didactic purposes because it leaves out a large amount of
+  information (e.g., try-errors, warning messages, saving files, etc), can witness memory related issues,
+  and generally is not as flexible internally. If users do not wish to supply a summarise function then it
+  is is recommended to pass the values \code{NA} to indicate this function is deliberately omitted, but that
+  the \code{save_results} option should be used to save the results during the simulation. This provides a
+  more RAM friendly alternative to storing all the Generate-Analyse results in the working environment, where
+  the Analysis results can be summarised at a later time}
 
 \item{fixed_objects}{(optional) an object (usually a named \code{list})
 containing additional user-defined objects
@@ -132,7 +138,9 @@ Default randomly generates seeds within the range 1 to 2147483647 for each condi
   after the simulation is complete. Default is \code{FALSE}.
 
   WARNING: saving results to your hard-drive can fill up space very quickly for larger simulations. Be sure to
-  test this option using a smaller number of replications before the full Monte Carlo simulation is performed.}
+  test this option using a smaller number of replications before the full Monte Carlo simulation is performed.
+  See also \code{\link{reSummarise}} for applying summarise functions from saved
+  simulation results}
 
 \item{store_results}{logical; store the complete tables of simulation results
 in the returned object? This is \code{FALSE} by default to help avoid RAM
@@ -156,8 +164,8 @@ Default is \code{FALSE}}
 \item{load_seed}{a character object indicating which file to load from when the \code{.Random.seed}s have
 be saved (after a call with \code{save_seeds = TRUE}), or an integer vector indicating the actual
 \code{.Random.seed} values. E.g., \code{load_seed = 'design-row-2/seed-1'}
-will load the first seed in the second row of the \code{design} input, or explicilty passing the 626 long
-elements from \code{.Random.seed} (see \code{extract_error_seed()} to extract the seeds associated explicilty
+will load the first seed in the second row of the \code{design} input, or explicitly passing the 626 long
+elements from \code{.Random.seed} (see \code{extract_error_seed()} to extract the seeds associated explicitly
 with errors during the simulation, where each column represents a unique seed).
 If the input is a character vector then it is important NOT
 to modify the \code{design} input object, otherwise the path may not point to the correct saved location, while
@@ -238,20 +246,30 @@ as \code{ordered}. Default is \code{TRUE}}
 
   }}
 
-\item{edit}{a string indicating where to initiate a \code{browser()} call for editing and debugging.
-  General options are \code{'none'} (default) and \code{'all'}, which are used
-  to disable debugging and to debug all the user defined functions, respectively.
-  Specific options include: \code{'generate'}
-  to edit the data simulation function, \code{'analyse'} to edit the computational function, and
-  \code{'summarise'} to  edit the aggregation function.
+\item{debug}{a string indicating where to initiate a \code{browser()} call for editing and debugging.
+  General options are \code{'none'} (default; no debugging), \code{'error'}, which starts the debugger
+  when any error in the code is detected in one of three generate-analyse-summarise functions,
+  and \code{'all'}, which debugs all the user defined functions regardless of whether an error was thrown
+  or not. Specific options include: \code{'generate'}
+  to debug the data simulation function, \code{'analyse'} to debug the computational function, and
+  \code{'summarise'} to debug the aggregation function.
 
   Alternatively, users may place \code{\link{browser}} calls within the respective functions for
-  debugging at specific lines (note: parallel computation flags will automatically be disabled
-  when a \code{browser()} is detected)}
+  debugging at specific lines, which is useful when debugging based on conditional evaluations (e.g.,
+  \code{if(this == 'problem') browser()}). Note that parallel computation flags
+  will automatically be disabled when a \code{browser()} is detected}
 
 \item{progress}{logical; display a progress bar for each simulation condition?
 This is useful when simulations conditions take a long time to run.
 Uses the \code{pbapply} package to display the progress. Default is \code{FALSE}}
+
+\item{allow_na}{logical; should \code{NA}s be allowed in the analyse step as a valid result from the simulation
+analysis? Default is FALSE}
+
+\item{allow_nan}{logical; should \code{NaN}s be allowed in the analyse step as a valid result from the simulation
+analysis? Default is FALSE}
+
+\item{edit}{this argument has been deprecated. Please use \code{debug} instead}
 
 \item{verbose}{logical; print messages to the R console? Default is \code{TRUE}}
 
@@ -585,7 +603,7 @@ runSimulation(design=Design, replications=1000, parallel=TRUE, save=TRUE, filena
 ##   ls() to see what has been defined, and type Q to quit the debugger
 runSimulation(design=Design, replications=1000,
               generate=Generate, analyse=Analyse, summarise=Summarise,
-              parallel=TRUE, edit='generate')
+              parallel=TRUE, debug='generate')
 
 ## Alternatively, place a browser() within the desired function line to
 ##   jump to a specific location
@@ -679,7 +697,7 @@ Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 }
 \seealso{
 \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
-  \code{\link{SimFunctions}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
+  \code{\link{SimFunctions}}, \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
   \code{\link{SimBoot}}, \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{SimShiny}}
 }
 \author{

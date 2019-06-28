@@ -191,6 +191,33 @@ test_that('SimDesign', {
     expect_equal(length(row1to5), 5)
     SimClean(results = TRUE)
 
+    # results no summarise
+    mycompute3 <- function(condition, dat, fixed_objects = NULL){
+
+        #wrap computational statistics in try() statements to control estimation problems
+        welch <- t.test(DV ~ group, dat)
+        ind <- stats::t.test(DV ~ group, dat, var.equal=TRUE)
+
+        # In this function the p values for the t-tests are returned,
+        #  and make sure to name each element, for future reference
+        ret <- c(welch = welch$p.value,
+                 independent = ind$p.value)
+
+        return(ret)
+    }
+
+    expect_message(tmp <- runSimulation(Design, generate=mysim, analyse=mycompute3, verbose=FALSE,
+                         replications = 2, parallel=FALSE, save_results = TRUE))
+    expect_true(all(sapply(tmp, function(x) length(x)) == 4L))
+
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute3, summarise=NA,
+                         verbose=FALSE, replications = 2, parallel=FALSE, save_results = TRUE)
+    expect_is(tmp, 'data.frame')
+    expect_true(dir.exists(DIR))
+    expect_equal(nrow(tmp), 8)
+    SimClean(results = TRUE)
+    SimClean(dir()[grepl('\\.rds', dir())])
+
     # error test
     mycompute <- function(condition, dat, fixed_objects = NULL){
         stop('this error')
@@ -207,7 +234,7 @@ test_that('SimDesign', {
     seeds <- readRDS('SIMDESIGN_CRASHFILE_SEEDS.rds')
     # runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
     #               replications = 1, parallel=TRUE, ncores=2L, load_seed=seeds[1,],
-    #               save=TRUE, verbose = FALSE, edit='analyse')
+    #               save=TRUE, verbose = FALSE, debug='analyse')
     SimClean('SIMDESIGN_CRASHFILE_SEEDS.rds')
 
     mycompute <- function(condition, dat, fixed_objects = NULL){
@@ -328,10 +355,14 @@ test_that('SimDesign', {
     seeds <- extract_error_seeds(results)
     expect_is(seeds, 'data.frame')
     expect_true(nrow(seeds) == 626)
-    if(interactive()){
+    if(FALSE){
+        # run interactively
+        results <- runSimulation(Design, replications = 2, packages = 'extraDistr',
+                                 generate=mygenerate, analyse=mycompute, summarise=mycollect, debug='error')
+
         results <- runSimulation(Design, replications = 2, packages = 'extraDistr', seed=1:8,
                                  generate=mygenerate, analyse=mycompute, summarise=mycollect,
-                                 load_seed=seeds$Design_row_1.1..This.is.an.error., edit='analyse')
+                                 load_seed=seeds$Design_row_1.1..This.is.an.error., debug='analyse')
     }
 
     # NAs
@@ -343,7 +374,7 @@ test_that('SimDesign', {
     results <- runSimulation(Design, replications = 10, packages = 'extraDistr', seed=1:nrow(Design),
                              generate=mygenerate, analyse=mycompute, summarise=mycollect,
                              parallel=FALSE, save=FALSE, verbose = FALSE)
-    expect_equal(names(results)[5], "ERROR: .Error : The following return NA/NaN and required redrawing: ret\n")
+    expect_equal(names(results)[5], "ERROR: .Error : The following return NA and required redrawing: ret\n")
     expect_equal(results[,5], c(NA,1,NA,3,4,1,NA,4))
 
     #data.frame test
@@ -465,6 +496,26 @@ test_that('SimDesign', {
     results <- runSimulation(replications = 10, analyse=gen_anal,
                              summarise=Summarise, verbose=FALSE)
     expect_is(results, 'SimDesign')
+
+    # warnings/error in generate
+    mycompute <- function(condition, dat, fixed_objects = NULL){
+        int <- sample(1:10, 1)
+        if(int > 5) warning('greater than 5')
+        if(int == 1) stop('generate error')
+        c(ret = 1)
+    }
+    mygenerate <- function(condition, fixed_objects = NULL){
+        int <- sample(1:10, 1)
+        if(int > 5) warning('greater than 5 in analyse')
+        if(int == 1) stop('generate error in analyse')
+        rnorm(5)
+    }
+    mycollect <- function(condition, results, fixed_objects = NULL) {
+        colMeans(results)
+    }
+    result <- runSimulation(replications = 100, seed=1234, verbose=FALSE,
+                            generate=mygenerate, analyse=mycompute, summarise=mycollect)
+    expect_equal(ncol(result), 9L)
 
 })
 

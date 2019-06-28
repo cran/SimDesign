@@ -288,20 +288,20 @@ Summarise &lt;- function(condition, results, fixed_objects = NULL) {
 
 ### Run the simulation
 results &lt;- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
-                         generate=Generate, analyse=Analyse, summarise=Summarise, edit=&#39;none&#39;)
+                         generate=Generate, analyse=Analyse, summarise=Summarise, debug=&#39;none&#39;)
 results
 </code></pre>
 
 <pre><code>##    N     p REPLICATIONS SIM_TIME                COMPLETED       SEED
-## 1 10 0.047         1000    0.32s Fri Jan 18 09:44:17 2019  244176217
-## 2 20 0.043         1000    0.32s Fri Jan 18 09:44:17 2019 1336377796
-## 3 30 0.042         1000    0.35s Fri Jan 18 09:44:17 2019 1308407526
+## 1 10 0.047         1000    0.53s Thu Jun 27 23:42:36 2019  244176217
+## 2 20 0.043         1000    0.53s Thu Jun 27 23:42:36 2019 1336377796
+## 3 30 0.042         1000    0.55s Thu Jun 27 23:42:37 2019 1308407526
 </code></pre>
 
 <p>By placing objects in a list and passing this to <code>fixed_objects</code>, the objects are safely exported to all relevant functions. Furthermore, running this code in parallel will also be valid as a consequence (see below) because all objects are properly exported to each core. </p>
 
 <pre><code class="r">results &lt;- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
-                         generate=Generate, analyse=Analyse, summarise=Summarise, edit=&#39;none&#39;,
+                         generate=Generate, analyse=Analyse, summarise=Summarise, debug=&#39;none&#39;,
                          parallel = TRUE)
 </code></pre>
 
