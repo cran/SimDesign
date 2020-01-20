@@ -67,8 +67,8 @@ SimFunctions <- function(filename = NULL, dir = getwd(), comments = FALSE,
         cat('\nlibrary(SimDesign)\n')
         if(comments)
             cat('\n### Define design conditions')
-        cat('\nDesign <- expand.grid(condition1 = NA,
-                      condition2 = NA)\n\n')
+        cat('\nDesign <- createDesign(condition1 = NA,
+                       condition2 = NA)\n\n')
         if(!is.null(filename) && !singlefile){
             if(comments) cat('### Source in essential functions\n')
             cat('# setwd(\"', dir, '\")', sep='')
@@ -103,11 +103,11 @@ SimFunctions <- function(filename = NULL, dir = getwd(), comments = FALSE,
     TAIL <- function(){
         LINE()
         if(comments) cat('\n### Run the simulation\n')
-        cat('\nresults <- runSimulation(design=Design, replications=1000,',
+        cat('\nres <- runSimulation(design=Design, replications=1000,',
             if(generate) 'generate=Generate, ')
-        cat(sprintf('\n                         analyse=Analyse%s',
+        cat(sprintf('\n                     analyse=Analyse%s',
                     if(summarise) ', summarise=Summarise)' else ')'))
-        cat('\n\n')
+        cat('\nres\n\n')
     }
 
     #main

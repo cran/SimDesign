@@ -12,11 +12,15 @@
 #' Hence, this function is much safer to use than the \code{\link{attach}}, which
 #' incidentally should never be used in your code.
 #'
-#' @param condition a \code{data.frame} containing the \code{condition} names
+#' @param condition a \code{data.frame} or \code{tibble} containing the \code{condition} names
 #'
 #' @param check logical; check to see if the function will accidentally replace previously defined
 #'   variables with the same names as in \code{condition}? Default is \code{TRUE}, which will avoid
 #'   this error
+#'
+#' @param attach_listone logical; if the element to be assign is a list of length one
+#'   then assign the first element of this list with the associated name. This generally avoids
+#'   adding an often unnecessary list 1 index, such as \code{name <- list[[1L]]}
 #'
 #' @seealso \code{\link{runSimulation}}, \code{\link{Generate}}
 #' @references
@@ -32,7 +36,7 @@
 #' \dontrun{
 #'
 #' # does not use Attach()
-#' mygenerate <- function(condition, fixed_objects = NULL){
+#' Generate <- function(condition, fixed_objects = NULL){
 #'     N1 <- condition$sample_sizes_group1
 #'     N2 <- condition$sample_sizes_group2
 #'     sd <- condition$standard_deviations
@@ -45,7 +49,7 @@
 #' }
 #'
 #' # similar to above, but using the Attach() function instead of indexing
-#' mygenerate <- function(condition, fixed_objects = NULL){
+#' Generate <- function(condition, fixed_objects = NULL){
 #'     Attach(condition)
 #'     N1 <- sample_sizes_group1
 #'     N2 <- sample_sizes_group2
@@ -57,14 +61,20 @@
 #'                       DV = c(group1, group2))
 #'     dat
 #' }
+#'
 #' }
-Attach <- function(condition, check = TRUE){
+Attach <- function(condition, check = TRUE, attach_listone = TRUE){
     envir <- as.environment(-1L)
     if(check)
         if(any(ls(envir = envir) %in% names(condition)))
             stop(sprintf('Using Attach() will mask the previously defined variable(s): %s)',
                          ls(envir = envir)[ls(envir = envir) %in% names(condition)]), call. = FALSE)
-    for(n in names(condition))
+    for(n in names(condition)){
+        if(attach_listone && is.list(condition[[n]]) && length(condition[[n]]) == 1L){
+            assign(n, condition[[n]][[1L]], envir = envir)
+            next
+        }
         assign(n, condition[[n]], envir = envir)
+    }
     invisible()
 }

@@ -31,6 +31,9 @@
 #' @param percent logical; change returned result to percentage by multiplying by 100?
 #'   Default is FALSE
 #'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
+#'
 #' @return returns a \code{numeric} vector indicating the overall (relative/standardized)
 #'   bias in the estimates
 #'
@@ -86,7 +89,8 @@
 #' bias(estimates, parameters, type = 'abs_relative', percent = TRUE)
 #'
 #'
-bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE, percent = FALSE){
+bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE,
+                 percent = FALSE, unname = FALSE){
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -115,6 +119,7 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE, percent
         if(!(type %in% c('relative', 'abs_relative')))
             warning('Percentage only make sense for relative measures')
     }
+    if(unname) ret <- unname(ret)
     ret
 }
 
@@ -139,7 +144,7 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE, percent
 #'
 #' @param type type of deviation to compute. Can be \code{'RMSE'} (default) for the root mean square-error,
 #'   \code{'NRMSE'} for the normalized RMSE (RMSE / (max(estimate) - min(estimate))),
-#'   \code{'NRMSE_SD'} for the normalized RMSE with the standard deviation (RMSE / sd(estimate)),
+#'   \code{'SRMSE'} for the standardized RMSE (RMSE / sd(estimate)),
 #'   \code{'CV'} for the coefficient of variation, or \code{'RMSLE'} for the root mean-square log-error
 #'
 #' @param MSE logical; return the mean square error equivalent of the results instead of the root
@@ -147,6 +152,9 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE, percent
 #'
 #' @param percent logical; change returned result to percentage by multiplying by 100?
 #'   Default is FALSE
+#'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
 #'
 #' @return returns a \code{numeric} vector indicating the overall average deviation in the estimates
 #'
@@ -175,7 +183,7 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE, percent
 #'
 #' RMSE(samp, pop, type = 'NRMSE')
 #' RMSE(dev, type = 'NRMSE')
-#' RMSE(dev, pop, type = 'NRMSE_SD')
+#' RMSE(dev, pop, type = 'SRMSE')
 #' RMSE(samp, pop, type = 'CV')
 #' RMSE(samp, pop, type = 'RMSLE')
 #'
@@ -202,7 +210,7 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE, percent
 #' RMSE(estimates, parameters)
 #'
 RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE,
-                 percent = FALSE){
+                 percent = FALSE, unname = FALSE){
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -224,7 +232,7 @@ RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE,
     if(type == 'NRMSE'){
         diff <- apply(estimate, 2, max) - apply(estimate, 2, min)
         ret <- ret / diff
-    } else if(type == 'NRMSE_SD'){
+    } else if(type == 'SRMSE'){
         diff <- apply(estimate, 2, sd)
         ret <- ret / diff
     } else if(type == 'CV'){
@@ -239,6 +247,7 @@ RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE,
         if(type %in% c("RMSE", 'RMSLE'))
             warning('Percentage only make sense for relative measures')
     }
+    if(unname) ret <- unname(ret)
     ret
 }
 
@@ -347,10 +356,13 @@ IRMSE <- function(estimate, parameter, fn, density = function(theta, ...) 1,
 #'
 #' @param type type of deviation to compute. Can be \code{'MAE'} (default) for the mean absolute error,
 #'   \code{'NMSE'} for the normalized MAE (MAE / (max(estimate) - min(estimate))), or
-#'   \code{'NMSE_SD'} for the normalized MAE by the standard deviation (MAE / sd(estimate))
+#'   \code{'SMSE'} for the standardized MAE (MAE / sd(estimate))
 #'
 #' @param percent logical; change returned result to percentage by multiplying by 100?
 #'   Default is FALSE
+#'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
 #'
 #' @return returns a numeric vector indicating the overall mean absolute error in the estimates
 #'
@@ -375,7 +387,7 @@ IRMSE <- function(estimate, parameter, fn, density = function(theta, ...) 1,
 #' dev <- samp - pop
 #' MAE(dev)
 #' MAE(samp, pop, type = 'NMAE')
-#' MAE(samp, pop, type = 'NMAE_SD')
+#' MAE(samp, pop, type = 'SMAE')
 #'
 #' # matrix input
 #' mat <- cbind(M1=rnorm(100, 2, sd = 0.5), M2 = rnorm(100, 2, sd = 1))
@@ -390,7 +402,8 @@ IRMSE <- function(estimate, parameter, fn, density = function(theta, ...) 1,
 #' estimates <- parameters + rnorm(10)
 #' MAE(estimates, parameters)
 #'
-MAE <- function(estimate, parameter = NULL, type = 'MAE', percent = FALSE){
+MAE <- function(estimate, parameter = NULL, type = 'MAE',
+                percent = FALSE, unname = FALSE){
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -410,15 +423,16 @@ MAE <- function(estimate, parameter = NULL, type = 'MAE', percent = FALSE){
     if(type == 'NMAE'){
         diff <- apply(estimate, 2, max) - apply(estimate, 2, min)
         ret <- ret / diff
-    } else if(type == 'NMAE_SD'){
+    } else if(type == 'SMAE'){
         diff <- apply(estimate, 2, sd)
         ret <- ret / diff
     }
     if(percent){
         ret <- ret * 100
-        if(!(type %in% c('NMAE', 'NMAE_SD')))
+        if(!(type %in% c('NMAE', 'SMAE')))
             warning('Percentage only make sense for relative measures')
     }
+    if(unname) ret <- unname(ret)
     ret
 }
 
@@ -436,6 +450,9 @@ MAE <- function(estimate, parameter = NULL, type = 'MAE', percent = FALSE){
 #'
 #' @param percent logical; change returned result to percentage by multiplying by 100?
 #'   Default is FALSE
+#'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
 #'
 #' @return returns a \code{vector} of variance ratios indicating the relative efficiency compared
 #'   to the first estimator. Values less than 1 indicate better efficiency than the first
@@ -466,17 +483,18 @@ MAE <- function(estimate, parameter = NULL, type = 'MAE', percent = FALSE){
 #' mse <- c(RMSE1, RMSE2)^2
 #' RE(mse, MSE = TRUE)
 #'
-RE <- function(x, MSE = FALSE, percent = FALSE){
+RE <- function(x, MSE = FALSE, percent = FALSE, unname = FALSE){
     pow <- ifelse(MSE, 1, 2)
     x <- x^pow
     ret <- if(!is.vector(x)){
         x / x[,1L]
     } else x / x[1L]
     if(percent) ret <- ret * 100
+    if(unname) ret <- unname(ret)
     ret
 }
 
-#' Compute the relative absolute of multiple estimators
+#' Compute the relative absolute bias of multiple estimators
 #'
 #' Computes the relative absolute bias given the bias estimates for multiple estimators.
 #'
@@ -486,8 +504,11 @@ RE <- function(x, MSE = FALSE, percent = FALSE){
 #' @param percent logical; change returned result to percentage by multiplying by 100?
 #'   Default is FALSE
 #'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
+#'
 #' @return returns a \code{vector} of absolute bias ratios indicating the relative bias
-#'   effects compated to the first estimator. Values less than 1 indicate better bias estimates
+#'   effects compared to the first estimator. Values less than 1 indicate better bias estimates
 #'   than the first estimator, while values greater than 1 indicate worse bias than the first estimator
 #'
 #' @aliases RAB
@@ -511,12 +532,13 @@ RE <- function(x, MSE = FALSE, percent = FALSE){
 #' RAB(c(bias1, bias2))
 #' RAB(c(bias1, bias2), percent = TRUE) # as a percentage
 #'
-RAB <- function(x, percent = FALSE){
+RAB <- function(x, percent = FALSE, unname = FALSE){
     x <- abs(x)
     ret <- if(!is.vector(x)){
         x / x[,1L]
     } else x / x[1L]
     if(percent) ret <- ret * 100
+    if(unname) ret <- unname(ret)
     ret
 }
 
@@ -531,7 +553,7 @@ RAB <- function(x, percent = FALSE){
 #' Mean-square relative standard error (MSRSE) is expressed as
 #'
 #' \deqn{MSRSE = \frac{E(SE(\psi)^2)}{SD(\psi)^2} =
-#'   \frac{1/R * \sum_{r=1}^R SE(\psi_r)^2}{SD(\psi)^2} - 1}
+#'   \frac{1/R * \sum_{r=1}^R SE(\psi_r)^2}{SD(\psi)^2}}
 #'
 #' where \eqn{SE(\psi_r)} represents the estimate of the standard error at the \eqn{r}th
 #' simulation replication, and \eqn{SD(\psi)} represents the standard deviation estimate
@@ -551,11 +573,14 @@ RAB <- function(x, percent = FALSE){
 #' @param percent logical; change returned result to percentage by multiplying by 100?
 #'   Default is FALSE
 #'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
+#'
 #' @return returns a \code{vector} of ratios indicating the relative performance
 #'   of the standard error estimates to the observed parameter standard deviation.
-#'   Values less than 0 indicate that the standard errors were larger than the standard
+#'   Values less than 1 indicate that the standard errors were larger than the standard
 #'   deviation of the parameters (hence, the SEs are interpreted as more conservative),
-#'   while values greater than 0 were smaller than the standard deviation of the
+#'   while values greater than 1 were smaller than the standard deviation of the
 #'   parameters (i.e., more liberal SEs)
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
@@ -591,13 +616,14 @@ RAB <- function(x, percent = FALSE){
 #' results
 #'
 #'
-MSRSE <- function(SE, SD, percent = FALSE){
-    if(is.matrix(SE) && nrow(SE) > 1L)
+MSRSE <- function(SE, SD, percent = FALSE, unname = FALSE){
+    if((is.matrix(SE) || is.data.frame(SE)) && nrow(SE) > 1L)
         SE <- apply(SE, 2L, mean)
-    if(is.matrix(SD) && nrow(SD) > 1L)
+    if((is.matrix(SD) || is.data.frame(SD)) && nrow(SD) > 1L)
         SD <- apply(SD, 2L, sd)
-    ret <- SE^2 / SD^2 - 1
+    ret <- SE^2 / SD^2
     if(percent) ret <- ret * 100
+    if(unname) ret <- unname(ret)
     ret
 }
 
@@ -608,7 +634,8 @@ MSRSE <- function(SE, SD, percent = FALSE){
 #' is equivalent to the form \code{est/pop - 1}. If matrices are supplied then
 #' an equivalent matrix variant will be used of the form
 #' \code{(est - pop) * solve(pop)}. Values closer to 0 indicate better
-#' relative parameter recovery.
+#' relative parameter recovery. Note that for single variable inputs this is equivalent to
+#' \code{bias(..., type = 'relative')}.
 #'
 #' @param est a \code{numeric} vector or matrix containing the parameter estimates
 #'
@@ -617,6 +644,9 @@ MSRSE <- function(SE, SD, percent = FALSE){
 #'
 #' @param as.vector logical; always wrap the result in a \code{\link{as.vector}} function
 #'   before returning?
+#'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
 #'
 #' @return returns a \code{vector} or \code{matrix} depending on the inputs and whether
 #'   \code{as.vector} was used
@@ -648,7 +678,7 @@ MSRSE <- function(SE, SD, percent = FALSE){
 #' summary(rds)
 #'
 #'
-RD <- function(est, pop, as.vector = TRUE){
+RD <- function(est, pop, as.vector = TRUE, unname = FALSE){
     if(is.matrix(est)){
         slv <- try(solve(pop), TRUE)
         if(is(slv, 'try-error'))
@@ -658,6 +688,7 @@ RD <- function(est, pop, as.vector = TRUE){
     } else {
         ret <- (est - pop) / pop
     }
+    if(unname) ret <- unname(ret)
     ret
 }
 
@@ -673,6 +704,9 @@ RD <- function(est, pop, as.vector = TRUE){
 #'
 #' @param alpha the nominal detection rate to be studied (typical values are .10, .05, and .01). Default
 #'   is .05
+#'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
 #'
 #' @aliases EDR
 #'
@@ -701,13 +735,15 @@ RD <- function(est, pop, as.vector = TRUE){
 #' rates <- cbind(runif(1000), runif(1000))
 #' EDR(rates)
 #'
-EDR <- function(p, alpha = .05){
+EDR <- function(p, alpha = .05, unname = FALSE){
     if(is.data.frame(p)) p <- as.matrix(p)
     stopifnot(all(p <= 1 & p >= 0))
     stopifnot(length(alpha) == 1L)
     stopifnot(alpha <= 1 && alpha >= 0)
     if(is.vector(p)) p <- matrix(p)
-    colMeans(p <= alpha)
+    ret <- colMeans(p <= alpha)
+    if(unname) ret <- unname(ret)
+    ret
 }
 
 
@@ -741,6 +777,9 @@ EDR <- function(p, alpha = .05){
 #'
 #' @param names an optional character vector used to name the returned object. Generally useful
 #'   when more than one CI estimate is investigated at once
+#'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
 #'
 #' @aliases ECR
 #'
@@ -796,7 +835,8 @@ EDR <- function(p, alpha = .05){
 #' ECR(CIs, parameter, CI_width=TRUE, names = c('this', 'that'))
 #' ECR(CIs, parameter, tails=TRUE, names = c('this', 'that'))
 #'
-ECR <- function(CIs, parameter, tails = FALSE, CI_width = FALSE, names = NULL){
+ECR <- function(CIs, parameter, tails = FALSE, CI_width = FALSE,
+                names = NULL, unname = FALSE){
     if(CI_width) tails <- FALSE
     if(is.data.frame(CIs)) CIs <- as.matrix(CIs)
     if(length(CIs) == 2L) CIs <- matrix(CIs, 1L, 2L)
@@ -836,6 +876,7 @@ ECR <- function(CIs, parameter, tails = FALSE, CI_width = FALSE, names = NULL){
         if(!is.null(names))
             names(ret) <- names
     }
+    if(unname) ret <- unname(ret)
     ret
 }
 

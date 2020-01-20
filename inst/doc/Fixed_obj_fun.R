@@ -1,4 +1,4 @@
-## ----nomessages, echo = FALSE--------------------------------------------
+## ----nomessages, echo = FALSE-------------------------------------------------
 knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
@@ -8,42 +8,42 @@ knitr::opts_chunk$set(
 options(digits=4)
 par(mar=c(3,3,1,1)+.1)
 
-## ----include=FALSE-------------------------------------------------------
+## ----include=FALSE------------------------------------------------------------
 set.seed(1234)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 obj1 <- 10
 obj2 <- 20
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 myfun <- function(x) obj1 + obj2
 myfun(1)
 
-## ----eval = FALSE--------------------------------------------------------
+## ----eval = FALSE-------------------------------------------------------------
 #  library(parallel)
 #  cl <- makeCluster(2)
 #  res <- try(parSapply(cl=cl, 1:4, myfun))
 #  res
 
-## ----echo=FALSE----------------------------------------------------------
+## ----echo=FALSE---------------------------------------------------------------
 library(parallel)
 cl <- makeCluster(2)
 cat("Error in checkForRemoteErrors(val) : 
   2 nodes produced errors; first error: object 'obj1' not found")
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 clusterExport(cl=cl, c('obj1', 'obj2'))
 parSapply(cl=cl, 1:4, myfun)
 
-## ----echo=FALSE----------------------------------------------------------
+## ----echo=FALSE---------------------------------------------------------------
 stopCluster(cl)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 library(SimDesign)
 #SimFunctions(comments = FALSE)
 
 ### Define design conditions and number of replications
-Design <- expand.grid(N = c(10, 20, 30))
+Design <- createDesign(N = c(10, 20, 30))
 replications <- 1000
 
 # define custom functions and objects (or use source() to read these in from an external file)
@@ -75,12 +75,12 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
 #---------------------------------------------------------------------------
 
 ### Run the simulation
-results <- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
-                         generate=Generate, analyse=Analyse, summarise=Summarise, debug='none')
-results
+res <- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
+                     generate=Generate, analyse=Analyse, summarise=Summarise, debug='none')
+res
 
-## ----eval=FALSE----------------------------------------------------------
-#  results <- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
-#                           generate=Generate, analyse=Analyse, summarise=Summarise, debug='none',
-#                           parallel = TRUE)
+## ----eval=FALSE---------------------------------------------------------------
+#  res <- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
+#                       generate=Generate, analyse=Analyse, summarise=Summarise, debug='none',
+#                       parallel = TRUE)
 

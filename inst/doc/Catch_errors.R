@@ -1,4 +1,4 @@
-## ----nomessages, echo = FALSE--------------------------------------------
+## ----nomessages, echo = FALSE-------------------------------------------------
 knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
@@ -8,16 +8,16 @@ knitr::opts_chunk$set(
 options(digits=4)
 par(mar=c(3,3,1,1)+.1)
 
-## ----echo=FALSE----------------------------------------------------------
+## ----echo=FALSE---------------------------------------------------------------
 set.seed(1)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 library(SimDesign)
 # SimFunctions(comments=FALSE)
 
-Design <- data.frame(N = c(10,20,30))
+Design <- createDesign(N = c(10,20,30))
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 Generate <- function(condition, fixed_objects = NULL) {
     ret <- with(condition, rnorm(N))
     ret
@@ -48,21 +48,24 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
     ret
 }
 
-## ----include=FALSE-------------------------------------------------------
+## ----include=FALSE------------------------------------------------------------
 set.seed(1)
 
-## ----cache=TRUE----------------------------------------------------------
+## -----------------------------------------------------------------------------
 result <- runSimulation(Design, replications = 100, 
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 print(result)
 
-## ------------------------------------------------------------------------
-seeds <- extract_error_seeds(result)
+## -----------------------------------------------------------------------------
+SimExtract(result, what = 'errors')
+
+## -----------------------------------------------------------------------------
+seeds <- SimExtract(result, what = 'error_seeds')
 head(seeds[,1:3])
 
-## ----eval=FALSE----------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  picked_seed <- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
 #  runSimulation(Design[1,], replications = 100, load_seed=picked_seed, debug='analyse',
 #                generate=Generate, analyse=Analyse, summarise=Summarise)

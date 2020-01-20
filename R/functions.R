@@ -160,8 +160,9 @@ Analyse <- function(condition, dat, fixed_objects = NULL) NULL
 #' estimates such as RMSE, bias, Type I error rates, coverage rates, etc. See the
 #' \code{See Also} section below for useful functions to be used within \code{Summarise}.
 #'
-#' @param results a \code{data.frame} (if \code{Analyse} returned a numeric vector) or a \code{list}
-#'   (if \code{Analyse} returned a list or multi-rowed data.frame) containing the analysis
+#' @param results a \code{data.frame} (if \code{Analyse} returned a named numeric vector of any
+#'   length), a vector (if \code{Analyse} returned a single unnamed numeric value), or a \code{list}
+#'   (if \code{Analyse} returned a \code{list} or multi-rowed \code{data.frame}) containing the analysis
 #'   results from \code{\link{Analyse}},
 #'   where each cell is stored in a unique row/list element
 #'
@@ -236,9 +237,8 @@ Summarise <- function(condition, results, fixed_objects = NULL) NULL
 #
 # }
 mainsim <- function(index, condition, generate, analyse, fixed_objects, max_errors, save_results_out_rootdir,
-                    save, save_generate_data, save_generate_data_dirname, allow_na, allow_nan,
-                    save_seeds, save_seeds_dirname, load_seed, warnings_as_errors, packages = NULL,
-                    use_try){
+                    save, allow_na, allow_nan, save_seeds, save_seeds_dirname, load_seed,
+                    warnings_as_errors, packages = NULL, use_try){
 
     load_packages(packages)
     condition$REPLICATION <- index
@@ -291,17 +291,6 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
             try_error_seeds <- rbind(try_error_seeds, current_Random.seed)
             next
         }
-        if(save_generate_data){
-            filename_stem <- paste0(save_generate_data_dirname, '/design-row-', condition$ID,
-                                    '/generate-data-')
-            filename <- paste0(filename_stem, index, '.rds')
-            count <- 1L
-            while(file.exists(file.path(save_results_out_rootdir, filename))){
-                filename <- paste0(filename_stem, index, '-', count, '.rds')
-                count <- count + 1L
-            }
-            saveRDS(simlist, file.path(save_results_out_rootdir, filename))
-        }
         res <- try(withCallingHandlers(analyse(dat=simlist, condition=condition,
                            fixed_objects=fixed_objects), warning=wHandler), silent=TRUE)
         if(!use_try){
@@ -351,13 +340,6 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
             if(length(try_error) == max_errors){
                 try_error_seeds <- rbind(try_error_seeds, current_Random.seed)
                 rownames(try_error_seeds) <- paste0('Error_seed_', 1L:nrow(try_error_seeds))
-                if(save){
-                    saveRDS(try_error_seeds, paste0(save_results_out_rootdir, "/SIMDESIGN_CRASHFILE_SEEDS.rds"))
-                    stop(paste0('Row ', condition$ID, ' in design was terminated because it had ', max_errors,
-                                ' consecutive errors. \n\nLast error message was: \n\n  ', res[1L],
-                                "\nFile containing reproducible errors seeds saved to SIMDESIGN_CRASHFILE_SEEDS.rds \n\n"),
-                         call.=FALSE)
-                }
                 stop(paste0('Row ', condition$ID, ' in design was terminated because it had ', max_errors,
                             ' consecutive errors. \n\nLast error message was: \n\n  ', res[1L]), call.=FALSE)
 

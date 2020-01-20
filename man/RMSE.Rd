@@ -4,8 +4,14 @@
 \alias{RMSE}
 \title{Compute the (normalized) root mean square error}
 \usage{
-RMSE(estimate, parameter = NULL, type = "RMSE", MSE = FALSE,
-  percent = FALSE)
+RMSE(
+  estimate,
+  parameter = NULL,
+  type = "RMSE",
+  MSE = FALSE,
+  percent = FALSE,
+  unname = FALSE
+)
 }
 \arguments{
 \item{estimate}{a \code{numeric} vector or \code{matrix}/\code{data.frame} of parameter estimates.
@@ -21,7 +27,7 @@ form (therefore \code{sqrt(mean(estimate^2))} will be returned)}
 
 \item{type}{type of deviation to compute. Can be \code{'RMSE'} (default) for the root mean square-error,
 \code{'NRMSE'} for the normalized RMSE (RMSE / (max(estimate) - min(estimate))),
-\code{'NRMSE_SD'} for the normalized RMSE with the standard deviation (RMSE / sd(estimate)),
+\code{'SRMSE'} for the standardized RMSE (RMSE / sd(estimate)),
 \code{'CV'} for the coefficient of variation, or \code{'RMSLE'} for the root mean-square log-error}
 
 \item{MSE}{logical; return the mean square error equivalent of the results instead of the root
@@ -29,6 +35,9 @@ mean-square error (in other words, the result is squared)? Default is \code{FALS
 
 \item{percent}{logical; change returned result to percentage by multiplying by 100?
 Default is FALSE}
+
+\item{unname}{logical; apply \code{\link{unname}} to the results to remove any variable
+names?}
 }
 \value{
 returns a \code{numeric} vector indicating the overall average deviation in the estimates
@@ -49,7 +58,7 @@ RMSE(dev)
 
 RMSE(samp, pop, type = 'NRMSE')
 RMSE(dev, type = 'NRMSE')
-RMSE(dev, pop, type = 'NRMSE_SD')
+RMSE(dev, pop, type = 'SRMSE')
 RMSE(samp, pop, type = 'CV')
 RMSE(samp, pop, type = 'RMSLE')
 

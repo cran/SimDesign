@@ -4,8 +4,7 @@
 \alias{rejectionSampling}
 \title{Rejection sampling (i.e., accept-reject method) to draw samples from difficult probability density functions}
 \usage{
-rejectionSampling(n, df, dg, rg, M = NULL, returnM = FALSE,
-  vectorized = TRUE)
+rejectionSampling(n, df, dg, rg, M = NULL, returnM = FALSE, vectorized = TRUE)
 }
 \arguments{
 \item{n}{number of samples to draw}
@@ -67,6 +66,7 @@ are to be accepted; otherwise, many iterations of the accept-reject algorithm
 may be required, which decreases the computational efficiency.
 }
 \examples{
+\dontrun{
 
 # Generate X ~ beta(a,b), where a and b are a = 2.7 and b = 6.3,
 # and the support is Y ~ Unif(0,1)
@@ -132,6 +132,8 @@ dat <- rejectionSampling(5000, df=df, dg=dg, rg=rg, M=10)
 hist(dat[,1], 30)
 hist(dat[,2], 30)
 plot(dat)
+
+}
 
 }
 \references{

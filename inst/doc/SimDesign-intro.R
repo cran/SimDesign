@@ -1,4 +1,4 @@
-## ----nomessages, echo = FALSE--------------------------------------------
+## ----nomessages, echo = FALSE-------------------------------------------------
 knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
@@ -8,25 +8,25 @@ knitr::opts_chunk$set(
 options(digits=4)
 par(mar=c(3,3,1,1)+.1)
 
-## ----include=FALSE-------------------------------------------------------
+## ----include=FALSE------------------------------------------------------------
 options(digits = 2)
 
-## ----comment=NA----------------------------------------------------------
+## ----comment=NA---------------------------------------------------------------
 library(SimDesign)
 SimFunctions()
 
-## ----eval=FALSE----------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  SimFunctions('mysim')
 
-## ----eval=FALSE----------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  SimFunctions('mysim', singlefile = FALSE, comments = TRUE)
 
-## ------------------------------------------------------------------------
-Design <- expand.grid(sample_size = c(30, 60, 120, 240), 
-                      distribution = c('norm', 'chi'))
+## -----------------------------------------------------------------------------
+Design <- createDesign(sample_size = c(30, 60, 120, 240), 
+                       distribution = c('norm', 'chi'))
 Design
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 Generate <- function(condition, fixed_objects = NULL) {
     N <- condition$sample_size
     dist <- condition$distribution
@@ -38,7 +38,7 @@ Generate <- function(condition, fixed_objects = NULL) {
     dat
 }
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 Analyse <- function(condition, dat, fixed_objects = NULL) {
     M0 <- mean(dat)
     M1 <- mean(dat, trim = .1)
@@ -49,7 +49,7 @@ Analyse <- function(condition, dat, fixed_objects = NULL) {
     ret
 }
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 Summarise <- function(condition, results, fixed_objects = NULL) {
     obs_bias <- bias(results, parameter = 3)
     obs_RMSE <- RMSE(results, parameter = 3)
@@ -57,22 +57,22 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
     ret
 }
 
-## ----include=FALSE-------------------------------------------------------
+## ----include=FALSE------------------------------------------------------------
 set.seed(1234)
 
-## ---- cache=TRUE---------------------------------------------------------
-results <- runSimulation(Design, replications = 1000, generate=Generate, 
+## -----------------------------------------------------------------------------
+res <- runSimulation(Design, replications = 1000, generate=Generate, 
                          analyse=Analyse, summarise=Summarise)
-results
+res
 
-## ------------------------------------------------------------------------
-REs <- results[,grepl('RE\\.', colnames(results))]
+## -----------------------------------------------------------------------------
+REs <- res[,grepl('RE\\.', colnames(res))]
 data.frame(Design, REs)
 
-## ---- include=FALSE------------------------------------------------------
+## ---- include=FALSE-----------------------------------------------------------
 set.seed(1)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 (condition <- Design[1, ])
 dat <- Generate(condition)
 dat
@@ -80,7 +80,7 @@ dat
 res <- Analyse(condition, dat)
 res
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 # repeat 1000x
 results <- matrix(0, 1000, 4)
 colnames(results) <- names(res)
@@ -91,6 +91,6 @@ for(i in 1:1000){
 }
 head(results)
 
-## ------------------------------------------------------------------------
+## -----------------------------------------------------------------------------
 Summarise(condition, results) 
 

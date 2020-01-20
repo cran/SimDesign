@@ -1,4 +1,4 @@
-## ----nomessages, echo = FALSE--------------------------------------------
+## ----nomessages, echo = FALSE-------------------------------------------------
 knitr::opts_chunk$set(
   warning = FALSE,
   message = FALSE,
@@ -8,7 +8,7 @@ knitr::opts_chunk$set(
 options(digits=4)
 par(mar=c(3,3,1,1)+.1)
 
-## ----eval=FALSE----------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  library(doMPI)
 #  cl <- startMPIcluster()
 #  registerDoMPI(cl)
@@ -17,7 +17,7 @@ par(mar=c(3,3,1,1)+.1)
 #  closeCluster(cl)
 #  mpi.quit()
 
-## ----eval=FALSE----------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  library(parallel)
 #  primary <- '192.168.2.1'
 #  IPs <- list(list(host=primary, user='myname', ncore=8), list(host='192.168.2.2', user='myname', ncore=6))
@@ -27,7 +27,7 @@ par(mar=c(3,3,1,1)+.1)
 #  Final <- runSimulation(..., cl=cl)
 #  stopCluster(cl)
 
-## ----eval=FALSE----------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  library(parallel)
 #  primary <- 'master'
 #  IPs <- list(list(host=primary, ncore=8), list(host='slave', ncore=6))
@@ -37,7 +37,7 @@ par(mar=c(3,3,1,1)+.1)
 #  Final <- runSimulation(..., cl=cl)
 #  stopCluster(cl)
 
-## ----eval=FALSE----------------------------------------------------------
+## ----eval=FALSE---------------------------------------------------------------
 #  library(parallel)
 #  primary <- 'master'
 #  spec <- c(rep(primary, 8), rep('slave', 6))
