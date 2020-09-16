@@ -26,6 +26,11 @@
 #'
 #' @seealso \code{\link{runSimulation}}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -62,8 +67,6 @@ SimClean <- function(..., dirs = NULL, generate_data = FALSE, results = FALSE,
     save_seeds_dirname <- save_details$save_seeds_dirname
     save_generate_data_dirname <- save_details$save_generate_data_dirname
     if(is.null(compname)) compname <- Sys.info()['nodename']
-    if(is.null(tmpfilename))
-        tmpfilename <- paste0('SIMDESIGN-TEMPFILE_', compname, '.rds')
     if(is.null(save_results_dirname))
         save_results_dirname <- paste0('SimDesign-results_', compname)
     if(is.null(save_generate_data_dirname))
@@ -76,7 +79,10 @@ SimClean <- function(..., dirs = NULL, generate_data = FALSE, results = FALSE,
     if(generate_data) unlink(save_generate_data_dirname, recursive = TRUE, force = TRUE)
     if(results) unlink(save_results_dirname, recursive = TRUE, force = TRUE)
     if(seeds) unlink(save_seeds_dirname, recursive = TRUE, force = TRUE)
-    if(temp) file.remove(tmpfilename)
+    if(temp){
+        fs <- dir()
+        file.remove(fs[grepl('SIMDESIGN-TEMPFILE_', fs)])
+    }
     if(!is.null(out_rootdir)) setwd(gtw)
     invisible(NULL)
 }

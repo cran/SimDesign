@@ -50,7 +50,8 @@ Analyse <- function(condition, dat, fixed_objects = NULL) {
     ret
 }
 
-res <- try(runSimulation(Design, replications = 1000, save=TRUE, filename='my-simple-sim',
+# Default to runSimulation() has save = TRUE
+res <- try(runSimulation(Design, replications = 1000, filename='my-simple-sim',
                          generate=Generate, analyse=Analyse, summarise=Summarise), silent = TRUE)
 message('Row 3 in design was terminated because it had 50 consecutive errors. \n
 Last error message was: \n\nManual Error : Danger Will Robinson!')

@@ -23,6 +23,11 @@
 #'   conditions to be evaluated in \code{\link{runSimulation}}
 #'
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -119,7 +124,7 @@ printDesign <- function(x, whichlist, ..., n = NULL, width = NULL, n_extra = NUL
             ff3 <- strsplit(ff[3], "\\[23m")[[1]]
             for(w in whichlist)
                 ff3[w] <- gsub('chr', 'lst', ff3[w])
-            ff3 <- paste0(ff3, collapse='[23m')
+            ff3 <- paste0(ff3, '[23m', collapse='')
             ff[3] <- ff3
         } else { # in LaTeX, HTML, Word
             ff3 <- strsplit(ff[3], ">")[[1]]

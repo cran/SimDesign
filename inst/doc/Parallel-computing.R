@@ -12,8 +12,8 @@ par(mar=c(3,3,1,1)+.1)
 #  library(doMPI)
 #  cl <- startMPIcluster()
 #  registerDoMPI(cl)
-#  runSimulation(design=Design, replications=1000, save=TRUE, filename='mysimulation',
-#      generate=Generate, analyse=Analyse, summarise=Summarise,  MPI=TRUE)
+#  runSimulation(design=Design, replications=1000, filename='mysimulation',
+#      generate=Generate, analyse=Analyse, summarise=Summarise, MPI=TRUE)
 #  closeCluster(cl)
 #  mpi.quit()
 

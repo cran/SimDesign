@@ -21,18 +21,25 @@
 #'
 #' @param fixed_objects (optional) see \code{\link{runSimulation}} for details
 #'
-#' @param bootSE logical; perform a non-parametric bootstrap to compute bootstrap standard error
-#'   estimates for the respective meta-statistics computed by the \code{Summarise} function?
-#'   See \code{\link{runSimulation}} for details
+#' @param boot_method method for performing non-parametric bootstrap confidence intervals
+#'  for the respective meta-statistics computed by the \code{Summarise} function.
+#'  See \code{\link{runSimulation}} for details
 #'
 #' @param boot_draws number of non-parametric bootstrap draws to sample for the \code{summarise}
 #'   function after the generate-analyse replications are collected. Default is 1000
+#'
+#' @param CI bootstrap confidence interval level (default is 95\%)
 #'
 #' @export
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #'
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -43,12 +50,12 @@
 #'
 #' Design <- data.frame(N = c(10, 20, 30))
 #'
-#' Generate <- function(condition, fixed_objects = NULL){
+#' Generate <- function(condition, fixed_objects = NULL) {
 #'     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
 #'     dat
 #' }
 #'
-#' Analyse <- function(condition, dat, fixed_objects = NULL){
+#' Analyse <- function(condition, dat, fixed_objects = NULL) {
 #'     ret <- mean(dat) # mean of the sample data vector
 #'     ret
 #' }
@@ -70,7 +77,7 @@
 #' res <- reSummarise(Summarise, dir = 'simresults/')
 #' res
 #'
-#' Summarise2 <- function(condition, results, fixed_objects = NULL){
+#' Summarise2 <- function(condition, results, fixed_objects = NULL) {
 #'     mean(results)
 #' }
 #'
@@ -80,8 +87,8 @@
 #' SimClean('simresults/')
 #' }
 #' }
-reSummarise <- function(summarise, dir = NULL, files = NULL,
-                        fixed_objects = NULL, bootSE = FALSE, boot_draws = 1000L){
+reSummarise <- function(summarise, dir = NULL, files = NULL, fixed_objects = NULL,
+                        boot_method = 'none', boot_draws = 1000L, CI = .95){
     current_wd <- getwd()
     on.exit(setwd(current_wd))
     if(!is.null(dir)) setwd(dir)
@@ -102,17 +109,12 @@ reSummarise <- function(summarise, dir = NULL, files = NULL,
         res[[i]] <- try(sim_results_check(summ))
         if(is(res[[i]], 'try-error'))
             stop(sprintf("File \'%s\' did not return a valid summarise() output", files[i]))
-        if(bootSE){
-            SE_sim_results <- sapply(1L:boot_draws, function(r){
-                pick <- rint(n = replications, min = 1L, max = replications)
-                tmp <- if(!is.data.frame(inp$results)) inp$results[pick]
-                else inp$results[pick, , drop=FALSE]
-                summarise(results=tmp, condition=inp$condition, fixed_objects=fixed_objects)
-            })
-            if(!is.matrix(SE_sim_results)) SE_sim_results <- matrix(SE_sim_results, nrow=1L)
-            SE_sim_results <- apply(SE_sim_results, 1L, sd)
-            names(SE_sim_results) <- paste0("BOOT_SE.", names(res[[i]]))
-            res[[i]] <- c(res[[i]], SE_sim_results)
+        if(boot_method != 'none'){
+            CIs <- SimBoot(inp$results, summarise=summarise, condition=inp$condition,
+                           fixed_objects=inp$fixed_objects,
+                           boot_method=boot_method,
+                           boot_draws=boot_draws, CI=CI)
+            res[[i]] <- c(res[[i]], CIs)
         }
     }
     res <- cbind(plyr::rbind.fill(conditions), do.call(rbind, res))

@@ -187,6 +187,32 @@ test_that('SimDesign', {
     expect_equal(length(row1to5), 5)
     SimClean(results = TRUE)
 
+    # reSummarise test
+    mycomputeGood <- function(condition, dat, fixed_objects = NULL){
+
+        welch <- t.test(DV ~ group, dat)
+        ind <- stats::t.test(DV ~ group, dat, var.equal=TRUE)
+
+        # In this function the p values for the t-tests are returned,
+        #  and make sure to name each element, for future reference
+        ret <- c(welch = welch$p.value,
+                 independent = ind$p.value)
+
+        return(ret)
+    }
+
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycomputeGood, summarise=mycollect, verbose=FALSE,
+                         replications = 10, boot_method = 'basic')
+    expect_true(all(dim(tmp) == c(8,13)))
+
+    tmp <- runSimulation(rbind(Design, Design), generate=mysim, analyse=mycomputeGood, summarise=mycollect, verbose=FALSE,
+                         replications = 10, parallel=FALSE, save_results = TRUE)
+    out <- reSummarise(summarise = mycollect, dir=DIR)
+    expect_true(all(dim(out) == c(16,5)))
+    out <- reSummarise(summarise = mycollect, dir=DIR, boot_method = 'basic')
+    expect_true(all(dim(out) == c(16,9)))
+    SimClean(results = TRUE)
+
     # results no summarise
     mycompute3 <- function(condition, dat, fixed_objects = NULL){
 
@@ -246,10 +272,10 @@ test_that('SimDesign', {
                                replications = 1, parallel=FALSE, save=FALSE, verbose = FALSE))
 
 
-    mycompute <- function(condition, dat, fixed_objects = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL) {
         c(ret = 1)
     }
-    mygenerate <- function(condition, fixed_objects = NULL){
+    mygenerate <- function(condition, fixed_objects = NULL) {
         rgumbel(5)
     }
     mycollect <- function(condition, results, fixed_objects = NULL) {
@@ -400,12 +426,12 @@ test_that('SimDesign', {
     expect_is(F1, 'SimDesign')
     expect_that(length(F1), equals(4))
     expect_that(length(attributes(F1)$design_names$design), equals(3))
-    expect_that(length(attributes(F1)$design_names$sim), equals(1))
+    expect_that(length(attributes(F1)$design_names$sim), equals(2))
 
     F2 <- subset(Final, select = c(1,2,4,5)) # 2 design factors, 2 simulation results
     expect_is(F2, 'SimDesign')
     expect_that(length(F2), equals(4))
-    expect_that(length(attributes(F2)$design_names$design), equals(2))
+    expect_that(length(attributes(F2)$design_names$design), equals(3))
     expect_that(length(attributes(F2)$design_names$sim), equals(2))
 
     F3 <- subset(Final, subset = standard_deviations == 1)
@@ -491,13 +517,13 @@ test_that('SimDesign', {
     expect_is(results, 'SimDesign')
 
     # warnings/error in generate
-    mycompute <- function(condition, dat, fixed_objects = NULL){
+    mycompute <- function(condition, dat, fixed_objects = NULL) {
         int <- sample(1:10, 1)
         if(int > 5) warning('greater than 5')
         if(int == 1) stop('generate error')
         c(ret = 1)
     }
-    mygenerate <- function(condition, fixed_objects = NULL){
+    mygenerate <- function(condition, fixed_objects = NULL) {
         int <- sample(1:10, 1)
         if(int > 5) warning('greater than 5 in analyse')
         if(int == 1) stop('generate error in analyse')

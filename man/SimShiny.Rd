@@ -31,7 +31,7 @@ Design <- createDesign(sample_size = c(30, 60, 90, 120),
                        group_size_ratio = c(1, 4, 8),
                        standard_deviation_ratio = c(.5, 1, 2))
 
-Generate <- function(condition, fixed_objects = NULL){
+Generate <- function(condition, fixed_objects = NULL) {
     N <- condition$sample_size
     grs <- condition$group_size_ratio
     sd <- condition$standard_deviation_ratio
@@ -48,7 +48,7 @@ Generate <- function(condition, fixed_objects = NULL){
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL){
+Analyse <- function(condition, dat, fixed_objects = NULL) {
     welch <- t.test(DV ~ group, dat)
     ind <- t.test(DV ~ group, dat, var.equal=TRUE)
 
@@ -58,7 +58,7 @@ Analyse <- function(condition, dat, fixed_objects = NULL){
     ret
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL){
+Summarise <- function(condition, results, fixed_objects = NULL) {
     #find results of interest here (e.g., alpha < .1, .05, .01)
     ret <- EDR(results, alpha = .05)
     ret
@@ -83,6 +83,10 @@ shiny::runApp(launch.browser = TRUE) # in web-browser
 }
 }
 \references{
+Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+\doi{10.20982/tqmp.16.4.p248}
+
 Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 \doi{10.1080/10691898.2016.1246953}

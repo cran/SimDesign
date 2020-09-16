@@ -30,6 +30,11 @@
 #' @seealso \code{\link{add_missing}}, \code{\link{Attach}},
 #'   \code{\link{rmgh}}, \code{\link{rValeMaurelli}}, \code{\link{rHeadrick}}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -37,7 +42,7 @@
 #' @examples
 #' \dontrun{
 #'
-#' generate <- function(condition, fixed_objects = NULL){
+#' generate <- function(condition, fixed_objects = NULL) {
 #'     N1 <- condition$sample_sizes_group1
 #'     N2 <- condition$sample_sizes_group2
 #'     sd <- condition$standard_deviations
@@ -53,7 +58,7 @@
 #' }
 #'
 #' # similar to above, but using the Attach() function instead of indexing
-#' generate <- function(condition, fixed_objects = NULL){
+#' generate <- function(condition, fixed_objects = NULL) {
 #'     Attach(condition)
 #'     N1 <- sample_sizes_group1
 #'     N2 <- sample_sizes_group2
@@ -66,13 +71,13 @@
 #'     dat
 #' }
 #'
-#' generate2 <- function(condition, fixed_objects = NULL){
+#' generate2 <- function(condition, fixed_objects = NULL) {
 #'     mu <- sample(c(-1,0,1), 1)
 #'     dat <- rnorm(100, mu)
 #'     dat        #return simple vector (discard mu information)
 #' }
 #'
-#' generate3 <- function(condition, fixed_objects = NULL){
+#' generate3 <- function(condition, fixed_objects = NULL) {
 #'     mu <- sample(c(-1,0,1), 1)
 #'     dat <- data.frame(DV = rnorm(100, mu))
 #'     dat
@@ -120,6 +125,11 @@ Generate <- function(condition, fixed_objects = NULL) NULL
 #'
 #' @seealso \code{\link{stop}}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -128,7 +138,7 @@ Generate <- function(condition, fixed_objects = NULL) NULL
 #' @examples
 #' \dontrun{
 #'
-#' analyse <- function(condition, dat, fixed_objects = NULL){
+#' analyse <- function(condition, dat, fixed_objects = NULL) {
 #'
 #'     # require packages/define functions if needed, or better yet index with the :: operator
 #'     require(stats)
@@ -179,6 +189,11 @@ Analyse <- function(condition, dat, fixed_objects = NULL) NULL
 #' @seealso \code{\link{bias}}, \code{\link{RMSE}}, \code{\link{RE}}, \code{\link{EDR}},
 #'   \code{\link{ECR}}, \code{\link{MAE}}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -186,7 +201,7 @@ Analyse <- function(condition, dat, fixed_objects = NULL) NULL
 #' @examples
 #' \dontrun{
 #'
-#' summarise <- function(condition, results, fixed_objects = NULL){
+#' summarise <- function(condition, results, fixed_objects = NULL) {
 #'
 #'     #find results of interest here (alpha < .1, .05, .01)
 #'     lessthan.05 <- EDR(results, alpha = .05)
@@ -220,10 +235,15 @@ Summarise <- function(condition, results, fixed_objects = NULL) NULL
 #
 # @return must return a named list with the 'result' and 'parameters' elements for the
 #   computational results and \code{parameters} from \code{\link{Generate}}
-#' @references
-#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
-#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-#' \doi{10.1080/10691898.2016.1246953}
+# @references
+#
+# Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+# with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+# \doi{10.20982/tqmp.16.4.p248}
+#
+# Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+# Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+# \doi{10.1080/10691898.2016.1246953}
 #
 # @aliases main
 #

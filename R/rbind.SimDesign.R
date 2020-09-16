@@ -16,6 +16,11 @@
 #' @return same object that is returned by \code{\link{runSimulation}}
 #'
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -32,17 +37,17 @@
 #' Design <- createDesign(N = c(10, 20),
 #'                        SD = c(1, 2))
 #'
-#' Generate <- function(condition, fixed_objects = NULL){
+#' Generate <- function(condition, fixed_objects = NULL) {
 #'     dat <- with(condition, rnorm(N, 10, sd=SD))
 #'     dat
 #' }
 #'
-#' Analyse <- function(condition, dat, fixed_objects = NULL){
+#' Analyse <- function(condition, dat, fixed_objects = NULL) {
 #'     ret <- mean(dat) # mean of the sample data vector
 #'     ret
 #' }
 #'
-#' Summarise <- function(condition, results, fixed_objects = NULL){
+#' Summarise <- function(condition, results, fixed_objects = NULL) {
 #'     ret <- c(mu=mean(results), SE=sd(results)) # mean and SD summary of the sample means
 #'     ret
 #' }

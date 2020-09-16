@@ -9,8 +9,9 @@ reSummarise(
   dir = NULL,
   files = NULL,
   fixed_objects = NULL,
-  bootSE = FALSE,
-  boot_draws = 1000L
+  boot_method = "none",
+  boot_draws = 1000L,
+  CI = 0.95
 )
 }
 \arguments{
@@ -27,12 +28,14 @@ located within \code{dir} will be used}
 
 \item{fixed_objects}{(optional) see \code{\link{runSimulation}} for details}
 
-\item{bootSE}{logical; perform a non-parametric bootstrap to compute bootstrap standard error
-estimates for the respective meta-statistics computed by the \code{Summarise} function?
+\item{boot_method}{method for performing non-parametric bootstrap confidence intervals
+for the respective meta-statistics computed by the \code{Summarise} function.
 See \code{\link{runSimulation}} for details}
 
 \item{boot_draws}{number of non-parametric bootstrap draws to sample for the \code{summarise}
 function after the generate-analyse replications are collected. Default is 1000}
+
+\item{CI}{bootstrap confidence interval level (default is 95\%)}
 }
 \description{
 When \code{runSimulation()} uses the option \code{save_results = TRUE}
@@ -49,12 +52,12 @@ and final collection of the respective results.
 
 Design <- data.frame(N = c(10, 20, 30))
 
-Generate <- function(condition, fixed_objects = NULL){
+Generate <- function(condition, fixed_objects = NULL) {
     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL){
+Analyse <- function(condition, dat, fixed_objects = NULL) {
     ret <- mean(dat) # mean of the sample data vector
     ret
 }
@@ -76,7 +79,7 @@ SimClean('SimDesign-results.rds')
 res <- reSummarise(Summarise, dir = 'simresults/')
 res
 
-Summarise2 <- function(condition, results, fixed_objects = NULL){
+Summarise2 <- function(condition, results, fixed_objects = NULL) {
     mean(results)
 }
 
@@ -88,6 +91,10 @@ SimClean('simresults/')
 }
 }
 \references{
+Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+\doi{10.20982/tqmp.16.4.p248}
+
 Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 \doi{10.1080/10691898.2016.1246953}

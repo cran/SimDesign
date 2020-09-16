@@ -14,6 +14,11 @@
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -64,6 +69,11 @@ rint <- function(n, min, max, replace = TRUE, prob = NULL){
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -127,6 +137,11 @@ rmgh <- function(n, g, h, mean = rep(0, length(g)), sigma = diag(length(mean))) 
 #' @param kurt a vector of k elements for the kurtosis of the variables
 #'
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -264,6 +279,11 @@ rValeMaurelli <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mea
 #' @param control a list of control parameters when locating the polynomial coefficients
 #'
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -310,8 +330,7 @@ rValeMaurelli <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mea
 rHeadrick <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
                       skew = rep(0, nrow(sigma)), kurt = rep(0, nrow(sigma)),
                       gam3 = NaN, gam4=NaN, return_coefs = FALSE, coefs = NULL,
-                      control = list(seed = NULL, trace = FALSE,
-                                     max.ntry = 15, obj.tol = 1e-10, n.valid.sol = 1)){
+                      control = list(trace = FALSE, max.ntry = 15, obj.tol = 1e-10, n.valid.sol = 1)){
 
     sd <- diag(sigma)
     corr <- cov2cor(sigma)
@@ -518,17 +537,12 @@ rHeadrick <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
 
     ##setting up
 
-    if(!is.null(control[["seed"]])){
-        set.seed(control[["seed"]])
-    }
-
-
     if(is.null(control[["trace"]])){
-        control[["trace"]] <- T
+        control[["trace"]] <- FALSE
     }
 
     if(is.null(control[["max.ntry"]])){
-        control[["max.ntry"]] <- 5
+        control[["max.ntry"]] <- 15
     }
 
     if(is.null(control[["obj.tol"]])){
@@ -664,7 +678,7 @@ rHeadrick <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
             if (is.null(poly.coeff)){
                 cat("Error: no solution found for the combination of skewness: ", skewness[i], "; kurtosis: ",
                     kurtosis[i], ".\n", sep = "")
-                return(NULL)
+                return(invisible(NULL))
             }
             }
         }
@@ -690,7 +704,7 @@ rHeadrick <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
             if(is.null(poly.coeff)){
                 cat("Error: no solution found for the combination of skewness: ", skewness[i], "; kurtosis: ",
                     kurtosis[i], " gam3: ", gam3_fit[i], "; gam4: ", gam4_fit[i], ".\n", sep = "")
-                return
+                return(invisible(NULL))
             }
             else{
                 curr.coeff = poly.coeff$coeff
@@ -789,6 +803,11 @@ rHeadrick <- function(n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)),
 #'
 #' @seealso \code{\link{runSimulation}}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -848,6 +867,11 @@ rmvnorm <- function (n, mean = rep(0, nrow(sigma)), sigma = diag(length(mean)))
 #'
 #' @seealso \code{\link{runSimulation}}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -904,6 +928,11 @@ rmvt <- function (n, sigma, df, delta = rep(0, nrow(sigma)),
 #'
 #' @seealso \code{\link{runSimulation}}
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}

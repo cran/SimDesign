@@ -6,21 +6,26 @@
 #' file can be found in the working directory. \code{runSimulation} supports parallel
 #' and cluster computing, global and local debugging, error handling (including fail-safe
 #' stopping when functions fail too often, even across nodes), provides bootstrap estimates of the
-#' sampling variability (optional), and tracking of error and warning messages.
-#' For convenience, all functions available in the R workspace are exported across all computational nodes
+#' sampling variability (optional), and automatic tracking of error and warning messages and their associated
+#' \code{.Random.seed} states.
+#' For convenience, all functions available in the R work-space are exported across all computational nodes
 #' so that they are more easily accessible (however, other R objects are not, and therefore
 #' must be passed to the \code{fixed_objects} input to become available across nodes).
-#' For a didactic presentation of the package refer to Sigal and Chalmers
-#' (2016; \doi{10.1080/10691898.2016.1246953}), and see the associated
+#' For an in-depth tutorial of the package please refer to Chalmers and Adkins (2020;
+#' \doi{10.20982/tqmp.16.4.p248}).
+#' For an earlier didactic presentation of the package refer to Sigal and Chalmers
+#' (2016; \doi{10.1080/10691898.2016.1246953}). Finally, see the associated
 #' wiki on Github (\url{https://github.com/philchalmers/SimDesign/wiki})
-#' for other tutorial material, examples, and applications of \code{SimDesign} to real-world simulations.
+#' for tutorial material, examples, and applications of \code{SimDesign} to real-world simulation experiments.
 #'
 #' The strategy for organizing the Monte Carlo simulation work-flow is to
 #'
 #' \describe{
 #'    \item{1)}{Define a suitable \code{Design} object (a \code{tibble} or \code{data.frame})
 #'       containing fixed conditional
-#'       information about the Monte Carlo simulations. This is often expedited by using the
+#'       information about the Monte Carlo simulations. Each row or this \code{design} object pertains
+#'       to a unique set of simulation to study, while each column the simulation factor under investigation (e.g., sample size,
+#'       distribution types, etc). This is often expedited by using the
 #'       \code{\link{createDesign}} function, and if necessary the argument \code{subset}
 #'       can be used to remove redundant or non-applicable rows}
 #'    \item{2)}{Define the three step functions to generate the data (\code{\link{Generate}}; see also
@@ -29,16 +34,15 @@
 #'       etc (\code{\link{Analyse}}), and finally summarise the results across the total
 #'       number of replications (\code{\link{Summarise}}).
 #'    }
-#'    \item{3)}{Pass the above objects to the \code{runSimulation} function, and declare the
-#'       number of replications to perform with the \code{replications} input. This function will accept
-#'       a \code{design} data.frame object and will return a suitable data.frame object with the
-#'       simulation results}
+#'    \item{3)}{Pass the \code{design} object and three defined R functions to \code{runSimulation}, and declare the
+#'       number of replications to perform with the \code{replications} input. This function will return a suitable
+#'       \code{tibble} object with the complete simulation results and execution details}
 #'    \item{4)}{Analyze the output from \code{runSimulation}, possibly using ANOVA techniques
 #'      (\code{\link{SimAnova}}) and generating suitable plots and tables}
 #' }
 #'
 #' Expressing the above more succinctly, the functions to be called have the following form,
-#' with the exact inputs listed
+#' with the exact functional arguments listed:
 #'
 #' \describe{
 #'   \item{\code{Design <- createDesign(...)}}{}
@@ -53,76 +57,55 @@
 #' a unique Monte Carlo simulation condition. The \code{condition} object also contains two
 #' additional elements to help track the simulation's state: an \code{ID} variable, indicating
 #' the respective row number in the \code{design} object, and a \code{REPLICATION} element
-#' indicating the replication iteration number. Mainly, these are included to help with debugging,
-#' where users can easily locate the \code{r}th replication (e.g., \code{REPLICATION == 500})
+#' indicating the replication iteration number (an integer value between 1 and \code{replication}).
+#' This setup allows users to easily locate the \code{r}th replication (e.g., \code{REPLICATION == 500})
 #' within the \code{j}th row in the simulation design (e.g., \code{ID == 2}). The
 #' \code{REPLICATION} input is also useful when temporarily saving files to the hard-drive
 #' when calling external command line utilities (see examples on the wiki).
 #'
-#' For a skeleton version of the work-flow, which is often useful when initially defining a simulation,
-#' use \code{\link{SimFunctions}}. This function will write template simulation code
-#' to one/two files so that modifying the required functions and objects can begin immediately
-#' with minimal error. This means that you can focus on your Monte Carlo simulation immediately rather
-#' than worrying about the administrative code-work required to organize the simulation work-flow.
+#' For a template-based version of the work-flow, which is often useful when initially defining a simulation,
+#' use the \code{\link{SimFunctions}} function. This function will write a template simulation
+#' to one/two files so that modifying the required functions and objects can begin immediately.
+#' This means that users can focus on their Monte Carlo simulation details right away rather
+#' than worrying about the repetitive administrative code-work required to organize the simulation's execution flow.
 #'
-#' Additional information for each condition are also contained in the object returned by
-#' \code{runSimulation}: \code{REPLICATIONS} to indicate the number of Monte Carlo replications,
-#' \code{SIM_TIME} to indicate how long (in seconds) it took to complete
-#' all the Monte Carlo replications for each respective design condition,
-#' \code{COMPLETED} to indicate the date in which the given simulation condition completed,
-#' \code{SEED} for the integer values in the \code{seed} argument, and, if applicable,
-#' \code{ERRORS} and \code{WARNINGS} which contain counts for the number of error or warning
-#' messages that were caught (if no errors/warnings were observed these columns will be omitted).
-#' Note that to extract the specific error and warnings messages see
-#' \code{\link{SimExtract}}. Finally,
-#' if \code{bootSE = TRUE} was included then the final right-most columns will contain the labels
-#' \code{BOOT_SE.} followed by the name of the associated meta-statistic defined in \code{summarise()}.
-#'
-#' Additional examples, presentation files, and tutorials can be found on the package wiki located at
+#' Finally, examples, presentation files, and tutorials can be found on the package wiki located at
 #' \url{https://github.com/philchalmers/SimDesign/wiki}.
 #'
 #' @section Saving data, results, seeds, and the simulation state:
 #'
 #' To conserve RAM, temporary objects (such as data generated across conditions and replications)
 #' are discarded; however, these can be saved to the hard-disk by passing the appropriate flags.
-#' For longer simulations it is recommended to use \code{save = TRUE} to temporarily save the
-#' simulation state, and to use the \code{save_results} flag to write the analysis results
-#' the to hard-disc.
+#' For longer simulations it is recommended to use the \code{save_results} flag to write the analysis results
+#' to the hard-drive.
 #'
 #' The use of the \code{save_seeds} option can be evoked to save R's \code{.Random.seed} state to allow
 #' for complete reproducibility of each replication within each condition. These
 #' individual \code{.Random.seed} terms can then be read in with the
 #' \code{load_seed} input to reproduce the exact simulation state at any given replication. Most often though,
 #' \code{save_seeds} is less useful since problematic seeds are automatically stored in the final
-#' simulation object to allow for easier replicability of potentially problematic errors. Finally,
+#' simulation object to allow for easier replicability of potentially problematic errors (which incidentally
+#' can be extracted using \code{SimExtract(res, 'error_seeds')} and passed to the \code{load_seed} argument). Finally,
 #' providing a vector of \code{seeds} is also possible to ensure
-#' that each simulation condition is completely reproducible under the single/multi-core method selected.
-#'
-#' The \code{load_seed} input will also accept an integer vector corresponding to the exact
-#' \code{.Random.seed} state. This is helpful because SimDesign also tracks these seeds for simulation
-#' conditions that threw errors, where these values can be extracted via \code{SimExtract(..., what='error_seeds')}
-#' function. The column names indicate the respective design row (first number), the order in which
-#' the errors were thrown (second number), and finally the error message string (coerced to a proper
-#' data.frame column name). After this data.frame object is extracted, individual columns can be passed to \code{load_seed}
-#' to replicate the exact error issue that appeared (note that the \code{design} object must be indexed
-#' manually to ensure that the correct design conditions is paired with this exact \code{.Random.seed} state).
+#' that each simulation condition is macro reproducible under the single/multi-core method selected.
 #'
 #' Finally, when the Monte Carlo simulation is complete
 #' it is recommended to write the results to a hard-drive for safe keeping, particularly with the
-#' \code{save} and \code{filename} arguments provided (for reasons that are more obvious in the parallel computation
-#' descriptions below). Using the \code{filename} argument (along with \code{save = TRUE})
-#' supplied is much safer than using something
-#' like \code{\link{saveRDS}} directly because files will never accidentally be overwritten,
-#' and instead a new file name will be created when a conflict arises; this type of safety
-#' is prevalent in many aspects of the package and helps to avoid many unrecoverable (yet surprisingly common)
-#' mistakes.
+#' \code{filename} argument provided (for reasons that are more obvious in the parallel computation
+#' descriptions below). Using the \code{filename} argument supplied is safer than using, for instance,
+#' \code{\link{saveRDS}} directly because files will never accidentally be overwritten,
+#' and instead a new file name will be created when a conflict arises; this type of implementation safety
+#' is prevalent in many locations in the package to help avoid unrecoverable (yet surprisingly common) mistakes
+#' during the process of designing and executing Monte Carlo simulations.
 #'
 #' @section Resuming temporary results:
 #'
-#' In the event of a computer crash, power outage, etc, if \code{save = TRUE} was used
+#' In the event of a computer crash, power outage, etc, if \code{save = TRUE} was used (the default)
 #' then the original code used to execute \code{runSimulation()} need only be re-run to resume the simulation.
 #' The saved temp file will be read into the function automatically, and the simulation will continue
-#' one the condition where it left off before the simulation state was terminated.
+#' one the condition where it left off before the simulation state was terminated. If users wish to remove this temporary
+#' simulation state entirely so as to start anew then simply pass \code{SimClean(temp = TRUE)} in the R console to remove any
+#' previously saved temporary objects.
 #'
 #' @section A note on parallel computing:
 #'
@@ -140,8 +123,7 @@
 #'
 #' @param design a \code{tibble} or \code{data.frame} object containing the Monte Carlo simulation
 #'   conditions to be studied, where each row represents a unique condition and each column a factor
-#'   to be varied. Note that if a \code{tibble} is supplied this object will be coerced to a
-#'   \code{data.frame} internally. See \code{\link{createDesign}} for the standard approach
+#'   to be varied. See \code{\link{createDesign}} for the standard approach
 #'   to create this simulation design object
 #'
 #' @param generate user-defined data and parameter generating function.
@@ -149,35 +131,38 @@
 #'   user if they wish to generate the data with the \code{analyse} step, but for real-world
 #'   simulations this is generally not recommended
 #'
-#' @param analyse user-defined computation function which acts on the data generated from
-#'   \code{\link{Generate}} (or, if \code{generate} was omitted, both generates and
+#' @param analyse user-defined analysis function that acts on the data generated from
+#'   \code{\link{Generate}} (or, if \code{generate} was omitted, can be used to generate and
 #'   analyses the simulated data). See \code{\link{Analyse}} for details
 #'
 #' @param summarise optional (but highly recommended) user-defined summary function from \code{\link{Summarise}}
-#'   to be used after all the replications have completed within each \code{design} condition. Omitting this function
-#'   will return a list of \code{data.frame}s (or a single \code{data.frame}, if only one row in
+#'   to be used to compute meta-statistical summary information after all the replications have completed within
+#'   each \code{design} condition.
+#'
+#'   Omitting this function will return a list of \code{data.frame}s (or a single \code{data.frame}, if only one row in
 #'   \code{design} is supplied) or, for more general objects (such as \code{list}s), a \code{list}
 #'   containing the results returned form \code{\link{Analyse}}.
 #'   Alternatively, the value \code{NA} can be passed to let the generate-analyse-summarise process to run as usual,
 #'   where the summarise components are instead included only as a placeholder.
-#'
-#'   Ommiting this input is only recommended for didactic purposes because it leaves out a large amount of
+#'   Omitting this input is only recommended for didactic purposes because it leaves out a large amount of
 #'   information (e.g., try-errors, warning messages, saving files, etc), can witness memory related issues,
-#'   and generally is not as flexible internally. If users do not wish to supply a summarise function then it
-#'   is is recommended to pass the values \code{NA} to indicate this function is deliberately omitted, but that
-#'   the \code{save_results} option should be used to save the results during the simulation. This provides a
+#'   and generally is not as flexible internally.
+#'
+#'   If users do not wish to supply a summarise function then it
+#'   is is recommended to pass \code{NA} to this argument while also supplying passing \code{save_results = TRUE} to
+#'   save the results to the hard-drive during the simulation. This provides a
 #'   more RAM friendly alternative to storing all the Generate-Analyse results in the working environment, where
 #'   the Analysis results can be summarised at a later time
 #'
-#' @param replications number of replication to perform per condition (i.e., each row in \code{design}).
+#' @param replications number of independent replications to perform per condition (i.e., each row in \code{design}).
 #'   Must be greater than 0
 #'
 #' @param fixed_objects (optional) an object (usually a named \code{list})
 #'   containing additional user-defined objects
 #'   that should remain fixed across conditions. This is useful when including
-#'   long fixed vectors/matrices of population parameters, data
-#'   that should be used across all conditions and replications (e.g., including a fixed design matrix
-#'   for linear regression), or simply control constant global elements such as sample size
+#'   large vectors/matrices of population parameters, fixed data information
+#'   that should be used across all conditions and replications (e.g., including a common design matrix
+#'   for linear regression models), or simply control constant global elements (e.g., a constant for sample size)
 #'
 #' @param parallel logical; use parallel processing from the \code{parallel} package over each
 #'   unique condition?
@@ -185,7 +170,7 @@
 #' @param cl cluster object defined by \code{\link{makeCluster}} used to run code in parallel.
 #'   If \code{NULL} and \code{parallel = TRUE}, a local cluster object will be defined which
 #'   selects the maximum number cores available
-#'   and will be stop the cluster when the simulation is complete. Note that supplying a \code{cl}
+#'   and will be stopped when the simulation is complete. Note that supplying a \code{cl}
 #'   object will automatically set the \code{parallel} argument to \code{TRUE}
 #'
 #' @param packages a character vector of external packages to be used during the simulation (e.g.,
@@ -196,16 +181,47 @@
 #'   Alternatively, functions can be called explicitly without attaching the package with the \code{::} operator
 #'   (e.g., \code{extraDistr::rgumbel()})
 #'
-#' @param warnings_as_errors logical; treat warning messages as errors during the simulation? Default is FALSE,
-#'   therefore warnings are only collected and not used to restart the data generation step
+#' @param notification an optional, empty argument function to be executed upon completion of the simulation. This can be used, for
+#'   instance, to trigger email or SMS notifications that indicate the simulation has been completed. For example,
+#'   to utilize the \code{RPushbullet} package (and assuming users have previously a) registered for a Pushbullet account,
+#'   and b) installed the application on their mobile device and computer), use the following:
+#'
+#'   \describe{
+#'
+#'     \item{Prior Setup}{Prior to defining \code{notification}, load the \code{RPushbullet} library via \code{library(RPushbullet)}. If
+#'       this is the first time you have used the package then a suitable \code{rpushbullet.json} file will not exist on your computer,
+#'       and you'll need to supply a suitable token and the devise to push the notification to via the \code{pbSetup()} setup}
+#'
+#'      \item{Execution}{Supply a definition of \code{notification} that utilizes the \code{pbPost} function. E.g.,
+#'      \code{runSimulation(...,
+#'           notification = function() pbPost(type = "note", title = "SimDesign", body = "Simulation Complete"))}}
+#'
+#'   }
+#'
+#'   Alternatively, if users wish to have an email sent upon completion then the following template that uses the \code{sendmailR}
+#'   package could be used:
+#'
+#'   \describe{
+#'
+#'     \item{Using \code{sendmailR}}{
+#'
+#'        \code{runSimulation(...,
+#'             notification = function() sendmailR::sendmail(from="<sendmailR@your.computer>",
+#'                                                           to="<your.email@address>", subject="SimDesign", msg="Simulation Complete",
+#'                                                           control=list(smtpServer="ASPMX.L.GOOGLE.COM")))}.
+#'                                                            }
+#'  }
+#'  However, note that this may be less reliable since the email message could be directed to a spam folder.
+#'
+#' @param warnings_as_errors logical; treat warning messages as error messages during the simulation? Default is FALSE,
+#'   therefore warnings are only collected and not used to restart the data generation step, and the seeds associated with
+#'   the warning message conditions are not stored within the final simulation object
 #'
 #' @param save_results logical; save the results returned from \code{\link{Analyse}} to external
 #'   \code{.rds} files located in the defined \code{save_results_dirname} directory/folder?
-#'   Use this if you would like to keep track of the individual parameters returned from the analyses.
+#'   Use this if you would like to keep track of the individual parameters returned from the \code{analysis} function.
 #'   Each saved object will contain a list of three elements containing the condition (row from \code{design}),
-#'   results (as a \code{list} or \code{matrix}), and try-errors. When \code{TRUE}, a temp file will be used to track the simulation
-#'   state (in case of power outages, crashes, etc). When \code{TRUE}, temporary files will also be saved
-#'   to the working directory (in the same way as when \code{save = TRUE}).
+#'   results (as a \code{list} or \code{matrix}), and try-errors.
 #'   See \code{\link{SimResults}} for an example of how to read these \code{.rds} files back into R
 #'   after the simulation is complete. Default is \code{FALSE}.
 #'
@@ -216,37 +232,40 @@
 #'
 #' @param save_seeds logical; save the \code{.Random.seed} states prior to performing each replication into
 #'   plain text files located in the defined \code{save_seeds_dirname} directory/folder?
-#'   Use this if you would like to keep track of the simulation state within each replication and design
-#'   condition. Primarily, this is useful for completely replicating any cell in the simulation if need be,
-#'   especially when tracking down hard-to-find errors and bugs. As well, see the \code{load_seed} input
+#'   Use this if you would like to keep track of every simulation state within each replication and design
+#'   condition. This can be used to completely replicate any cell in the simulation if need be.
+#'   As well, see the \code{load_seed} input
 #'   to load a given \code{.Random.seed} to exactly replicate the generated data and analysis state (mostly useful
 #'   for debugging). When \code{TRUE}, temporary files will also be saved
 #'   to the working directory (in the same way as when \code{save = TRUE}). Default is \code{FALSE}
 #'
-#'   Note, however, that this option is not typically necessary since the \code{.Random.seed} states for simulation
-#'   replications that threw errors during the execution are automatically stored within the final simulation
+#'   Note, however, that this option is not typically necessary or recommended since the \code{.Random.seed} states for simulation
+#'   replications that throw errors during the execution are automatically stored within the final simulation
 #'   object, and can be extracted and investigated using \code{\link{SimExtract}}. Hence, this option is only of
-#'   interest when \emph{all} of the replications must be reproducible, otherwise the defaults to \code{runSimulation}
-#'   are likely sufficient for most simulation studies.
+#'   interest when \emph{all} of the replications must be reproducible (which occurs very rarely),
+#'   otherwise the defaults to \code{runSimulation} should be sufficient
 #'
-#' @param edit this argument has been deprecated. Please use \code{debug} instead
-#'
-#' @param load_seed a character object indicating which file to load from when the \code{.Random.seed}s have
+#' @param load_seed used to replicate an exact simulation state, which is primarily useful for debugging purposes.
+#'   Input can be a character object indicating which file to load from when the \code{.Random.seed}s have
 #'   be saved (after a call with \code{save_seeds = TRUE}), or an integer vector indicating the actual
 #'   \code{.Random.seed} values. E.g., \code{load_seed = 'design-row-2/seed-1'}
-#'   will load the first seed in the second row of the \code{design} input, or explicitly passing the 626 long
+#'   will load the first seed in the second row of the \code{design} input, or explicitly passing the
 #'   elements from \code{.Random.seed} (see \code{\link{SimExtract}} to extract the seeds associated explicitly
 #'   with errors during the simulation, where each column represents a unique seed).
 #'   If the input is a character vector then it is important NOT
 #'   to modify the \code{design} input object, otherwise the path may not point to the correct saved location, while
-#'   if the input is an integer vector then it WILL be important to modify the \code{design} input in order to load this
+#'   if the input is an integer vector (or single column \code{tbl} object)
+#'   then it WILL be important to modify the \code{design} input in order to load this
 #'   exact seed for the corresponding design row. Default is \code{NULL}
 #'
-#' @param filename (optional) the name of the \code{.rds} file to save the final simulation results to
-#'   when \code{save = TRUE}. If the same file name already exists in the working
+#' @param filename (optional) the name of the \code{.rds} file to save the final simulation results to. If the extension
+#'   \code{.rds} is not included in the file name (e.g. \code{"mysimulation"} versus \code{"mysimulation.rds"}) then the
+#'   \code{.rds} extension will be automatically added to the file name to ensure the file extension is correct.
+#'
+#'   Note that if the same file name already exists in the working
 #'   directly at the time of saving then a new
 #'   file will be generated instead and a warning will be thrown. This helps to avoid accidentally overwriting
-#'   existing files. Default is \code{'SimDesign-results'}
+#'   existing files. Default is \code{NULL}, indicating no file will be saved by default
 #'
 #' @param save_details a list pertaining to information regarding how and where files should be saved
 #'   when the \code{save} or \code{save_results} flags are triggered.
@@ -265,13 +284,6 @@
 #'     \item{\code{out_rootdir}}{root directory to save all files to. Default uses the
 #'        current working directory}
 #'
-#'     \item{\code{tmpfilename}}{the name of the temporary \code{.rds} file when any of the \code{save} flags are used.
-#'        This file will be read-in if it is in the working directory and the simulation will continue
-#'        at the last point this file was saved
-#'        (useful in case of power outages or broken nodes). Finally, this file will be deleted when the
-#'        simulation is complete. Default is the system name (\code{compname}) appended
-#'        to \code{'SIMDESIGN-TEMPFILE_'}}
-#'
 #'     \item{\code{save_results_dirname}}{a string indicating the name of the folder to save
 #'       result objects to when \code{save_results = TRUE}. If a directory/folder does not exist
 #'       in the current working directory then a unique one will be created automatically. Default is
@@ -285,8 +297,9 @@
 #'   }
 #'
 #' @param max_errors the simulation will terminate when more than this number of consecutive errors are thrown in any
-#'   given condition. The purpose of this is to indicate that something fatally problematic is likely going
-#'   wrong in the generate-analyse phases and should be inspected. Default is 50
+#'   given condition, causing the simulation to continue to the next unique \code{design} condition.
+#'   This is included to avoid getting stuck in infinite re-draws, and to indicate that something fatally problematic
+#'   is going wrong in the generate-analyse phases. Default is 50
 #'
 #' @param allow_na logical; should \code{NA}s be allowed in the analyse step as a valid result from the simulation
 #'   analysis? Default is FALSE
@@ -299,20 +312,22 @@
 #' @param MPI logical; use the \code{foreach} package in a form usable by MPI to run simulation
 #'   in parallel on a cluster? Default is \code{FALSE}
 #'
-#' @param save logical; save the simulation state and final results to the hard-drive? This is useful
-#'   for simulations which require an extended amount of time. When \code{TRUE}, a temp file
+#' @param save logical; save the temporary simulation state to the hard-drive? This is useful
+#'   for simulations which require an extended amount of time, though for shorter simulations
+#'   can be disabled to slightly improve computational efficiency. When \code{TRUE}, a temp file
 #'   will be created in the working directory which allows the simulation state to be saved
 #'   and recovered (in case of power outages, crashes, etc). As well, triggering this flag will
 #'   save any fatal \code{.Random.seed} states when conditions unexpectedly crash (where each seed
 #'   is stored row-wise in an external .rds file), which provides a much easier mechanism
-#'   to debug the issue (see \code{load_seed} for details).
+#'   to debug issues (see \code{load_seed} for details). Upon completion, this temp file will be removed.
 #'
-#'   Additionally, to recover your simulation at the last known
-#'   location simply re-run the code you used to initially define the simulation and the external file
-#'   will automatically be detected and read-in. Upon completion, the final results will
-#'   be saved to the working directory, and the temp file will be removed. Default is \code{FALSE}
+#'   To recover your simulation at the last known location (having patched the issues in the previous execution code)
+#'   simply re-run the code you used to
+#'   initially define the simulation and the external file will automatically be detected and read-in.
+#'   Default is \code{TRUE}
 #'
-#' @param debug a string indicating where to initiate a \code{browser()} call for editing and debugging.
+#' @param debug a string indicating where to initiate a \code{browser()} call for editing and debugging, and pairs
+#'   particularly well with the \code{load_seed} argument for precice debugging.
 #'   General options are \code{'none'} (default; no debugging), \code{'error'}, which starts the debugger
 #'   when any error in the code is detected in one of three generate-analyse-summarise functions,
 #'   and \code{'all'}, which debugs all the user defined functions regardless of whether an error was thrown
@@ -323,7 +338,8 @@
 #'   Alternatively, users may place \code{\link{browser}} calls within the respective functions for
 #'   debugging at specific lines, which is useful when debugging based on conditional evaluations (e.g.,
 #'   \code{if(this == 'problem') browser()}). Note that parallel computation flags
-#'   will automatically be disabled when a \code{browser()} is detected
+#'   will automatically be disabled when a \code{browser()} is detected or when a debugging argument other than
+#'   \code{'none'} is supplied
 #'
 #' @param seed a vector of integers to be used for reproducibility.
 #'   The length of the vector must be equal the number of rows in \code{design}.
@@ -332,26 +348,21 @@
 #'   but will not be run when \code{MPI = TRUE}.
 #'   Default randomly generates seeds within the range 1 to 2147483647 for each condition.
 #'
-#' @param progress logical; display a progress bar for each simulation condition?
-#'   This is useful when simulations conditions take a long time to run.
-#'   Uses the \code{pbapply} package to display the progress. Default is \code{FALSE}
+#' @param progress logical; display a progress bar (using the \code{pbapply} package) for each simulation condition?
+#'   This is useful when simulations conditions take a long time to run (see also the \code{notifications} argument).
+#'   Default is \code{TRUE}
 #'
-#' @param bootSE logical; perform a non-parametric bootstrap to compute bootstrap standard error
-#'   estimates for the respective meta-statistics computed by the \code{Summarise} function?
-#'   When \code{TRUE}, bootstrap samples for each row in \code{Design} will be obtained after
-#'   the generate-analyse steps have obtain the simulation results to be summarised so that
-#'   standard errors for each statistic can be computed. To compute large-sample confidence
-#'   intervals given the bootstrap SE estimates see \code{\link{SimBoot}}.
-#'
-#'   This option is useful to approximate how accurate the resulting meta-statistic estimates
-#'   were, particularly if the number of \code{replications} was relatively low (e.g., less than
-#'   5000). If users prefer to obtain alternative bootstrap estimates then consider passing
-#'   \code{save_results = TRUE}, reading the generate-analyse data into R via
-#'   \code{\link{SimResults}}, and performing the bootstrap manually with function found in the
-#'   external \code{boot} package
+#' @param boot_method method for performing non-parametric bootstrap confidence intervals
+#'  for the respective meta-statistics computed by the \code{Summarise} function.
+#'  Can be \code{'basic'} for the empirical bootstrap CI, \code{'percentile'}
+#'  for percentile CIs, \code{'norm'} for normal approximations CIs, or \code{'studentized'}
+#'  for Studentized CIs (should only be used for simulations with lower replications due to its
+#'  computational intensity). Default is \code{'none'}, which performs no bootstrapping
 #'
 #' @param boot_draws number of non-parametric bootstrap draws to sample for the \code{summarise}
 #'   function after the generate-analyse replications are collected. Default is 1000
+#'
+#' @param CI bootstrap confidence interval level (default is 95\%)
 #'
 #' @param store_results logical; store the complete tables of simulation results
 #'   in the returned object? This is \code{FALSE} by default to help avoid RAM
@@ -370,9 +381,21 @@
 #'
 #' @return a \code{tibble} from the \code{dplyr} package (also of class \code{'SimDesign'})
 #'   with the original \code{design} conditions in the left-most columns,
-#'   simulation results and ERROR/WARNING's (if applicable) in the middle columns,
-#'   and additional information (such as REPLICATIONS, SIM_TIME, COMPLETED, and SEED) in the right-most
-#'   columns.
+#'   simulation results in the middle columns, and additional information in the right-most columns (see below).
+#'
+#' The right-most column information for each condition are:
+#' \code{REPLICATIONS} to indicate the number of Monte Carlo replications,
+#' \code{SIM_TIME} to indicate how long (in seconds) it took to complete
+#' all the Monte Carlo replications for each respective design condition,
+#' \code{COMPLETED} to indicate the date in which the given simulation condition completed,
+#' \code{SEED} for the integer values in the \code{seed} argument, and, if applicable,
+#' \code{ERRORS} and \code{WARNINGS} which contain counts for the number of error or warning
+#' messages that were caught (if no errors/warnings were observed these columns will be omitted).
+#' Note that to extract the specific error and warnings messages see
+#' \code{\link{SimExtract}}. Finally,
+#' if \code{boot_method} was a valid input other than 'none' then the final right-most columns will contain the labels
+#' \code{BOOT_} followed by the name of the associated meta-statistic defined in \code{summarise()} and
+#' and bootstrapped confidence interval location for the meta-statistics.
 #'
 #' @aliases runSimulation
 #'
@@ -380,7 +403,7 @@
 #'   \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
 #'   \code{\link{SimExtract}},
 #'   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-#'   \code{\link{SimBoot}}, \code{\link{aggregate_simulations}}, \code{\link{Attach}},
+#'   \code{\link{aggregate_simulations}}, \code{\link{Attach}},
 #'   \code{\link{SimShiny}}
 #'
 #' @export runSimulation
@@ -388,6 +411,11 @@
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #'
 #' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
 #' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 #' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 #' \doi{10.1080/10691898.2016.1246953}
@@ -406,25 +434,26 @@
 #'
 #' #### Step 1 --- Define your conditions under study and create design data.frame
 #'
-#' Design <- data.frame(N = c(10, 20, 30))
+#' Design <- createDesign(N = c(10, 20, 30))
+#'
 #'
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Step 2 --- Define generate, analyse, and summarise functions
 #'
 #' # help(Generate)
-#' Generate <- function(condition, fixed_objects = NULL){
+#' Generate <- function(condition, fixed_objects = NULL) {
 #'     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
 #'     dat
 #' }
 #'
 #' # help(Analyse)
-#' Analyse <- function(condition, dat, fixed_objects = NULL){
+#' Analyse <- function(condition, dat, fixed_objects = NULL) {
 #'     ret <- mean(dat) # mean of the sample data vector
 #'     ret
 #' }
 #'
 #' # help(Summarise)
-#' Summarise <- function(condition, results, fixed_objects = NULL){
+#' Summarise <- function(condition, results, fixed_objects = NULL) {
 #'     ret <- c(mu=mean(results), SE=sd(results)) # mean and SD summary of the sample means
 #'     ret
 #' }
@@ -446,12 +475,14 @@
 #'
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Extras
+#' \dontrun{
 #' # compare SEs estimates to the true SEs from the formula sigma/sqrt(N)
 #' 5 / sqrt(Design$N)
 #'
 #' # To store the results from the analyse function either
 #' #   a) omit a definition of of summarise(), or
 #' #   b) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
+#' # Note that the latter method should be adopted for longer simulations
 #'
 #' # e.g., the a) approach
 #' res <- runSimulation(design=Design, replications=1000,
@@ -466,10 +497,23 @@
 #' str(res)
 #' head(res[[1]]$results)
 #'
+#'
+#' # obtain empirical bootstrapped CIs during an initial run
+#' # the simulation was completed (necessarily requires save_results = TRUE)
+#' res <- runSimulation(design=Design, replications=1000, boot_method = 'basic',
+#'                      generate=Generate, analyse=Analyse, summarise=Summarise)
+#' res
+#'
+#' # alternative bootstrapped CIs that uses saved results via reSummarise().
+#' # Default directory save to:
+#' dirname <- paste0('SimDesign-results_', unname(Sys.info()['nodename']), "/")
+#' res <- reSummarise(summarise=Summarise, dir=dirname, boot_method = 'basic')
+#' res
+#'
 #' # remove the saved results from the hard-drive if you no longer want them
 #' SimClean(results = TRUE)
 #'
-#'
+#' }
 #'
 #'
 #' #-------------------------------------------------------------------------------
@@ -494,7 +538,7 @@
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Step 2 --- Define generate, analyse, and summarise functions
 #'
-#' Generate <- function(condition, fixed_objects = NULL){
+#' Generate <- function(condition, fixed_objects = NULL) {
 #'     N <- condition$sample_size      # alternatively, could use Attach() to make objects available
 #'     grs <- condition$group_size_ratio
 #'     sd <- condition$standard_deviation_ratio
@@ -511,7 +555,7 @@
 #'     dat
 #' }
 #'
-#' Analyse <- function(condition, dat, fixed_objects = NULL){
+#' Analyse <- function(condition, dat, fixed_objects = NULL) {
 #'     welch <- t.test(DV ~ group, dat)
 #'     ind <- t.test(DV ~ group, dat, var.equal=TRUE)
 #'
@@ -521,7 +565,7 @@
 #'     ret
 #' }
 #'
-#' Summarise <- function(condition, results, fixed_objects = NULL){
+#' Summarise <- function(condition, results, fixed_objects = NULL) {
 #'     #find results of interest here (e.g., alpha < .1, .05, .01)
 #'     ret <- EDR(results, alpha = .05)
 #'     ret
@@ -532,7 +576,7 @@
 #' #### Step 3 --- Collect results by looping over the rows in design
 #'
 #' # first, test to see if it works
-#' res <- runSimulation(design=Design, replications=5, store_results=TRUE,
+#' res <- runSimulation(design=Design, replications=5,
 #'                      generate=Generate, analyse=Analyse, summarise=Summarise)
 #' res
 #'
@@ -544,7 +588,7 @@
 #' View(res)
 #'
 #' ## save final results to a file upon completion (not run)
-#' runSimulation(design=Design, replications=1000, parallel=TRUE, save=TRUE, filename = 'mysim',
+#' runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
 #'               generate=Generate, analyse=Analyse, summarise=Summarise)
 #'
 #'
@@ -558,7 +602,7 @@
 #'
 #' ## Alternatively, place a browser() within the desired function line to
 #' ##   jump to a specific location
-#' Summarise <- function(condition, results, fixed_objects = NULL){
+#' Summarise <- function(condition, results, fixed_objects = NULL) {
 #'     #find results of interest here (e.g., alpha < .1, .05, .01)
 #'     browser()
 #'     ret <- EDR(results[,nms], alpha = .05)
@@ -571,12 +615,11 @@
 #'
 #'
 #'
-#'
 #' ## EXTRA: To run the simulation on a MPI cluster, use the following setup on each node (not run)
 #' # library(doMPI)
 #' # cl <- startMPIcluster()
 #' # registerDoMPI(cl)
-#' # Final <- runSimulation(design=Design, replications=1000, MPI=TRUE, save=TRUE,
+#' # Final <- runSimulation(design=Design, replications=1000, MPI=TRUE,
 #' #                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' # saveRDS(Final, 'mysim.rds')
 #' # closeCluster(cl)
@@ -597,7 +640,7 @@
 #' # spec <- unlist(spec, recursive=FALSE)
 #' #
 #' # cl <- parallel::makeCluster(type='PSOCK', master=primary, spec=spec)
-#' # res <- runSimulation(design=Design, replications=1000, parallel = TRUE, save=TRUE,
+#' # res <- runSimulation(design=Design, replications=1000, parallel = TRUE,
 #' #                      generate=Generate, analyse=Analyse, summarise=Summarise, cl=cl)
 #'
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
@@ -642,20 +685,14 @@
 #' }
 #'
 runSimulation <- function(design, replications, generate, analyse, summarise,
-                          fixed_objects = NULL, packages = NULL, bootSE = FALSE,
-                          boot_draws = 1000L, filename = 'SimDesign-results',
-                          seed = rint(nrow(design), min=1L, max = 2147483647L),
-                          save = FALSE, save_results = FALSE, store_results = FALSE,
-                          warnings_as_errors = FALSE, save_seeds = FALSE, load_seed = NULL,
-                          parallel = FALSE, ncores = parallel::detectCores(), cl = NULL, MPI = FALSE,
-                          max_errors = 50L, save_details = list(), debug = 'none', progress = TRUE,
-                          allow_na = FALSE, allow_nan = FALSE, stop_on_fatal = FALSE,
-                          edit = 'none', verbose = TRUE)
+                          fixed_objects = NULL, packages = NULL, filename = NULL, debug = 'none', load_seed = NULL,
+                          save_results = FALSE, parallel = FALSE, ncores = parallel::detectCores(), cl = NULL,
+                          notification = NULL, boot_method='none', boot_draws = 1000L, CI = .95,
+                          seed = rint(nrow(design), min=1L, max = 2147483647L), save_seeds = FALSE,
+                          save = TRUE, store_results = FALSE, warnings_as_errors = FALSE, max_errors = 50L,
+                          allow_na = FALSE, allow_nan = FALSE, stop_on_fatal = FALSE, MPI = FALSE,
+                          save_details = list(), progress = TRUE, verbose = TRUE)
 {
-    if(edit != 'none'){
-        warning('The edit argument has been deprecated. Please use \'debug\' instead.', call. = FALSE)
-        debug <- edit
-    }
     stopifnot(!missing(analyse))
     if(missing(generate) && !missing(analyse))
         generate <- function(condition, dat, fixed_objects = NULL){}
@@ -670,7 +707,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         }
     }
     if(!all(names(save_results) %in%
-            c('compname', 'tmpfilename', 'save_results_dirname')))
+            c('compname', 'save_results_dirname')))
         stop('save_details contains elements that are not supported', call.=FALSE)
 
     compname <- save_details$compname
@@ -715,7 +752,6 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!is.null(seed))
         stopifnot(nrow(design) == length(seed))
     debug <- tolower(debug)
-    if(!save && any(save_results, save_seeds)) filename <- NULL
     for(i in names(Functions)){
         fms <- names(formals(Functions[[i]]))
         truefms <- switch(i,
@@ -735,6 +771,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             load_seed <- paste0(save_seeds_dirname, '/', load_seed)
             load_seed <- as.integer(scan(load_seed, sep = ' ', quiet = TRUE))
         }
+        if(is(load_seed, 'tbl'))
+            load_seed <- as.integer(as.data.frame(load_seed)[,1])
         stopifnot(is.integer(load_seed))
     }
     if(MPI){
@@ -760,7 +798,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         stop('design must be a data.frame or tibble object', call. = FALSE)
     if(replications < 1L)
         stop('number of replications must be greater than or equal to 1', call. = FALSE)
-    if(!(debug %in% c('none', 'analyse', 'generate', 'summarise', 'all', 'recover', 'error')))
+    if(!(debug %in% c('none', 'analyse', 'generate', 'summarise', 'all', 'error')))
         stop('debug input is not valid', call. = FALSE)
     if(any(names(design) == 'REPLICATION'))
         stop("REPLICATION is a reserved keyword in the design object. Please use another name", call.=FALSE)
@@ -768,8 +806,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!any(names(design) == 'ID')){
         design <- data.frame(ID=1L:nrow(design), design)
     } else stopifnot(length(unique(design$ID)) == nrow(design))
-    use_try  <- !(debug %in% c('error', 'recover'))
-    if(debug != 'none'){
+    use_try  <- debug != 'error'
+    if(debug != 'none' && use_try){
         save <- save_results <- save_seeds <- FALSE
         if(!(debug %in% 'summarise')) parallel <- MPI <- FALSE
         if(debug == 'all'){
@@ -889,7 +927,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          replications=replications,
                                          fixed_objects=fixed_objects,
                                          cl=cl, MPI=MPI, seed=seed,
-                                         bootSE=bootSE, boot_draws=boot_draws,
+                                         boot_draws=boot_draws, boot_method=boot_method, CI=CI,
                                          save=save, allow_na=allow_na, allow_nan=allow_nan,
                                          save_results=save_results,
                                          save_results_out_rootdir=out_rootdir,
@@ -915,7 +953,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             replications=replications,
                             fixed_objects=fixed_objects,
                             cl=cl, MPI=MPI, seed=seed,
-                            bootSE=bootSE, boot_draws=boot_draws,
+                            boot_method=boot_method, boot_draws=boot_draws, CI=CI,
                             save=save, allow_na=allow_na, allow_nan=allow_nan,
                             save_results=save_results,
                             save_results_out_rootdir = out_rootdir,
@@ -1015,7 +1053,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     ERRORS <- as.integer(rowSums(ERROR_msg, na.rm = TRUE))
     WARNINGS <- as.integer(rowSums(WARNING_msg, na.rm = TRUE))
     en <- c('REPLICATIONS', 'SIM_TIME', 'COMPLETED', 'SEED')
-    bsen <- colnames(Final)[grepl('BOOT_SE.', colnames(Final))]
+    bsen <- colnames(Final)[grepl('BOOT_', colnames(Final))]
     sn <- colnames(Final)[!(colnames(Final) %in% c(dn, en, ten, wen, bsen))]
     Final <- data.frame(Final[ ,c(dn, sn, bsen, en)], ERRORS, WARNINGS,
                                          check.names = FALSE)
@@ -1023,7 +1061,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(all(WARNINGS == 0)) Final$WARNINGS <- NULL
     Final <- dplyr::as_tibble(Final)
     attr(Final, 'design_names') <-
-        list(design=dn, sim=sn, bootSE=bsen, extra=en, errors='ERRORS', warnings="WARNINGS")
+        list(design=dn, sim=sn, bootCI=bsen, extra=en, errors='ERRORS', warnings="WARNINGS")
     if(length(packages) > 1L){
         pack <- packages[packages != 'SimDesign']
         versions <- character(length(pack))
@@ -1042,16 +1080,17 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                       ncores = if(parallel) length(cl) else if(MPI) NA else 1L,
                                       number_of_conditions = nrow(design),
                                       date_completed = date(), total_elapsed_time = sum(Final$SIM_TIME),
-                                      error_seeds=error_seeds,
+                                      error_seeds=dplyr::as_tibble(error_seeds),
                                       stored_results = if(store_results) stored_Results_list else NULL)
     if(dummy_run) Final$dummy_run <- NULL
     class(Final) <- c('SimDesign', class(Final))
-    if(!is.null(filename) && save){ #save file
+    if(!is.null(filename)){ #save file
         if(verbose)
             message(paste('\nSaving simulation results to file:', filename))
         saveRDS(Final, file.path(out_rootdir, filename))
     }
     if(save || save_results || save_seeds) file.remove(file.path(out_rootdir, tmpfilename))
+    if(!is.null(notification)) notification()
     return(Final)
 }
 
