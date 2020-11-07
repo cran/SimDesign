@@ -29,6 +29,7 @@ runSimulation(
   save_seeds = FALSE,
   save = TRUE,
   store_results = FALSE,
+  store_warning_seeds = FALSE,
   warnings_as_errors = FALSE,
   max_errors = 50L,
   allow_na = FALSE,
@@ -238,10 +239,25 @@ Default randomly generates seeds within the range 1 to 2147483647 for each condi
   Default is \code{TRUE}}
 
 \item{store_results}{logical; store the complete tables of simulation results
-in the returned object? This is \code{FALSE} by default to help avoid RAM
-issues (see \code{save_results} as a more suitable alternative). To extract these results
-pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
-of all the simulation results for each condition}
+  in the returned object? This is \code{FALSE} by default to help avoid RAM
+  issues (see \code{save_results} as a more suitable alternative). However, if the \code{Design}
+  object is omitted from the call to \code{runSimulation()}, or the number of rows in \code{Design}
+  is exactly 1, then this argument is automatically set to \code{TRUE} as RAM storage will no
+  longer be an issue.
+
+  To extract these results
+  pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
+  of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
+  \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is}
+
+\item{store_warning_seeds}{logical; in addition to storing the \code{.Random.seed} states whenever error messages
+  are raised, also store the \code{.Random.seed} states when warnings are raised? This is disabled by default
+  since warnings are generally less problematic than errors, and because many more warnings messages may be raised
+  throughout the simulation (potentially causing RAM related issues when constructing the final simulation object as
+  any given simulation replicate could generate numerous warnings, and storing the seeds states could add up quickly).
+
+  Set this to \code{TRUE} when replicating warning messages is important, however be aware that too many warnings
+  messages raised during the simulation implementation could cause RAM related issues.}
 
 \item{warnings_as_errors}{logical; treat warning messages as error messages during the simulation? Default is FALSE,
 therefore warnings are only collected and not used to restart the data generation step, and the seeds associated with
