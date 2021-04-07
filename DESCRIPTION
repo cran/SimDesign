@@ -1,6 +1,6 @@
 Package: SimDesign
 Title: Structure for Organizing Monte Carlo Simulation Designs
-Version: 2.2
+Version: 2.3
 Authors@R: c(person("Phil", "Chalmers", email = "rphilip.chalmers@gmail.com", role = c("aut", "cre"),
                     comment = c(ORCID="0000-0001-5332-2810")),
              person("Matthew", "Sigal", role = c("ctb")),
@@ -27,10 +27,10 @@ URL: https://github.com/philchalmers/SimDesign,
         https://github.com/philchalmers/SimDesign/wiki
 RoxygenNote: 7.1.1
 NeedsCompilation: no
-Packaged: 2020-11-07 01:58:37 UTC; phil
+Packaged: 2021-04-07 17:43:01 UTC; phil
 Author: Phil Chalmers [aut, cre] (<https://orcid.org/0000-0001-5332-2810>),
   Matthew Sigal [ctb],
   Ogreden Oguzhan [ctb]
 Maintainer: Phil Chalmers <rphilip.chalmers@gmail.com>
 Repository: CRAN
-Date/Publication: 2020-11-07 05:30:02 UTC
+Date/Publication: 2021-04-07 18:40:03 UTC

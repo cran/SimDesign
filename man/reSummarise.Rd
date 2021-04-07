@@ -8,6 +8,8 @@ reSummarise(
   summarise,
   dir = NULL,
   files = NULL,
+  results = NULL,
+  Design = NULL,
   fixed_objects = NULL,
   boot_method = "none",
   boot_draws = 1000L,
@@ -25,6 +27,19 @@ the .rds files}
 
 \item{files}{(optional) names of files to read-in. If \code{NULL} all files
 located within \code{dir} will be used}
+
+\item{results}{(optional) the results of \code{\link{runSimulation}} when no
+  \code{summarise} function was provided. Can be either a \code{matrix}, indicating
+  that exactly one design condition was evaluated, or a \code{list} of \code{matrix}
+  objects indicating that multiple conditions were performed with no summarise evaluation.
+
+  Alternatively, if \code{store_results = TRUE} in the \code{runSimulation()} execution then
+  the final SimDesign object may be passed, where the generate-analyse information will be
+  extracted from the object instead}
+
+\item{Design}{(optional) if \code{results} input used, and design condition information
+important in the summarise step, then the original \code{design} object from
+\code{\link{runSimulation}} should be included}
 
 \item{fixed_objects}{(optional) see \code{\link{runSimulation}} for details}
 
@@ -47,8 +62,6 @@ the reading of these files, application of a provided summarise function,
 and final collection of the respective results.
 }
 \examples{
-
-\dontrun{
 
 Design <- data.frame(N = c(10, 20, 30))
 
@@ -74,8 +87,6 @@ Summarise <- function(condition, results, fixed_objects = NULL){
     ret
 }
 
-SimClean('SimDesign-results.rds')
-
 res <- reSummarise(Summarise, dir = 'simresults/')
 res
 
@@ -87,8 +98,46 @@ res2 <- reSummarise(Summarise2, dir = 'simresults/')
 res2
 
 SimClean('simresults/')
+
 }
+
+###
+# similar to above, but using objects defined in workspace
+results <- runSimulation(design=Design, replications=50,
+                         generate=Generate, analyse=Analyse)
+str(results)
+
+Summarise <- function(condition, results, fixed_objects = NULL){
+    ret <- c(mu=mean(results), SE=sd(results))
+    ret
 }
+
+res <- reSummarise(Summarise, results=results, Design=Design)
+res
+
+res <- reSummarise(Summarise, results=results, boot_method = 'basic')
+res
+
+###
+# Also similar, but storing the results within the summarised simulation
+
+Summarise <- function(condition, results, fixed_objects = NULL){
+    ret <- c(mu=mean(results), SE=sd(results))
+    ret
+}
+
+res <- runSimulation(design=Design, replications=50, store_results = TRUE,
+                     generate=Generate, analyse=Analyse, summarise=Summarise)
+res
+
+# internal results stored
+results <- SimExtract(res, what = 'results')
+str(results)
+
+# pass SimDesign object to results
+res <- reSummarise(Summarise, results=res, boot_method = 'basic')
+res
+
 }
 \references{
 Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
