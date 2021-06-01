@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2021-04-07" />
+<meta name="date" content="2021-06-01" />
 
 <title>Parallel computing information</title>
 
@@ -1579,7 +1579,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Parallel computing information</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2021-04-07</h4>
+<h4 class="date">2021-06-01</h4>
 
 </div>
 
@@ -1587,12 +1587,12 @@ div.tocify {
 <div id="cluster-computing" class="section level1" number="1">
 <h1 number="1"><span class="header-section-number">1</span> Cluster computing</h1>
 <p>SimDesign code may be released to a computing system which supports parallel cluster computations using the industry standard Message Passing Interface (MPI) form. This simply requires that the computers be setup using the usual MPI requirements (typically, running some flavor of Linux, have password-less open-SSH access, IP addresses have been added to the <code>/etc/hosts</code> file or <code>~/.ssh/config</code>, etc). More generally though, these resources are widely available through professional organizations dedicated to super-computing.</p>
-<p>To setup the R code for an MPI cluster one need only add the argument <code>MPI = TRUE</code>, wrap the appropriate MPI directives around <code>runSimulation</code>, and submit the files using the suitable BASH commands to execute the <code>mpirun</code> tool. For example,</p>
+<p>To setup the R code for an MPI cluster the argument <code>MPI = TRUE</code> needs to be added to the <code>extra_options</code> list input, which wraps the appropriate MPI directives around <code>runSimulation</code>. At this point the source files can be submitted using suitable BASH commands to execute the <code>mpirun</code> tool. For example,</p>
 <pre class="r"><code>library(doMPI)
 cl &lt;- startMPIcluster()
 registerDoMPI(cl)
 runSimulation(design=Design, replications=1000, filename=&#39;mysimulation&#39;,
-    generate=Generate, analyse=Analyse, summarise=Summarise, MPI=TRUE)
+    generate=Generate, analyse=Analyse, summarise=Summarise, extra_options = list(MPI=TRUE))
 closeCluster(cl)
 mpi.quit()</code></pre>
 <p>The necessary <code>SimDesign</code> files must be uploaded to the dedicated master node so that a BASH call to <code>mpirun</code> can be used to distribute the work across slaves. For instance, if the following BASH command is run on the master node then 16 processes will be summoned (1 master, 15 slaves) across the computers named <code>localhost</code>, <code>slave1</code>, and <code>slave2</code> in the ssh <code>config</code> file.</p>

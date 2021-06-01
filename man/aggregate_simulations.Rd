@@ -6,13 +6,16 @@
 \usage{
 aggregate_simulations(
   files = NULL,
+  file_name = "SimDesign_aggregate.rds",
   dirs = NULL,
   results_dirname = "SimDesign_aggregate_results"
 )
 }
 \arguments{
-\item{files}{a \code{character} vector containing the names of the simulation files. If \code{NULL},
-all files in the working directory ending in \code{.rds} will be used}
+\item{files}{a \code{character} vector containing the names of the simulation's final \code{.rds} files}
+
+\item{file_name}{name of .rds file to save aggregate simulation file to. Default is
+\code{'SimDesign_aggregate.rds'}}
 
 \item{dirs}{a \code{character} vector containing the names of the \code{save_results} directories to be
 aggregated. A new folder will be created and placed in the \code{results_dirname} output folder}
@@ -24,10 +27,10 @@ if \code{files} is used the function returns a \code{data.frame} with the (weigh
   of the simulation results. Otherwise, if \code{dirs} is used, the function returns NULL
 }
 \description{
-This function grabs all \code{.rds} files in the working directory and aggregates them into a single
-\code{data.frame} object or combines all the saved results directories and combines them into one.
-This is generally useful when results are run piecewise on one node or run independently across
-different nodes/computers which are not on the same network.
+This function aggregates the results from SimDesign's \code{\link{runSimulation}} into a single
+objects suitable for post-analyses, or combines all the saved results directories and combines them into one.
+This is useful when results are run piecewise on one node (e.g., 500 replications in one batch, 500
+again at a later date) or run independently across different nodes/computers that are not on the same network.
 }
 \examples{
 \dontrun{
@@ -38,15 +41,17 @@ setwd('my_working_directory')
 # runSimulation(..., filename='file1')
 # runSimulation(..., filename='file2')
 
-final <- aggregate_simulations()
-saveRDS(final, 'my_final_simulation.rds')
+# saves to the hard-drive and stores in workspace
+final <- aggregate_simulations(files = c('file1.rds', 'file2.rds'))
+final
 
-# aggregate saved results
+# aggregate saved results for .rds files and results directories
 # runSimulation(..., save_results = TRUE, save_details = list(save_results_dirname = 'dir1'))
 # runSimulation(..., save_results = TRUE, save_details = list(save_results_dirname = 'dir2'))
 
-# place new saved results in 'SimDesign_results/' directory by default
-aggregate_simulations(dirs = c('dir1', 'dir2'))
+# place new saved results in 'SimDesign_results/' by default
+aggregate_simulations(files = c('file1.rds', 'file2.rds'),
+                      dirs = c('dir1', 'dir2'))
 
 
 }

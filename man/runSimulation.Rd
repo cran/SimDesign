@@ -21,22 +21,17 @@ runSimulation(
   parallel = FALSE,
   ncores = parallel::detectCores(),
   cl = NULL,
-  notification = NULL,
+  notification = "none",
+  CI = 0.95,
+  seed = NULL,
   boot_method = "none",
   boot_draws = 1000L,
-  CI = 0.95,
-  seed = rint(nrow(design), min = 1L, max = 2147483647L),
+  max_errors = 50L,
   save_seeds = FALSE,
   save = TRUE,
   store_results = FALSE,
-  store_warning_seeds = FALSE,
-  warnings_as_errors = FALSE,
-  max_errors = 50L,
-  allow_na = FALSE,
-  allow_nan = FALSE,
-  stop_on_fatal = FALSE,
-  MPI = FALSE,
   save_details = list(),
+  extra_options = list(),
   progress = TRUE,
   verbose = TRUE
 )
@@ -156,39 +151,30 @@ unique condition?}
 If \code{NULL} and \code{parallel = TRUE}, a local cluster object will be defined which
 selects the maximum number cores available
 and will be stopped when the simulation is complete. Note that supplying a \code{cl}
-object will automatically set the \code{parallel} argument to \code{TRUE}}
+object will automatically set the \code{parallel} argument to \code{TRUE}. Define and supply this
+cluster object yourself whenever you have multiple nodes to chain together (note in this case
+that you must  use either the "MPI" or "PSOCK" clusters)}
 
-\item{notification}{an optional, empty argument function to be executed upon completion of the simulation. This can be used, for
-  instance, to trigger email or SMS notifications that indicate the simulation has been completed. For example,
-  to utilize the \code{RPushbullet} package (and assuming users have previously a) registered for a Pushbullet account,
-  and b) installed the application on their mobile device and computer), use the following:
+\item{notification}{an optional character vector input that can be used to send Pushbullet notifications from a configured
+  computer. This reports information such as the total execution time, the condition completed, and error/warning
+  messages recorded. This arguments assumes that users have already A) registered for a Pushbullet account,
+  B) installed the application on their mobile device and computer, and C) created an associated JSON file of the form
+  \code{~/.rpushbullet.json} using \code{RPushbullet::pbSetup()}).
 
-  \describe{
+  To utilize the \code{RPushbullet} in \code{SimDesign} first call \code{library(RPushbullet} before running
+  \code{runSimulation()} to read-in the default JSON file. Next, pass one of the following supported
+  options: \code{'none'} (default; send no notification),
+  \code{'condition'} to send a notification after each condition has completed, or \code{'complete'} to send
+  a notification only when the simulation has finished.}
 
-    \item{Prior Setup}{Prior to defining \code{notification}, load the \code{RPushbullet} library via \code{library(RPushbullet)}. If
-      this is the first time you have used the package then a suitable \code{rpushbullet.json} file will not exist on your computer,
-      and you'll need to supply a suitable token and the devise to push the notification to via the \code{pbSetup()} setup}
+\item{CI}{bootstrap confidence interval level (default is 95\%)}
 
-     \item{Execution}{Supply a definition of \code{notification} that utilizes the \code{pbPost} function. E.g.,
-     \code{runSimulation(...,
-          notification = function() pbPost(type = "note", title = "SimDesign", body = "Simulation Complete"))}}
-
-  }
-
-  Alternatively, if users wish to have an email sent upon completion then the following template that uses the \code{sendmailR}
-  package could be used:
-
-  \describe{
-
-    \item{Using \code{sendmailR}}{
-
-       \code{runSimulation(...,
-            notification = function() sendmailR::sendmail(from="<sendmailR@your.computer>",
-                                                          to="<your.email@address>", subject="SimDesign", msg="Simulation Complete",
-                                                          control=list(smtpServer="ASPMX.L.GOOGLE.COM")))}.
-                                                           }
- }
- However, note that this may be less reliable since the email message could be directed to a spam folder.}
+\item{seed}{a vector of integers to be used for reproducibility.
+The length of the vector must be equal the number of rows in \code{design}.
+This argument calls \code{\link{set.seed}} or
+\code{\link{clusterSetRNGStream}} for each condition, respectively,
+but will not be run when \code{MPI = TRUE}.
+Default randomly generates seeds within the range 1 to 2147483647 for each condition.}
 
 \item{boot_method}{method for performing non-parametric bootstrap confidence intervals
 for the respective meta-statistics computed by the \code{Summarise} function.
@@ -200,14 +186,10 @@ computational intensity). Default is \code{'none'}, which performs no bootstrapp
 \item{boot_draws}{number of non-parametric bootstrap draws to sample for the \code{summarise}
 function after the generate-analyse replications are collected. Default is 1000}
 
-\item{CI}{bootstrap confidence interval level (default is 95\%)}
-
-\item{seed}{a vector of integers to be used for reproducibility.
-The length of the vector must be equal the number of rows in \code{design}.
-This argument calls \code{\link{set.seed}} or
-\code{\link{clusterSetRNGStream}} for each condition, respectively,
-but will not be run when \code{MPI = TRUE}.
-Default randomly generates seeds within the range 1 to 2147483647 for each condition.}
+\item{max_errors}{the simulation will terminate when more than this number of consecutive errors are thrown in any
+given condition, causing the simulation to continue to the next unique \code{design} condition.
+This is included to avoid getting stuck in infinite re-draws, and to indicate that something fatally problematic
+is going wrong in the generate-analyse phases. Default is 50}
 
 \item{save_seeds}{logical; save the \code{.Random.seed} states prior to performing each replication into
   plain text files located in the defined \code{save_seeds_dirname} directory/folder?
@@ -250,40 +232,6 @@ Default randomly generates seeds within the range 1 to 2147483647 for each condi
   of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
   \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is}
 
-\item{store_warning_seeds}{logical; in addition to storing the \code{.Random.seed} states whenever error messages
-  are raised, also store the \code{.Random.seed} states when warnings are raised? This is disabled by default
-  since warnings are generally less problematic than errors, and because many more warnings messages may be raised
-  throughout the simulation (potentially causing RAM related issues when constructing the final simulation object as
-  any given simulation replicate could generate numerous warnings, and storing the seeds states could add up quickly).
-
-  Set this to \code{TRUE} when replicating warning messages is important, however be aware that too many warnings
-  messages raised during the simulation implementation could cause RAM related issues.}
-
-\item{warnings_as_errors}{logical; treat warning messages as error messages during the simulation? Default is FALSE,
-therefore warnings are only collected and not used to restart the data generation step, and the seeds associated with
-the warning message conditions are not stored within the final simulation object}
-
-\item{max_errors}{the simulation will terminate when more than this number of consecutive errors are thrown in any
-given condition, causing the simulation to continue to the next unique \code{design} condition.
-This is included to avoid getting stuck in infinite re-draws, and to indicate that something fatally problematic
-is going wrong in the generate-analyse phases. Default is 50}
-
-\item{allow_na}{logical; should \code{NA}s be allowed in the analyse step as a valid result from the simulation
-analysis? Default is FALSE}
-
-\item{allow_nan}{logical; should \code{NaN}s be allowed in the analyse step as a valid result from the simulation
-analysis? Default is FALSE}
-
-\item{stop_on_fatal}{logical; should the simulation be terminated immediately when
-the maximum number of consecutive errors (\code{max_errors}) is reached? If \code{FALSE},
-the simulation will continue as though errors did not occur, however a column
-\code{FATAL_TERMINATION} will be included in the resulting object indicating the final
-error message observed, and \code{NA} placeholders will be placed in all other row-elements. Default is
-\code{FALSE}}
-
-\item{MPI}{logical; use the \code{foreach} package in a form usable by MPI to run simulation
-in parallel on a cluster? Default is \code{FALSE}}
-
 \item{save_details}{a list pertaining to information regarding how and where files should be saved
   when the \code{save} or \code{save_results} flags are triggered.
 
@@ -312,6 +260,48 @@ in parallel on a cluster? Default is \code{FALSE}}
       \code{'SimDesign-seeds_'} with the associated \code{compname} appended}
 
   }}
+
+\item{extra_options}{a list for extra information flags no commonly used. These can be
+
+  \describe{
+
+    \item{\code{stop_on_fatal}}{logical (default is \code{FALSE}); should the simulation be terminated immediately when
+      the maximum number of consecutive errors (\code{max_errors}) is reached? If \code{FALSE},
+      the simulation will continue as though errors did not occur, however a column
+      \code{FATAL_TERMINATION} will be included in the resulting object indicating the final
+      error message observed, and \code{NA} placeholders will be placed in all other row-elements. Default is
+      \code{FALSE}}
+
+     \item{\code{warnings_as_errors}}{logical (default is \code{FALSE});
+     treat warning messages as error messages during the simulation? Default is FALSE,
+     therefore warnings are only collected and not used to restart the data generation step, and the seeds associated with
+     the warning message conditions are not stored within the final simulation object}
+
+     \item{\code{store_warning_seeds}}{logical (default is \code{FALSE});
+      in addition to storing the \code{.Random.seed} states whenever error messages
+      are raised, also store the \code{.Random.seed} states when warnings are raised? This is disabled by default
+      since warnings are generally less problematic than errors, and because many more warnings messages may be raised
+      throughout the simulation (potentially causing RAM related issues when constructing the final simulation object as
+      any given simulation replicate could generate numerous warnings, and storing the seeds states could add up quickly).
+
+      Set this to \code{TRUE} when replicating warning messages is important, however be aware
+      that too many warnings messages raised during the simulation implementation could cause
+      RAM related issues.}
+
+     \item{\code{allow_na}}{logical (default is \code{FALSE}); should \code{NA}s be allowed in the
+      analyse step as a valid result from the simulation analysis?}
+
+     \item{\code{allow_nan}}{logical (default is \code{FALSE}); should \code{NaN}s be allowed in the
+       analyse step as a valid result from the simulation analysis?}
+
+     \item{\code{type}}{default type of cluster to create for the \code{cl} object if no supplied.
+       For Windows OS this defaults to \code{"PSOCK"}, otherwise \code{"SOCK"} is selected
+       (suitable for Linux and Mac OSX). This is ignored if the user specifies their own \code{cl} object}
+
+     \item{\code{MPI}}{logical (default is \code{FALSE}); use the \code{foreach} package in a
+       form usable by MPI to run simulation in parallel on a cluster? }
+
+   }}
 
 \item{progress}{logical; display a progress bar (using the \code{pbapply} package) for each simulation condition?
 This is useful when simulations conditions take a long time to run (see also the \code{notifications} argument).
@@ -649,7 +639,11 @@ View(res)
 runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
               generate=Generate, analyse=Analyse, summarise=Summarise)
 
-
+## same as above, but send a notification via Pushbullet upon completion
+library(RPushbullet) # read-in default JSON file
+runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
+              generate=Generate, analyse=Analyse, summarise=Summarise,
+              notification = 'complete')
 
 ## Debug the generate function. See ?browser for help on debugging
 ##   Type help to see available commands (e.g., n, c, where, ...),

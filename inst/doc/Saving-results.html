@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2021-04-07" />
+<meta name="date" content="2021-06-01" />
 
 <title>Saving additional simulation results and state</title>
 
@@ -1579,7 +1579,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Saving additional simulation results and state</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2021-04-07</h4>
+<h4 class="date">2021-06-01</h4>
 
 </div>
 
@@ -1619,13 +1619,13 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Wed Apr  7 17:42:53 2021;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Tue Jun  1 06:05:51 2021;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Wed Apr  7 17:42:54 2021;   Total elapsed time: 0.43s 
+Design row: 2/3;   Started: Tue Jun  1 06:05:52 2021;   Total elapsed time: 0.41s 
 ## 
 ## 
-Design row: 3/3;   Started: Wed Apr  7 17:42:54 2021;   Total elapsed time: 0.85s</code></pre>
+Design row: 3/3;   Started: Tue Jun  1 06:05:52 2021;   Total elapsed time: 0.79s</code></pre>
 <p>Check that temporary file exists.</p>
 <pre class="r"><code>files &lt;- dir()
 files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
@@ -1640,13 +1640,13 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Wed Apr  7 17:42:54 2021;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Tue Jun  1 06:05:52 2021;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Wed Apr  7 17:42:55 2021;   Total elapsed time: 0.41s 
+Design row: 2/3;   Started: Tue Jun  1 06:05:53 2021;   Total elapsed time: 0.39s 
 ## 
 ## 
-Design row: 3/3;   Started: Wed Apr  7 17:42:55 2021;   Total elapsed time: 0.82s</code></pre>
+Design row: 3/3;   Started: Tue Jun  1 06:05:53 2021;   Total elapsed time: 0.78s</code></pre>
 <p>Check which files exist.</p>
 <pre class="r"><code>files &lt;- dir()
 files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
@@ -1655,20 +1655,20 @@ files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
 <pre><code>## [1] &quot;my-simple-sim-1.rds&quot; &quot;my-simple-sim.rds&quot;</code></pre>
 <p>Notice that when complete, the temporary file is removed from the hard-drive.</p>
 </div>
-<div id="option-save_results-true" class="section level1" number="2">
-<h1 number="2"><span class="header-section-number">2</span> Option: <code>save_results = TRUE</code></h1>
+<div id="option-save_results-true-false-by-default-recommended-during-official-simulation-run" class="section level1" number="2">
+<h1 number="2"><span class="header-section-number">2</span> Option: <code>save_results = TRUE</code> (<code>FALSE</code> by default; recommended during official simulation run)</h1>
 <p>Continuing on, the <code>save_results</code> argument will output the elements which are passed to <code>Summarise()</code> to separate <code>.rds</code> files containing all the analysis results. Note that when using <code>save_results</code> the <code>save</code> flag is automatically set to <code>TRUE</code> to ensure that the simulation state is correctly tracked.</p>
 <pre class="r"><code>res &lt;- runSimulation(Design, replications = 1000, save_results=TRUE,
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Wed Apr  7 17:42:55 2021;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Tue Jun  1 06:05:54 2021;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Wed Apr  7 17:42:56 2021;   Total elapsed time: 0.41s 
+Design row: 2/3;   Started: Tue Jun  1 06:05:54 2021;   Total elapsed time: 0.39s 
 ## 
 ## 
-Design row: 3/3;   Started: Wed Apr  7 17:42:56 2021;   Total elapsed time: 0.82s</code></pre>
+Design row: 3/3;   Started: Tue Jun  1 06:05:54 2021;   Total elapsed time: 0.77s</code></pre>
 <pre class="r"><code>dir &lt;- dir()
 directory &lt;- dir[grepl(&#39;SimDesign-results&#39;, dir)]
 dir(directory)</code></pre>
@@ -1774,40 +1774,40 @@ str(input)</code></pre>
 <p>Should the need arise to remove the results directory then the <code>SimClean()</code> function is the easiest way to remove unwanted files and directories.</p>
 <pre class="r"><code>SimClean(results = TRUE)</code></pre>
 </div>
-<div id="option-store_results-true" class="section level1" number="3">
-<h1 number="3"><span class="header-section-number">3</span> Option: <code>store_results = TRUE</code></h1>
+<div id="option-store_results-true-false-by-default-and-not-recommended-for-serious-use" class="section level1" number="3">
+<h1 number="3"><span class="header-section-number">3</span> Option: <code>store_results = TRUE</code> (<code>FALSE</code> by default, and not recommended for serious use)</h1>
 <p>Similar to <code>save_results = TRUE</code>, though less recommended for RAM related reasons (if the number of replications/<code>design</code> conditions is too large then the R session may run out of memory as the simulation progresses), users can pass <code>store_results = TRUE</code> to store the complete simulation results in the returned object.</p>
 <p>After the simulation is complete, these results can be extracted using <code>SimExtract(results, what = &#39;results&#39;)</code>. For example,</p>
 <pre class="r"><code>res &lt;- runSimulation(Design, replications = 3, store_results=TRUE,
               generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Wed Apr  7 17:42:57 2021;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Tue Jun  1 06:05:55 2021;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Wed Apr  7 17:42:57 2021;   Total elapsed time: 0.00s 
+Design row: 2/3;   Started: Tue Jun  1 06:05:55 2021;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 3/3;   Started: Wed Apr  7 17:42:57 2021;   Total elapsed time: 0.01s</code></pre>
+Design row: 3/3;   Started: Tue Jun  1 06:05:55 2021;   Total elapsed time: 0.01s</code></pre>
 <pre class="r"><code>list_results &lt;- SimExtract(res, what = &#39;results&#39;)
 list_results</code></pre>
 <pre><code>## $`N=10`
-##             p
-## [1,] 0.427849
-## [2,] 0.794487
-## [3,] 0.003854
+##          p
+## 1 0.427849
+## 2 0.794487
+## 3 0.003854
 ## 
 ## $`N=20`
-##            p
-## [1,] 0.08479
-## [2,] 0.14410
-## [3,] 0.88922
+##         p
+## 1 0.08479
+## 2 0.14410
+## 3 0.88922
 ## 
 ## $`N=30`
-##            p
-## [1,] 0.03818
-## [2,] 0.94444
-## [3,] 0.39311</code></pre>
+##         p
+## 1 0.03818
+## 2 0.94444
+## 3 0.39311</code></pre>
 </div>
 <div id="my-recommendations" class="section level1" number="4">
 <h1 number="4"><span class="header-section-number">4</span> My recommendations</h1>

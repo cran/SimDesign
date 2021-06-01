@@ -171,7 +171,9 @@
 #'   If \code{NULL} and \code{parallel = TRUE}, a local cluster object will be defined which
 #'   selects the maximum number cores available
 #'   and will be stopped when the simulation is complete. Note that supplying a \code{cl}
-#'   object will automatically set the \code{parallel} argument to \code{TRUE}
+#'   object will automatically set the \code{parallel} argument to \code{TRUE}. Define and supply this
+#'   cluster object yourself whenever you have multiple nodes to chain together (note in this case
+#'   that you must  use either the "MPI" or "PSOCK" clusters)
 #'
 #' @param packages a character vector of external packages to be used during the simulation (e.g.,
 #'   \code{c('MASS', 'extraDistr', 'simsem')} ). Use this input when \code{parallel = TRUE} or
@@ -181,50 +183,17 @@
 #'   Alternatively, functions can be called explicitly without attaching the package with the \code{::} operator
 #'   (e.g., \code{extraDistr::rgumbel()})
 #'
-#' @param notification an optional, empty argument function to be executed upon completion of the simulation. This can be used, for
-#'   instance, to trigger email or SMS notifications that indicate the simulation has been completed. For example,
-#'   to utilize the \code{RPushbullet} package (and assuming users have previously a) registered for a Pushbullet account,
-#'   and b) installed the application on their mobile device and computer), use the following:
+#' @param notification an optional character vector input that can be used to send Pushbullet notifications from a configured
+#'   computer. This reports information such as the total execution time, the condition completed, and error/warning
+#'   messages recorded. This arguments assumes that users have already A) registered for a Pushbullet account,
+#'   B) installed the application on their mobile device and computer, and C) created an associated JSON file of the form
+#'   \code{~/.rpushbullet.json} using \code{RPushbullet::pbSetup()}).
 #'
-#'   \describe{
-#'
-#'     \item{Prior Setup}{Prior to defining \code{notification}, load the \code{RPushbullet} library via \code{library(RPushbullet)}. If
-#'       this is the first time you have used the package then a suitable \code{rpushbullet.json} file will not exist on your computer,
-#'       and you'll need to supply a suitable token and the devise to push the notification to via the \code{pbSetup()} setup}
-#'
-#'      \item{Execution}{Supply a definition of \code{notification} that utilizes the \code{pbPost} function. E.g.,
-#'      \code{runSimulation(...,
-#'           notification = function() pbPost(type = "note", title = "SimDesign", body = "Simulation Complete"))}}
-#'
-#'   }
-#'
-#'   Alternatively, if users wish to have an email sent upon completion then the following template that uses the \code{sendmailR}
-#'   package could be used:
-#'
-#'   \describe{
-#'
-#'     \item{Using \code{sendmailR}}{
-#'
-#'        \code{runSimulation(...,
-#'             notification = function() sendmailR::sendmail(from="<sendmailR@your.computer>",
-#'                                                           to="<your.email@address>", subject="SimDesign", msg="Simulation Complete",
-#'                                                           control=list(smtpServer="ASPMX.L.GOOGLE.COM")))}.
-#'                                                            }
-#'  }
-#'  However, note that this may be less reliable since the email message could be directed to a spam folder.
-#'
-#' @param store_warning_seeds logical; in addition to storing the \code{.Random.seed} states whenever error messages
-#'   are raised, also store the \code{.Random.seed} states when warnings are raised? This is disabled by default
-#'   since warnings are generally less problematic than errors, and because many more warnings messages may be raised
-#'   throughout the simulation (potentially causing RAM related issues when constructing the final simulation object as
-#'   any given simulation replicate could generate numerous warnings, and storing the seeds states could add up quickly).
-#'
-#'   Set this to \code{TRUE} when replicating warning messages is important, however be aware that too many warnings
-#'   messages raised during the simulation implementation could cause RAM related issues.
-#'
-#' @param warnings_as_errors logical; treat warning messages as error messages during the simulation? Default is FALSE,
-#'   therefore warnings are only collected and not used to restart the data generation step, and the seeds associated with
-#'   the warning message conditions are not stored within the final simulation object
+#'   To utilize the \code{RPushbullet} in \code{SimDesign} first call \code{library(RPushbullet} before running
+#'   \code{runSimulation()} to read-in the default JSON file. Next, pass one of the following supported
+#'   options: \code{'none'} (default; send no notification),
+#'   \code{'condition'} to send a notification after each condition has completed, or \code{'complete'} to send
+#'   a notification only when the simulation has finished.
 #'
 #' @param save_results logical; save the results returned from \code{\link{Analyse}} to external
 #'   \code{.rds} files located in the defined \code{save_results_dirname} directory/folder?
@@ -276,6 +245,48 @@
 #'   file will be generated instead and a warning will be thrown. This helps to avoid accidentally overwriting
 #'   existing files. Default is \code{NULL}, indicating no file will be saved by default
 #'
+#' @param extra_options a list for extra information flags no commonly used. These can be
+#'
+#'   \describe{
+#'
+#'     \item{\code{stop_on_fatal}}{logical (default is \code{FALSE}); should the simulation be terminated immediately when
+#'       the maximum number of consecutive errors (\code{max_errors}) is reached? If \code{FALSE},
+#'       the simulation will continue as though errors did not occur, however a column
+#'       \code{FATAL_TERMINATION} will be included in the resulting object indicating the final
+#'       error message observed, and \code{NA} placeholders will be placed in all other row-elements. Default is
+#'       \code{FALSE}}
+#'
+#'      \item{\code{warnings_as_errors}}{logical (default is \code{FALSE});
+#'      treat warning messages as error messages during the simulation? Default is FALSE,
+#'      therefore warnings are only collected and not used to restart the data generation step, and the seeds associated with
+#'      the warning message conditions are not stored within the final simulation object}
+#'
+#'      \item{\code{store_warning_seeds}}{logical (default is \code{FALSE});
+#'       in addition to storing the \code{.Random.seed} states whenever error messages
+#'       are raised, also store the \code{.Random.seed} states when warnings are raised? This is disabled by default
+#'       since warnings are generally less problematic than errors, and because many more warnings messages may be raised
+#'       throughout the simulation (potentially causing RAM related issues when constructing the final simulation object as
+#'       any given simulation replicate could generate numerous warnings, and storing the seeds states could add up quickly).
+#'
+#'       Set this to \code{TRUE} when replicating warning messages is important, however be aware
+#'       that too many warnings messages raised during the simulation implementation could cause
+#'       RAM related issues.}
+#'
+#'      \item{\code{allow_na}}{logical (default is \code{FALSE}); should \code{NA}s be allowed in the
+#'       analyse step as a valid result from the simulation analysis?}
+#'
+#'      \item{\code{allow_nan}}{logical (default is \code{FALSE}); should \code{NaN}s be allowed in the
+#'        analyse step as a valid result from the simulation analysis?}
+#'
+#'      \item{\code{type}}{default type of cluster to create for the \code{cl} object if no supplied.
+#'        For Windows OS this defaults to \code{"PSOCK"}, otherwise \code{"SOCK"} is selected
+#'        (suitable for Linux and Mac OSX). This is ignored if the user specifies their own \code{cl} object}
+#'
+#'      \item{\code{MPI}}{logical (default is \code{FALSE}); use the \code{foreach} package in a
+#'        form usable by MPI to run simulation in parallel on a cluster? }
+#'
+#'    }
+#'
 #' @param save_details a list pertaining to information regarding how and where files should be saved
 #'   when the \code{save} or \code{save_results} flags are triggered.
 #'
@@ -310,16 +321,7 @@
 #'   This is included to avoid getting stuck in infinite re-draws, and to indicate that something fatally problematic
 #'   is going wrong in the generate-analyse phases. Default is 50
 #'
-#' @param allow_na logical; should \code{NA}s be allowed in the analyse step as a valid result from the simulation
-#'   analysis? Default is FALSE
-#'
-#' @param allow_nan logical; should \code{NaN}s be allowed in the analyse step as a valid result from the simulation
-#'   analysis? Default is FALSE
-#'
 #' @param ncores number of cores to be used in parallel execution. Default uses all available
-#'
-#' @param MPI logical; use the \code{foreach} package in a form usable by MPI to run simulation
-#'   in parallel on a cluster? Default is \code{FALSE}
 #'
 #' @param save logical; save the temporary simulation state to the hard-drive? This is useful
 #'   for simulations which require an extended amount of time, though for shorter simulations
@@ -384,13 +386,6 @@
 #'   pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
 #'   of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
 #'   \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is
-#'
-#' @param stop_on_fatal logical; should the simulation be terminated immediately when
-#'   the maximum number of consecutive errors (\code{max_errors}) is reached? If \code{FALSE},
-#'   the simulation will continue as though errors did not occur, however a column
-#'   \code{FATAL_TERMINATION} will be included in the resulting object indicating the final
-#'   error message observed, and \code{NA} placeholders will be placed in all other row-elements. Default is
-#'   \code{FALSE}
 #'
 #' @param verbose logical; print messages to the R console? Default is \code{TRUE}
 #'
@@ -606,7 +601,11 @@
 #' runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
 #'               generate=Generate, analyse=Analyse, summarise=Summarise)
 #'
-#'
+#' ## same as above, but send a notification via Pushbullet upon completion
+#' library(RPushbullet) # read-in default JSON file
+#' runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
+#'               generate=Generate, analyse=Analyse, summarise=Summarise,
+#'               notification = 'complete')
 #'
 #' ## Debug the generate function. See ?browser for help on debugging
 #' ##   Type help to see available commands (e.g., n, c, where, ...),
@@ -700,16 +699,41 @@
 #' }
 #'
 runSimulation <- function(design, replications, generate, analyse, summarise,
-                          fixed_objects = NULL, packages = NULL, filename = NULL, debug = 'none', load_seed = NULL,
-                          save_results = FALSE, parallel = FALSE, ncores = parallel::detectCores(), cl = NULL,
-                          notification = NULL, boot_method='none', boot_draws = 1000L, CI = .95,
-                          seed = rint(nrow(design), min=1L, max = 2147483647L), save_seeds = FALSE,
-                          save = TRUE, store_results = FALSE, store_warning_seeds = FALSE,
-                          warnings_as_errors = FALSE, max_errors = 50L,
-                          allow_na = FALSE, allow_nan = FALSE, stop_on_fatal = FALSE, MPI = FALSE,
-                          save_details = list(), progress = TRUE, verbose = TRUE)
+                          fixed_objects = NULL, packages = NULL, filename = NULL,
+                          debug = 'none', load_seed = NULL,
+                          save_results = FALSE, parallel = FALSE, ncores = parallel::detectCores(),
+                          cl = NULL, notification = 'none', CI = .95, seed = NULL,
+                          boot_method='none', boot_draws = 1000L, max_errors = 50L,
+                          save_seeds = FALSE, save = TRUE, store_results = FALSE,
+                          save_details = list(), extra_options = list(),
+                          progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
+    if(is.null(seed)){
+        seed <- if(missing(design))
+            rint(1L, min=1L, max = 2147483647L)
+        else rint(nrow(design), min=1L, max = 2147483647L)
+    }
+    stopifnot(notification %in% c('none', 'condition', 'complete'))
+    if(notification != 'none')
+        if(!("RPushbullet" %in% (.packages())))
+            stop('Please use library(RPushbullet) to load the default ~/.rpushbullet.json file',
+                 call. = FALSE)
+    store_warning_seeds <- ifelse(is.null(extra_options$store_warning_seeds),
+                                  FALSE, extra_options$store_warning_seeds)
+    warnings_as_errors <- ifelse(is.null(extra_options$warnings_as_errors),
+                                 FALSE, extra_options$warnings_as_errors)
+    allow_na <- ifelse(is.null(extra_options$allow_na),
+                       FALSE, extra_options$allow_na)
+    allow_nan <- ifelse(is.null(extra_options$allow_nan),
+                        FALSE, extra_options$allow_nan)
+    stop_on_fatal <- ifelse(is.null(extra_options$stop_on_fatal),
+                            FALSE, extra_options$stop_on_fatal)
+    MPI <- ifelse(is.null(extra_options$MPI),
+                  FALSE, extra_options$MPI)
+    type <- if(is.null(extra_options$type))
+        ifelse(.Platform$OS.type == 'windows', 'PSOCK', 'FORK')
+        else extra_options$type
     if(missing(generate) && !missing(analyse))
         generate <- function(condition, dat, fixed_objects = NULL){}
     NA_summarise <- FALSE
@@ -842,10 +866,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     export_funs <- parent_env_fun()
     if(parallel){
         if(is.null(cl)){
-            cl <- parallel::makeCluster(ncores)
+            cl <- parallel::makeCluster(ncores, type=type)
             on.exit(parallel::stopCluster(cl))
         }
         parallel::clusterExport(cl=cl, export_funs, envir = parent.frame(1L))
+        if(verbose)
+            message(sprintf("\nNumber of parallel clusters in use: %i", length(cl)))
     }
     Result_list <- stored_Results_list <- vector('list', nrow(design))
     names(Result_list) <- names(stored_Results_list) <- rownames(design)
@@ -961,6 +987,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          stop_on_fatal=stop_on_fatal)
             time1 <- proc.time()[3L]
             stored_time <- stored_time + (time1 - time0)
+            if(notification == 'condition')
+                notification_condition(design[i,], Result_list[[i]], nrow(design))
         } else {
             stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
             if(verbose)
@@ -1000,7 +1028,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 saveRDS(Result_list, file.path(out_rootdir, tmpfilename))
             time1 <- proc.time()[3L]
             Result_list[[i]]$SIM_TIME <- time1 - time0
-
+            if(notification == 'condition')
+                notification_condition(design[i,], Result_list[[i]], nrow(design))
         }
     }
     attr(Result_list, 'SimDesign_names') <- NULL
@@ -1044,7 +1073,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                 rownames(ret))
         t(ret)
     })))
-    Final <- plyr::rbind.fill(Result_list)
+    Final <- dplyr::bind_rows(Result_list)
     if(!stop_on_fatal && any(colnames(Final) == 'FATAL_TERMINATION')){
         warning('One or more design rows were fatally terminated. Please inspect/debug row(s): ',
                 paste(which(!is.na(Final$FATAL_TERMINATION)), collapse=','), call.=FALSE)
@@ -1103,7 +1132,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!is.null(filename)) pick <- c(save, pick)
     attr(Final, "ERROR_msg") <- dplyr::as_tibble(ERROR_msg)
     attr(Final, "WARNING_msg") <- dplyr::as_tibble(WARNING_msg)
-    attr(Final, 'extra_info') <- list(sessionInfo = sessionInfo(), packages=pack_vers,
+    attr(Final, 'extra_info') <- list(sessionInfo = sessioninfo::session_info(), packages=pack_vers,
                                       save_info = c(filename=filename,
                                                     save_results_dirname=save_results_dirname,
                                                     save_seeds_dirname=save_seeds_dirname)[pick],
@@ -1121,7 +1150,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         saveRDS(Final, file.path(out_rootdir, filename))
     }
     if(save || save_results || save_seeds) file.remove(file.path(out_rootdir, tmpfilename))
-    if(!is.null(notification)) notification()
+    if(notification %in% c('condition', 'complete')) notification_final(Final)
     return(Final)
 }
 

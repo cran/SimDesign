@@ -69,11 +69,12 @@
 #' }
 SimExtract <- function(object, what){
     stopifnot(is(object, "SimDesign"))
+    what <- tolower(what)
     pick <- attr(object, 'design_names')$design
     Design <- if(any(pick != 'dummy_run'))
         object[,attr(object, 'design_names')$design]
         else dplyr::tibble(.rows = nrow(object))
-    if(what == 'Design') return(Design)
+    if(what == 'design') return(Design)
     if(missing(what)) stop('Please specify what you want to extract')
     ret <- if(what == 'results'){
         extract_results(object)

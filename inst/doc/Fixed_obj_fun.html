@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2021-04-07" />
+<meta name="date" content="2021-06-01" />
 
 <title>Exporting objects and functions from the workspace</title>
 
@@ -1579,7 +1579,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Exporting objects and functions from the workspace</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2021-04-07</h4>
+<h4 class="date">2021-06-01</h4>
 
 </div>
 
@@ -1656,9 +1656,9 @@ res</code></pre>
 <pre><code>## # A tibble: 3 x 6
 ##       N     p REPLICATIONS SIM_TIME COMPLETED                      SEED
 ##   &lt;dbl&gt; &lt;dbl&gt;        &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;                         &lt;int&gt;
-## 1    10 0.044         1000    0.535 Wed Apr  7 17:42:49 2021  488349520
-## 2    20 0.06          1000    0.895 Wed Apr  7 17:42:49 2021  469344150
-## 3    30 0.054         1000    0.534 Wed Apr  7 17:42:50 2021 1550099436</code></pre>
+## 1    10 0.044         1000    0.519 Tue Jun  1 06:05:44 2021  488349520
+## 2    20 0.06          1000    0.506 Tue Jun  1 06:05:45 2021  469344150
+## 3    30 0.054         1000    1.23  Tue Jun  1 06:05:45 2021 1550099436</code></pre>
 <p>By placing objects in a list and passing this to <code>fixed_objects</code>, the objects are safely exported to all relevant functions. Furthermore, running this code in parallel will also be valid as a consequence (see below) because all objects are properly exported to each core.</p>
 <pre class="r"><code>res &lt;- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
                      generate=Generate, analyse=Analyse, summarise=Summarise, debug=&#39;none&#39;,
