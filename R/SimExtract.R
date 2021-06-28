@@ -11,8 +11,11 @@
 #'   error messages, \code{'warnings'} to return a \code{data.frame} object containing
 #'   counts of any warning messages, \code{'error_seeds'} and \code{'warning_seeds'}
 #'   to extract the associated \code{.Random.seed} values associated with the ERROR/WARNING messages,
-#'   and \code{'results'} to extract the simulation results if the option \code{store_results} was passed to
-#'   \code{\link{runSimulation}}. Note that \code{'warning_seeds'} are not stored automatically in
+#'   \code{'results'} to extract the simulation results if the option \code{store_results} was passed to
+#'   \code{\link{runSimulation}}, and \code{'summarise'} if the \code{\link{Summarise}}
+#'   definition returned a named \code{list} rather than a named numeric vector.
+#'
+#'   Note that \code{'warning_seeds'} are not stored automatically in
 #'   simulations and require passing \code{store_warning_seeds = TRUE} to \code{\link{runSimulation}}.
 #'
 #' @export
@@ -80,6 +83,8 @@ SimExtract <- function(object, what){
         extract_results(object)
     } else if(what == 'errors'){
         cbind(Design, extract_errors(object))
+    } else if(what == 'summarise'){
+        extract_summarise(object)
     } else if(what == 'error_seeds'){
         extract_error_seeds(object)
     } else if(what == 'warnings'){
@@ -125,5 +130,15 @@ extract_error_seeds <- function(object){
 extract_warning_seeds <- function(object){
     extra_info <- attr(object, 'extra_info')
     ret <- extra_info$warning_seeds
+    ret
+}
+
+extract_summarise <- function(object){
+    extra_info <- attr(object, 'extra_info')
+    Design <- SimExtract(object, 'Design')
+    nms <- apply(Design, 1L, function(x)
+        paste0(colnames(Design), "=", x, collapse = ' ; '))
+    ret <- extra_info$summarise_list
+    names(ret) <- nms
     ret
 }

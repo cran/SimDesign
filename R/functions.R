@@ -13,8 +13,8 @@
 #' then this will cause the function to halt internally, the message which triggered the \code{\link{stop}}
 #' will be recorded, and \code{Generate} will be called again to obtain a different dataset.
 #' That said, it may be useful for users to throw their own \code{\link{stop}} commands if the data
-#' should be re-drawn for other reasons (e.g., an estimated model terminated correctly but the maximum number of
-#' iterations were reached).
+#' should be re-drawn for other reasons (e.g., an estimated model terminated correctly
+#' but the maximum number of iterations were reached).
 #'
 #' @param condition a single row from the \code{design} input (as a \code{data.frame}), indicating the
 #'   simulation conditions
@@ -106,8 +106,8 @@ Generate <- function(condition, fixed_objects = NULL) NULL
 #' then this will cause the function to halt internally, the message which triggered the \code{\link{stop}}
 #' will be recorded, and \code{\link{Generate}} will be called again to obtain a different dataset.
 #' That said, it may be useful for users to throw their own \code{\link{stop}} commands if the data
-#' should be re-drawn for other reasons (e.g., an estimated model terminated correctly but the maximum number of
-#' iterations were reached).
+#' should be re-drawn for other reasons (e.g., an estimated model terminated correctly
+#' but the maximum number of iterations were reached).
 #'
 #' @param dat the \code{dat} object returned from the \code{\link{Generate}} function
 #'   (usually a \code{data.frame}, \code{matrix}, \code{vector}, or \code{list})
@@ -182,11 +182,12 @@ Analyse <- function(condition, dat, fixed_objects = NULL) NULL
 #'
 #' @aliases Summarise
 #'
-#' @return must return a named \code{numeric} vector or \code{data.frame}
-#'   with the desired meta-simulation results
+#' @return for best results should return a named \code{numeric} vector or \code{data.frame}
+#'   with the desired meta-simulation results. Named \code{list} objects can also be returned,
+#'   however the subsequent results must be extracted via \code{\link{SimExtract}}
 #'
 #' @seealso \code{\link{bias}}, \code{\link{RMSE}}, \code{\link{RE}}, \code{\link{EDR}},
-#'   \code{\link{ECR}}, \code{\link{MAE}}
+#'   \code{\link{ECR}}, \code{\link{MAE}}, \code{\link{SimExtract}}
 #' @references
 #'
 #' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
@@ -257,12 +258,10 @@ Summarise <- function(condition, results, fixed_objects = NULL) NULL
 # }
 mainsim <- function(index, condition, generate, analyse, fixed_objects, max_errors, save_results_out_rootdir,
                     save, allow_na, allow_nan, save_seeds, save_seeds_dirname, load_seed,
-                    warnings_as_errors, store_warning_seeds, packages = NULL, use_try){
+                    warnings_as_errors, store_warning_seeds, use_try, include_replication_index){
 
-    load_packages(packages)
-    condition$REPLICATION <- index
-    try_error <- character()
-    try_error_seeds <- warning_message_seeds <- matrix(0L, 0L, length(.GlobalEnv$.Random.seed))
+    if(include_replication_index) condition$REPLICATION <- index
+    try_error <- try_error_seeds <- warning_message_seeds <- NULL
 
     while(TRUE){
 
@@ -305,7 +304,8 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
                 try_error_seeds <- rbind(try_error_seeds, current_Random.seed)
                 rownames(try_error_seeds) <- paste0('Error_seed_', 1L:nrow(try_error_seeds))
                 stop(paste0('Row ', condition$ID, ' in design was terminated because it had ', max_errors,
-                            ' consecutive errors. \n\nLast error message was: \n\n  ', simlist[1L]), call.=FALSE)
+                            ' consecutive errors. \n\nLast error message was: \n\n  ', simlist[1L]),
+                     call.=FALSE)
             }
             try_error_seeds <- rbind(try_error_seeds, current_Random.seed)
             next
@@ -373,7 +373,8 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
         if(!is.list(res) && !is.numeric(res))
             stop('analyse() did not return a list or numeric vector', call.=FALSE)
 
-        rownames(try_error_seeds) <- try_error
+        if(length(try_error))
+            rownames(try_error_seeds) <- try_error
         if(store_warning_seeds)
             rownames(warning_message_seeds) <- Warnings
         attr(res, 'try_errors') <- try_error

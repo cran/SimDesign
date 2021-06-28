@@ -9,7 +9,7 @@ parent_env_fun <- function(){
 load_packages <- function(packages){
     if(!is.null(packages))
         for(pack in packages)
-            require(substitute(pack), character.only = TRUE)
+            require(substitute(pack), character.only=TRUE, quietly=TRUE)
     invisible(NULL)
 }
 
@@ -125,18 +125,48 @@ quiet <- function(..., messages=FALSE, cat=FALSE){
     out
 }
 
+isList <- function(x) !is.data.frame(x) && is.list(x)
+
 sim_results_check <- function(sim_results){
+    if(is(sim_results, 'try-error'))
+        stop(c("Summarise() should not throw errors. Message was:\n    ", sim_results), call.=FALSE)
     if(is.data.frame(sim_results)){
         if(nrow(sim_results) > 1L)
-            stop('When returning a data.frame in summarise() there should only be 1 row', call.=FALSE)
+            stop('When returning a data.frame in summarise() there should only be 1 row',
+                 call.=FALSE)
         nms <- names(sim_results)
         sim_results <- as.numeric(sim_results)
         names(sim_results) <- nms
     }
-    if(length(sim_results) == 1L)
+    if(isList(sim_results)){
+        if(is.null(names(sim_results)))
+            stop("List elements must be named in Summarise() definition",
+                 call.=FALSE)
+        ret <- numeric(0)
+        attr(ret, 'summarise_list') <- sim_results
+        return(ret)
+    }
+    if(length(sim_results) == 1L){
         if(is.null(names(sim_results)))
             names(sim_results) <- 'value'
         if(!is.vector(sim_results) || is.null(names(sim_results)))
-            stop('summarise() must return a named vector or data.frame object with 1 row', call.=FALSE)
+            stop('summarise() must return a named vector or data.frame object with 1 row',
+                 call.=FALSE)
+    }
     sim_results
+}
+
+unwind_apply_wind.list <- function(lst, mat, fun, ...){
+    long_list <- do.call(rbind, lapply(lst, as.numeric))
+    long_mat <- if(!is.null(mat)) as.numeric(mat) else NULL
+    ret <- fun(long_list, long_mat, ...)
+    if(!is.null(mat)){
+        was_matrix <- is.matrix(mat)
+        if(was_matrix){
+            ret <- matrix(ret, nrow(mat), ncol(mat))
+            rownames(ret) <- rownames(mat)
+            colnames(ret) <- colnames(mat)
+        } else names(ret) <- names(mat)
+    }
+    ret
 }

@@ -1,5 +1,17 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.6
+
+- Various performance improvements to reduce execution overhead (e.g., `REPLICATION` ID now moved
+  to an `extra_option` as this was identified as a bottleneck)
+
+- Meta-statistical functions now support a `fun(list, matrix)` input form to compute element-wise
+  summaries that return a `matrix` structure
+  
+- `Summarise()` can now return `list` arguments that can later be extracted 
+  via `SimExtract(sim, what = 'summarise')`. Consequently, because list outputs are now 
+  viable the `purrr` package has been added to the `suggests` list
+
 ## Changes in SimDesign 2.5
 
 - Prevent `aggregate_simulations()` from overwriting files and directories accidentally. As well,

@@ -4,10 +4,12 @@
 #' Accepts estimate and parameter values, as well as estimate values which are in deviation form.
 #' If relative bias is requested the \code{estimate} and \code{parameter} inputs are both required.
 #'
-#' @param estimate a \code{numeric} vector or \code{matrix}/\code{data.frame}
+#' @param estimate a \code{numeric} vector, \code{matrix}/\code{data.frame}, or \code{list}
 #'   of parameter estimates. If a vector,
 #'   the length is equal to the number of replications. If a \code{matrix}/\code{data.frame},
-#'   the number of rows must equal the number of replications
+#'   the number of rows must equal the number of replications. \code{list} objects will be looped
+#'   over using the same rules after above after first translating the information into one-dimensional
+#'   vectors and re-creating the structure upon return
 #'
 #' @param parameter a \code{numeric} scalar/vector indicating the fixed parameters.
 #'   If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame}
@@ -96,6 +98,12 @@
 #'
 bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE,
                  percent = FALSE, unname = FALSE){
+    if(isList(estimate)){
+        return(unwind_apply_wind.list(
+            lst=estimate, mat=parameter, fun=bias,
+            type=type, abs=abs, percent=percent, unname=unname))
+    }
+
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -136,9 +144,13 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE,
 #' of a sample estimate from the parameter value. Accepts estimate and parameter values,
 #' as well as estimate values which are in deviation form.
 #'
-#' @param estimate a \code{numeric} vector or \code{matrix}/\code{data.frame} of parameter estimates.
+#' @param estimate a \code{numeric} vector, \code{matrix}/\code{data.frame}, or \code{list}
+#'   of parameter estimates.
 #'   If a vector, the length is equal to the number of replications. If a
-#'   \code{matrix}/\code{data.frame}, the number of rows must equal the number of replications
+#'   \code{matrix}/\code{data.frame}, the number of rows must equal the number of replications.
+#'   \code{list} objects will be looped
+#'   over using the same rules after above after first translating the information into one-dimensional
+#'   vectors and re-creating the structure upon return
 #'
 #' @param parameter a \code{numeric} scalar/vector indicating the fixed parameter values.
 #'   If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame} then
@@ -221,6 +233,12 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE,
 #'
 RMSE <- function(estimate, parameter = NULL, type = 'RMSE', MSE = FALSE,
                  percent = FALSE, unname = FALSE){
+    if(isList(estimate)){
+        return(unwind_apply_wind.list(
+            lst=estimate, mat=parameter, fun=RMSE,
+            type=type, MSE=MSE, percent=percent, unname=unname))
+    }
+
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -362,12 +380,17 @@ IRMSE <- function(estimate, parameter, fn, density = function(theta, ...) 1,
 #' Computes the average absolute deviation of a sample estimate from the parameter value.
 #' Accepts estimate and parameter values, as well as estimate values which are in deviation form.
 #'
-#' @param estimate a \code{numeric} vector or \code{matrix}/\code{data.frame} of parameter estimates.
+#' @param estimate a \code{numeric} vector, \code{matrix}/\code{data.frame}, or \code{list}
+#'   of parameter estimates.
 #'   If a vector, the length is equal to the number of replications. If a
-#'   \code{matrix}/\code{data.frame} the number of rows must equal the number of replications
+#'   \code{matrix}/\code{data.frame} the number of rows must equal the number of replications.
+#'   \code{list} objects will be looped
+#'   over using the same rules after above after first translating the information into one-dimensional
+#'   vectors and re-creating the structure upon return
 #'
-#' @param parameter a \code{numeric} scalar/vector indicating the fixed parameter values.
-#'   If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame} then the value will be
+#' @param parameter a \code{numeric} scalar/vector or \code{matrix} indicating the fixed parameter values.
+#'   If a single value is supplied and \code{estimate} is a \code{matrix}/\code{data.frame}
+#'   then the value will be
 #'   recycled for each column; otherwise, each element will be associated
 #'   with each respective column in the \code{estimate} input.
 #'   If \code{NULL}, then it will be assumed that the \code{estimate} input is in a deviation
@@ -428,6 +451,12 @@ IRMSE <- function(estimate, parameter, fn, density = function(theta, ...) 1,
 #'
 MAE <- function(estimate, parameter = NULL, type = 'MAE',
                 percent = FALSE, unname = FALSE){
+    if(isList(estimate)){
+        return(unwind_apply_wind.list(
+            lst=estimate, mat=parameter, fun=MAE,
+            type=type, abs=abs, percent=percent, unname=unname))
+    }
+
     if(is.data.frame(estimate)) estimate <- as.matrix(estimate)
     if(is.vector(estimate)){
         nms <- names(estimate)
@@ -676,10 +705,11 @@ MSRSE <- function(SE, SD, percent = FALSE, unname = FALSE){
 #' relative parameter recovery. Note that for single variable inputs this is equivalent to
 #' \code{bias(..., type = 'relative')}.
 #'
-#' @param est a \code{numeric} vector or matrix containing the parameter estimates
+#' @param est a \code{numeric} vector, \code{matrix/data.frame}, or \code{list} containing
+#'   the parameter estimates
 #'
 #' @param pop a \code{numeric} vector or matrix containing the true parameter values. Must be
-#'   of the same dimensions as \code{est}
+#'   of comparable dimension to \code{est}
 #'
 #' @param as.vector logical; always wrap the result in a \code{\link{as.vector}} function
 #'   before returning?
@@ -723,6 +753,11 @@ MSRSE <- function(SE, SD, percent = FALSE, unname = FALSE){
 #'
 #'
 RD <- function(est, pop, as.vector = TRUE, unname = FALSE){
+    if(isList(est)){
+        return(unwind_apply_wind.list(
+            lst=est, mat=pop, fun=RD,
+            as.vector=as.vector, unname=unname))
+    }
     if(is.matrix(est)){
         slv <- try(solve(pop), TRUE)
         if(is(slv, 'try-error'))
@@ -739,15 +774,15 @@ RD <- function(est, pop, as.vector = TRUE, unname = FALSE){
 
 #' Compute the empirical detection rate for Type I errors and Power
 #'
-#' Computes the detection rate for determining empirical Type I error and power rates using information
-#' from p-values.
+#' Computes the detection rate for determining empirical Type I error and power rates
+#' using information from p-values.
 #'
 #' @param p a \code{numeric} vector or \code{matrix}/\code{data.frame} of p-values from the
 #'   desired statistical estimator. If a \code{matrix}, each statistic must be organized by
 #'   column, where the number of rows is equal to the number of replications
 #'
-#' @param alpha the nominal detection rate to be studied (typical values are .10, .05, and .01). Default
-#'   is .05
+#' @param alpha the nominal detection rate to be studied (typical values are .10, .05, and .01).
+#'   Default is .05
 #'
 #' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
 #'   names?
