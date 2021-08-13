@@ -55,7 +55,8 @@ See \code{\link{Generate}} for details. Note that this argument may be omitted b
 user if they wish to generate the data with the \code{analyse} step, but for real-world
 simulations this is generally not recommended}
 
-\item{analyse}{user-defined analysis function that acts on the data generated from
+\item{analyse}{user-defined analysis function (or named list of functions)
+that acts on the data generated from
 \code{\link{Generate}} (or, if \code{generate} was omitted, can be used to generate and
 analyses the simulated data). See \code{\link{Analyse}} for details}
 
@@ -117,7 +118,7 @@ simulation results to. If the extension
 
 \item{debug}{a string indicating where to initiate a \code{browser()} call for editing
 and debugging, and pairs
-  particularly well with the \code{load_seed} argument for precice debugging.
+  particularly well with the \code{load_seed} argument for precise debugging.
   General options are \code{'none'} (default; no debugging), \code{'error'}, which
   starts the debugger
   when any error in the code is detected in one of three generate-analyse-summarise functions,
@@ -126,6 +127,12 @@ and debugging, and pairs
   or not. Specific options include: \code{'generate'}
   to debug the data simulation function, \code{'analyse'} to debug the computational function, and
   \code{'summarise'} to debug the aggregation function.
+
+  If the \code{Analyse} argument is supplied as a named list of functions then it is also possible
+  to debug the specific function of interest by passing the name of the respective function in the list.
+  For instance, if \code{analyse = list(A1=Analyse.A1, A2=Analyse.A2)} then passing
+  \code{debug = 'A1'} will debug only the first function in this list, and all remaining analysis
+  functions will be ignored.
 
   Alternatively, users may place \code{\link{browser}} calls within the respective functions for
   debugging at specific lines, which is useful when debugging based on conditional evaluations (e.g.,
@@ -820,7 +827,7 @@ Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
   \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
   \code{\link{SimExtract}},
   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-  \code{\link{aggregate_simulations}}, \code{\link{Attach}},
+  \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
   \code{\link{SimShiny}}
 }
 \author{

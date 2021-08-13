@@ -33,6 +33,10 @@
 #'
 #' @param generate include \code{generate} function? Default is \code{TRUE}
 #'
+#' @param nAnalyses number of analysis functions to create (default is 1). Increasing the value
+#'   of this argument when independent analysis are being performed allows function definitions
+#'   to be better partitioned and potentially more modular
+#'
 #' @param openFiles logical; after files have been generated, open them in your text editor
 #'   (e.g., if Rstudio is running the scripts will open in a new tab)?
 #'
@@ -61,16 +65,18 @@
 #'
 #' \dontrun{
 #'
-#' # write output to two files (recommended for larger MCSs)
-#' SimFunctions('mysim', singlefile = FALSE)
-#'
 #' # write output files to a single file with comments
 #' SimFunctions('mysim', comments = TRUE)
+#'
+#' # Multiple analysis functions for optional partitioning
+#' SimFunctions(nAnalyses = 2)
+#' SimFunctions(nAnalyses = 3)
+#'
 #' }
 #'
 SimFunctions <- function(filename = NULL, dir = getwd(), comments = FALSE,
                          singlefile = TRUE, summarise = TRUE, generate = TRUE,
-                         openFiles = TRUE){
+                         nAnalyses=1, openFiles = TRUE){
     LINE <- function()
         cat('#-------------------------------------------------------------------\n')
     HEAD <- function(){
@@ -98,11 +104,24 @@ SimFunctions <- function(filename = NULL, dir = getwd(), comments = FALSE,
             cat('\n    dat\n}')
             cat('\n')
         }
-        cat('\nAnalyse <- function(condition, dat, fixed_objects = NULL) {')
-        if(comments) cat('\n    # Run statistical analyses of interest ... \n')
-        if(comments) cat('\n    # Return a named vector or list')
-        cat('\n    ret <- c(stat1 = NaN, stat2 = NaN)\n    ret\n}')
-        cat('\n\n')
+        if(nAnalyses == 1L){
+            cat('\nAnalyse <- function(condition, dat, fixed_objects = NULL) {')
+            if(comments) cat('\n    # Run statistical analyses of interest ... \n')
+            if(comments) cat('\n    # Return a named vector or list')
+            cat('\n    ret <- c(stat1 = NaN, stat2 = NaN)\n    ret\n}')
+            cat('\n\n')
+        } else {
+            for(i in 1L:nAnalyses){
+                cat(sprintf('\nAnalyse.A%i <- function(condition, dat, fixed_objects = NULL) {', i))
+                if(comments) cat('\n    # Run statistical analyses of interest ... \n')
+                if(comments) cat('\n    # Return a named vector or list')
+                cat('\n    ret <- c(stat1 = NaN, stat2 = NaN)\n    ret\n}')
+                cat('\n')
+            }
+            cat('\n')
+            LINE()
+            cat('\n')
+        }
         if(summarise){
             cat('Summarise <- function(condition, results, fixed_objects = NULL) {')
             if(comments) cat('\n    # Summarise the simulation results ...\n')
@@ -114,10 +133,21 @@ SimFunctions <- function(filename = NULL, dir = getwd(), comments = FALSE,
     TAIL <- function(){
         LINE()
         if(comments) cat('\n### Run the simulation\n')
-        cat('\nres <- runSimulation(design=Design, replications=1000,',
-            if(generate) 'generate=Generate, ')
-        cat(sprintf('\n                     analyse=Analyse%s',
-                    if(summarise) ', summarise=Summarise)' else ')'))
+        if(nAnalyses==1L){
+            cat('\nres <- runSimulation(design=Design, replications=1000,',
+                if(generate) 'generate=Generate, ')
+            cat(sprintf('\n                     analyse=Analyse%s',
+                        if(summarise) ', summarise=Summarise)' else ')'))
+        } else {
+            Analyse_string <- sprintf("list(%s)",
+                                      paste0(paste0('A', 1L:nAnalyses, sep='='),
+                                      paste0('Analyse.A', 1L:nAnalyses), collapse=', '))
+            cat('\nres <- runSimulation(design=Design, replications=1000,',
+                if(generate) 'generate=Generate, ')
+            cat(sprintf('\n                     analyse=%s%s', Analyse_string,
+                        if(summarise) ', \n                     summarise=Summarise)' else ')'))
+
+        }
         cat('\nres\n\n')
     }
 

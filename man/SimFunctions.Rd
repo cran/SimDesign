@@ -11,6 +11,7 @@ SimFunctions(
   singlefile = TRUE,
   summarise = TRUE,
   generate = TRUE,
+  nAnalyses = 1,
   openFiles = TRUE
 )
 }
@@ -31,6 +32,10 @@ Default is \code{TRUE}}
 \item{summarise}{include \code{summarise} function? Default is \code{TRUE}}
 
 \item{generate}{include \code{generate} function? Default is \code{TRUE}}
+
+\item{nAnalyses}{number of analysis functions to create (default is 1). Increasing the value
+of this argument when independent analysis are being performed allows function definitions
+to be better partitioned and potentially more modular}
 
 \item{openFiles}{logical; after files have been generated, open them in your text editor
 (e.g., if Rstudio is running the scripts will open in a new tab)?}
@@ -60,11 +65,13 @@ SimFunctions(comments = TRUE) #with helpful comments
 
 \dontrun{
 
-# write output to two files (recommended for larger MCSs)
-SimFunctions('mysim', singlefile = FALSE)
-
 # write output files to a single file with comments
 SimFunctions('mysim', comments = TRUE)
+
+# Multiple analysis functions for optional partitioning
+SimFunctions(nAnalyses = 2)
+SimFunctions(nAnalyses = 3)
+
 }
 
 }

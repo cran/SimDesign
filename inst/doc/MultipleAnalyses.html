@@ -13,7 +13,7 @@
 
 <meta name="date" content="2021-08-13" />
 
-<title>Introduction to the SimDesign package</title>
+<title>Multiple Analysis Functions</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1577,240 +1577,294 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Introduction to the SimDesign package</h1>
+<h1 class="title toc-ignore">Multiple Analysis Functions</h1>
 <h4 class="author">Phil Chalmers</h4>
 <h4 class="date">2021-08-13</h4>
 
 </div>
 
 
-<p>Designing Monte Carlo simulations can be a fun and rewarding experience. Whether you are interested in evaluating the performance of a new optimizer, re-evaluating previous research claims (like the ANOVA is ‘robust’ to violations of normality), determine power rates for an upcoming research proposal, or simply to appease a strange thought in your head about a new statistical idea you heard about, designing Monte Carlo simulations can be incredibly rewarding and are extremely important to those who are statistically oriented. However, organizing simulations can be a challenge, and all too often coders resort to the dreaded “for-loop” strategy, <em>for</em>-ever resulting in confusing, error prone, and simulation specific code. The package <code>SimDesign</code> is one attempt to fix these and other issues that often arise when designing Monte Carlo simulation experiments.</p>
-<p>Generally speaking, Monte Carlo simulations can be broken into three major components:</p>
-<ul>
-<li><strong>generate</strong> your data from some model/probability density function given various <strong>design</strong> conditions to be studied (e.g., sample size, distributions, group sizes, etc),</li>
-<li><strong>analyse</strong> the generated data using whatever statistical analyses you are interested in (e.g., <span class="math inline">\(t\)</span>-test, ANOVA, SEMs, IRT, etc), and collect the statistics/CIs/<span class="math inline">\(p\)</span>-values/parameter estimates you are interested in, and</li>
-<li><strong>summarise</strong> the results after repeating the simulations <span class="math inline">\(R\)</span> number of times to obtain empirical estimates of the population’s behavior.</li>
-</ul>
-<p>Each operation above represents the essential components of the <code>SimDesign</code> package. The <strong>design</strong> component is represented by a <code>data.frame</code> object containing the simulation conditions to be investigated, while <strong>generate</strong>, <strong>analyse</strong>, and <strong>summarise</strong> represent user-defined functions which comprise the three steps in the simulation. Each of these components are constructed and passed to the <code>runSimulation()</code> function where the simulation steps are evaluated, ultimately returning a <code>data.frame</code> object containing the simulation results.</p>
-<div id="a-general-overview" class="section level1" number="1">
-<h1 number="1"><span class="header-section-number">1</span> A general overview</h1>
-<p>After loading the <code>SimDesign</code> package, we begin by defining the required user-constructed functions. To expedite this process, a call to <code>SimFunctions()</code> will create a template to be filled in, where all the necessary functional arguments have been pre-assigned, and only the body of the functions need to be modified. The documentation of each argument can be found in the respective R help files, however there organization is very simple conceptually.</p>
-<p>To begin, the following code should be copied and saved to an external source (i.e., text) file.</p>
+<p>This vignette demonstrates one of the newer features in the <code>SimDesign</code> package pertaining to multiple analysis function definitions that can be selected for each <code>Design</code> condition or whenever they are applicable. The purpose of providing multiple analysis functions is to</p>
+<ol style="list-style-type: decimal">
+<li>Remove the less readable if-then-else combinations that can appear when writing simulation code, where specific analysis functions are not intended to be used on a given generated dataset,</li>
+<li>Provide better automatic naming of the analysis results across independent subroutines,</li>
+<li>Construct more readable code when the <code>Analyse()</code> function contains too much code to easily track, and to</li>
+<li>Create a more modular approach to isolating the analysis functions for the purpose of redistribution or reusing in related projects</li>
+</ol>
+<p>Functionality speaking, this type of organization does not change how <code>SimDesign</code> generally operates. For that reason, the coding style presented in this vignette can be considered optional. However, if any of the above points resonate well with you then following the details of this coding organization style may prove useful.</p>
+<div id="description-of-structure" class="section level1" number="1">
+<h1 number="1"><span class="header-section-number">1</span> Description of structure</h1>
+<p>The usual work-flow with <code>SimDesign</code> requires first calling <code>SimFunctions()</code> to generate a working template, such as the following.</p>
+<pre class="r"><code>SimDesign::SimFunctions()</code></pre>
+<pre><code>## #-------------------------------------------------------------------
+## 
+## library(SimDesign)
+## 
+## Design &lt;- createDesign(factor1 = NA,
+##                        factor2 = NA)
+## 
+## #-------------------------------------------------------------------
+## 
+## Generate &lt;- function(condition, fixed_objects = NULL) {
+##     dat &lt;- data.frame()
+##     dat
+## }
+## 
+## Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
+##     ret &lt;- c(stat1 = NaN, stat2 = NaN)
+##     ret
+## }
+## 
+## Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+##     ret &lt;- c(bias = NaN, RMSE = NaN)
+##     ret
+## }
+## 
+## #-------------------------------------------------------------------
+## 
+## res &lt;- runSimulation(design=Design, replications=1000, generate=Generate, 
+##                      analyse=Analyse, summarise=Summarise)
+## res</code></pre>
+<p>which uses the default <code>nAnalyses=1</code> to generate only a single <code>Analyse()</code> function. In the context of multiple analysis functions, however, users may be more interested in passing the number of analysis functions they believe they will need in their simulation (e.g., if analyzing a <span class="math inline">\(t\)</span>-test setup to compare the Welch versus independent samples t-test, then two analysis functions should be used). Passing <code>nAnalyses=2</code> to <code>SimFunctions()</code> creates the following template:</p>
+<pre class="r"><code>SimDesign::SimFunctions(nAnalyses = 2)</code></pre>
+<pre><code>## #-------------------------------------------------------------------
+## 
+## library(SimDesign)
+## 
+## Design &lt;- createDesign(factor1 = NA,
+##                        factor2 = NA)
+## 
+## #-------------------------------------------------------------------
+## 
+## Generate &lt;- function(condition, fixed_objects = NULL) {
+##     dat &lt;- data.frame()
+##     dat
+## }
+## 
+## Analyse.A1 &lt;- function(condition, dat, fixed_objects = NULL) {
+##     ret &lt;- c(stat1 = NaN, stat2 = NaN)
+##     ret
+## }
+## 
+## Analyse.A2 &lt;- function(condition, dat, fixed_objects = NULL) {
+##     ret &lt;- c(stat1 = NaN, stat2 = NaN)
+##     ret
+## }
+## 
+## #-------------------------------------------------------------------
+## 
+## Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+##     ret &lt;- c(bias = NaN, RMSE = NaN)
+##     ret
+## }
+## 
+## #-------------------------------------------------------------------
+## 
+## res &lt;- runSimulation(design=Design, replications=1000, generate=Generate, 
+##                      analyse=list(A1=Analyse.A1, A2=Analyse.A2), 
+##                      summarise=Summarise)
+## res</code></pre>
+<p>Notice in this case that there are two <code>Analyse.#()</code> definitions constructed, and when passed to <code>runSimulation()</code> these are organized as a named <code>list</code>. The names of the list will ultimately be attached to the names of the analysis objects so that there is no ambiguity in the outputted information. However, the inputs to the <code>Analyse()</code> functions will always be the same, as the <code>dat</code> object formed by the <code>Generate()</code> call will be passed to each of these Analyse definitions (hence, the generate data is held constant across the respective analyses).</p>
+<p>The above template should of course be modified to replace the less useful names of the <code>Analyse.#()</code> components. By default users will want to change these to something like <code>Analyse.some_statistic</code>, <code>Analyse.some_other_statistic</code>, …, <code>Analyse.some_other_other_statistic</code>, and so on, where the number of <code>Analyse.#</code> function definitions will ultimately end up in the <code>runSimulation(..., Analyse=list())</code> input. Supplying better names to the named <code>list</code> component is also recommended as these will be used to name the associated results in the <code>Summarise()</code> step.</p>
+<p>Finally, note that all the rules about objects and object naming from the typical single Analyse function still apply and are properly checked internally for suitable names and consistency. The independently defined Analyse functions are also <em>interchangable</em> and <em>removable</em>/<em>replaceable</em>, which makes the structure of the Generate-Analyse-Summarise setup more modular with respect to the analysis components.</p>
+<div id="an-example" class="section level2" number="1.1">
+<h2 number="1.1"><span class="header-section-number">1.1</span> An example</h2>
+<p>The following code is <a href="http://philchalmers.github.io/SimDesign/html/03-Parameter_recovery_simulation.html">adopted from the Wiki</a>, and so details about the simulation should be obtained from that source.</p>
 <pre class="r"><code>library(SimDesign)
-SimFunctions()</code></pre>
-<pre><code>#-------------------------------------------------------------------
+# SimFunctions(nAnalyses = 2)
 
-library(SimDesign)
+sample_sizes &lt;- c(250, 500, 1000)
+nitems &lt;- c(10, 20)
+Design &lt;- createDesign(sample_size = sample_sizes, 
+                       nitems = nitems)
 
-Design &lt;- createDesign(factor1 = NA,
-                       factor2 = NA)
+# create list of additional parameters which are fixed across conditions
+set.seed(1)
+pars_10 &lt;- rbind(a = round(rlnorm(10, .3, .5)/1.702, 2),
+                 d = round(rnorm(10, 0, .5)/1.702, 2))
+pars_20 &lt;- rbind(a = round(rlnorm(20, .3, .5)/1.702, 2),
+                 d = round(rnorm(20, 0, .5)/1.702, 2))
+pars &lt;- list(ten=pars_10, twenty=pars_20)
 
-#-------------------------------------------------------------------
+P_logit &lt;- function(a, d, Theta) exp(a * Theta + d) / (1 + exp(a * Theta + d))
+P_ogive &lt;- function(a, d, Theta) pnorm(a * Theta + d)</code></pre>
+<pre class="r"><code>Generate &lt;- function(condition, fixed_objects = NULL) {
 
-Generate &lt;- function(condition, fixed_objects = NULL) {
-    dat &lt;- data.frame()
-    dat
+    N &lt;- condition$sample_size
+    nitems &lt;- condition$nitems
+    nitems_name &lt;- ifelse(nitems == 10, &#39;ten&#39;, &#39;twenty&#39;)
+
+    #extract objects from fixed_objects
+    a &lt;- fixed_objects[[nitems_name]][&#39;a&#39;, ]
+    d &lt;- fixed_objects[[nitems_name]][&#39;d&#39;, ]
+
+    dat &lt;- matrix(NA, N, nitems)
+    colnames(dat) &lt;- paste0(&#39;item_&#39;, 1:nitems)
+    Theta &lt;- rnorm(N)
+    for(j in 1:nitems){
+        p &lt;- P_ogive(a[j], d[j], Theta)
+        for(i in 1:N)
+            dat[i,j] &lt;- sample(c(1,0), 1, prob = c(p[i], 1 - p[i]))
+    }
+    as.data.frame(dat) #data.frame works nicer with lavaan
 }
 
-Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
-    ret &lt;- c(stat1 = NaN, stat2 = NaN)
+Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
+    mod &lt;- mirt(dat, 1L, verbose=FALSE)
+    if(!extract.mirt(mod, &#39;converged&#39;)) stop(&#39;mirt did not converge&#39;)
+    cfs &lt;- mirt::coef(mod, simplify = TRUE, digits = Inf)
+    FIML_as &lt;- cfs$items[,1L] / 1.702
+    
+    ret &lt;- c(as=unname(FIML_as))
+    ret
+}
+
+Analyse.DWLS &lt;- function(condition, dat, fixed_objects = NULL) {
+    nitems &lt;- condition$nitems
+    lavmod &lt;- paste0(&#39;F =~ &#39;, paste0(&#39;NA*&#39;, colnames(dat)[1L], &#39; + &#39;),
+                     paste0(colnames(dat)[-1L], collapse = &#39; + &#39;),
+                     &#39;\nF ~~ 1*F&#39;)
+    lmod &lt;- sem(lavmod, dat, ordered = colnames(dat))
+    if(!lavInspect(lmod, &#39;converged&#39;)) stop(&#39;lavaan did not converge&#39;)
+    cfs2 &lt;- lavaan::coef(lmod)
+    DWLS_alpha &lt;- cfs2[1L:nitems]
+    const &lt;- sqrt(1 - DWLS_alpha^2)
+    DWLS_as &lt;- DWLS_alpha / const
+
+    ret &lt;- c(as=unname(DWLS_as))
     ret
 }
 
 Summarise &lt;- function(condition, results, fixed_objects = NULL) {
-    ret &lt;- c(bias = NaN, RMSE = NaN)
-    ret
-}
+    nitems &lt;- condition$nitems
+    nitems_name &lt;- ifelse(nitems == 10, &#39;ten&#39;, &#39;twenty&#39;)
 
-#-------------------------------------------------------------------
+    #extract objects from fixed_objects
+    a &lt;- fixed_objects[[nitems_name]][&#39;a&#39;, ]
+    pop &lt;- c(a, a)
 
-res &lt;- runSimulation(design=Design, replications=1000, generate=Generate, 
-                     analyse=Analyse, summarise=Summarise)
-res</code></pre>
-<p>Alternatively, if you are lazy (read: efficient) or just don’t like copy-and-pasting, <code>SimFunctions()</code> can write the output to a file by providing a <code>filename</code> argument. The following creates a file (<code>mysim.R</code>) containing the simulation design/execution and required user-defined functions.</p>
-<pre class="r"><code>SimFunctions(&#39;mysim&#39;)</code></pre>
-<p>For larger simulations, you may want to use two files, and if you’d prefer to have helpful comments included then these can be achieved with the <code>singlefile</code> and <code>comments</code> arguments, respectively.</p>
-<pre class="r"><code>SimFunctions(&#39;mysim&#39;, singlefile = FALSE, comments = TRUE)</code></pre>
-<p>The choice of using a single file or not is entirely a matter of preference, and will not influence the overall simulation implementation.</p>
-</div>
-<div id="simulation-determine-estimator-efficiency" class="section level1" number="2">
-<h1 number="2"><span class="header-section-number">2</span> Simulation: Determine estimator efficiency</h1>
-<p>As a toy example, let’s consider how the following question can be investigated with <code>SimDesign</code>:</p>
-<p><em>Question</em>: How does trimming affect recovering the mean of a distribution? Investigate this using different sample sizes with Gaussian and <span class="math inline">\(\chi^2\)</span> distributions. Also, demonstrate the effect of using the median to recover the mean.</p>
-<div id="define-the-conditions" class="section level2" number="2.1">
-<h2 number="2.1"><span class="header-section-number">2.1</span> Define the conditions</h2>
-<p>First, define the condition combinations that should be investigated. In this case we wish to study 4 different sample sizes, and use a symmetric and skewed distribution. The use of <code>createDesign()</code> is extremely helpful here to create a completely crossed-design for each combination (there are 8 in total).</p>
-<pre class="r"><code>Design &lt;- createDesign(sample_size = c(30, 60, 120, 240), 
-                       distribution = c(&#39;norm&#39;, &#39;chi&#39;))
-Design</code></pre>
-<pre><code>## # A tibble: 8 x 2
-##   sample_size distribution
-##         &lt;dbl&gt; &lt;chr&gt;       
-## 1          30 norm        
-## 2          60 norm        
-## 3         120 norm        
-## 4         240 norm        
-## 5          30 chi         
-## 6          60 chi         
-## 7         120 chi         
-## 8         240 chi</code></pre>
-<p>Each row in <code>Design</code> represents a unique condition to be studied in the simulation. In this case, the first condition to be studied comes from row 1, where <span class="math inline">\(N=30\)</span> and the distribution should be normal.</p>
-</div>
-<div id="define-the-functions" class="section level2" number="2.2">
-<h2 number="2.2"><span class="header-section-number">2.2</span> Define the functions</h2>
-<p>We first start by defining the data generation functional component. The only argument accepted by this function is <code>condition</code>, which will always be a <em>single row from the Design data.frame object</em> of class <code>data.frame</code>. Conditions are run sequentially from row 1 to the last row in <code>Design</code>. It is also possible to pass a <code>fixed_objects</code> object to the function for including fixed sets of population parameters and other conditions, however for this simple simulation this input is not required.</p>
-<pre class="r"><code>Generate &lt;- function(condition, fixed_objects = NULL) {
-    N &lt;- condition$sample_size
-    dist &lt;- condition$distribution
-    if(dist == &#39;norm&#39;){
-        dat &lt;- rnorm(N, mean = 3)
-    } else if(dist == &#39;chi&#39;){
-        dat &lt;- rchisq(N, df = 3)
-    }
-    dat
-}</code></pre>
-<p>As we can see above, <code>Generate()</code> will return a numeric vector of length <span class="math inline">\(N\)</span> containing the data to be analysed each with a population mean of 3 (because a <span class="math inline">\(\chi^2\)</span> distribution has a mean equal to its df). Next, we define the <code>analyse</code> component to analyse said data:</p>
-<pre class="r"><code>Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
-    M0 &lt;- mean(dat)
-    M1 &lt;- mean(dat, trim = .1)
-    M2 &lt;- mean(dat, trim = .2)
-    med &lt;- median(dat)
-    
-    ret &lt;- c(mean_no_trim=M0, mean_trim.1=M1, mean_trim.2=M2, median=med)
+    obt_bias &lt;- bias(results, pop)
+    obt_RMSE &lt;- RMSE(results, pop)
+    ret &lt;- c(bias=obt_bias, RMSE=obt_RMSE)
     ret
 }</code></pre>
-<p>This function accepts the data previously returned from <code>Generate()</code> (<code>dat</code>), the condition vector previously mentioned.</p>
-<p>At this point, we may conceptually think of the first two functions as being evaluated independently <span class="math inline">\(R\)</span> times to obtain <span class="math inline">\(R\)</span> sets of results. In other words, if we wanted the number of replications to be 100, the first two functions would be independently run (at least) 100 times, the results from <code>Analyse()</code> would be stored, and we would then need to summarise these 100 elements into meaningful meta statistics to describe their empirical properties. This is where computing meta-statistics such as bias, root mean-square error, detection rates, and so on are of primary importance. Unsurprisingly, then, this is the purpose of the <code>summarise</code> component:</p>
-<pre class="r"><code>Summarise &lt;- function(condition, results, fixed_objects = NULL) {
-    obs_bias &lt;- bias(results, parameter = 3)
-    obs_RMSE &lt;- RMSE(results, parameter = 3)
-    ret &lt;- c(bias=obs_bias, RMSE=obs_RMSE, RE=RE(obs_RMSE))
-    ret
-}</code></pre>
-<p>Again, <code>condition</code> is the same as was defined before, while <code>results</code> is a <code>matrix</code> containing all the results from <code>Analyse()</code>, where each row represents the result returned from each respective replication, and the number of columns is equal to the length of a single vector returned by <code>Analyse()</code>.</p>
-<p>That sounds much more complicated than it is — all you really need to know for this simulation is that an <span class="math inline">\(R\)</span> x 4 matrix called <code>results</code> is available to build a suitable summary from. Because the results is a matrix, <code>apply()</code> is useful to apply a function over each respective row. The bias and RMSE are obtained for each respective statistic, and the overall result is returned as a vector.</p>
-<p>Stopping for a moment and thinking carefully, we know that each <code>condition</code> will be paired with a unique vector returned from <code>Summarise()</code>. Therefore, you might be thinking that the result returned from the simulation will be in a rectangular form, such as in a <code>matrix</code> or <code>data.frame</code>. Well, you’d be right — good for you.</p>
-</div>
-<div id="putting-it-all-together" class="section level2" number="2.3">
-<h2 number="2.3"><span class="header-section-number">2.3</span> Putting it all together</h2>
-<p>The last stage of the <code>SimDesign</code> work-flow is to pass the four defined elements to the <code>runSimulation()</code> function which, unsurprisingly given it’s name, runs the simulation. There are numerous options available in the function, and these should be investigated by reading the <code>help(runSimulation)</code> HTML file. Options for performing simulations in parallel, storing/resuming temporary results, debugging functions, and so on are available. Below we simply request that each condition be run 1000 times on a single processor, and finally store the results to an object called <code>results</code>.</p>
-<pre class="r"><code>res &lt;- runSimulation(Design, replications = 1000, generate=Generate, 
-                         analyse=Analyse, summarise=Summarise)</code></pre>
-<pre><code>## 
-## 
-Design row: 1/8;   Started: Fri Aug 13 19:10:12 2021;   Total elapsed time: 0.00s 
-## 
-## 
-Design row: 2/8;   Started: Fri Aug 13 19:10:12 2021;   Total elapsed time: 0.33s 
-## 
-## 
-Design row: 3/8;   Started: Fri Aug 13 19:10:12 2021;   Total elapsed time: 0.64s 
-## 
-## 
-Design row: 4/8;   Started: Fri Aug 13 19:10:13 2021;   Total elapsed time: 0.95s 
-## 
-## 
-Design row: 5/8;   Started: Fri Aug 13 19:10:13 2021;   Total elapsed time: 1.29s 
-## 
-## 
-Design row: 6/8;   Started: Fri Aug 13 19:10:13 2021;   Total elapsed time: 1.59s 
-## 
-## 
-Design row: 7/8;   Started: Fri Aug 13 19:10:14 2021;   Total elapsed time: 1.89s 
-## 
-## 
-Design row: 8/8;   Started: Fri Aug 13 19:10:14 2021;   Total elapsed time: 2.23s</code></pre>
+<pre class="r"><code>res &lt;- runSimulation(Design, replications=100, verbose=FALSE, parallel=TRUE,
+                     generate=Generate, 
+                     analyse=list(FIML=Analyse.FIML, DWLS=Analyse.DWLS), 
+                     summarise=Summarise, filename = &#39;mirt_lavaan&#39;,
+                     packages=c(&#39;mirt&#39;, &#39;lavaan&#39;), fixed_objects=pars)</code></pre>
 <pre class="r"><code>res</code></pre>
-<pre><code>## # A tibble: 8 x 18
-##   sample_size distribution bias.mean_no_tr… bias.mean_trim.1 bias.mean_trim.2
-##         &lt;dbl&gt; &lt;chr&gt;                   &lt;dbl&gt;            &lt;dbl&gt;            &lt;dbl&gt;
-## 1          30 norm               -0.00481          -0.00468         -0.00293 
-## 2          60 norm                0.00305           0.00392          0.00311 
-## 3         120 norm                0.00113           0.000780         0.000572
-## 4         240 norm                0.000953          0.00113          0.000705
-## 5          30 chi                 0.0222           -0.299           -0.444   
-## 6          60 chi                -0.00428          -0.346           -0.494   
-## 7         120 chi                -0.00502          -0.346           -0.488   
-## 8         240 chi                -0.0000583        -0.346           -0.489   
-## # … with 13 more variables: bias.median &lt;dbl&gt;, RMSE.mean_no_trim &lt;dbl&gt;,
-## #   RMSE.mean_trim.1 &lt;dbl&gt;, RMSE.mean_trim.2 &lt;dbl&gt;, RMSE.median &lt;dbl&gt;,
-## #   RE.mean_no_trim &lt;dbl&gt;, RE.mean_trim.1 &lt;dbl&gt;, RE.mean_trim.2 &lt;dbl&gt;,
-## #   RE.median &lt;dbl&gt;, REPLICATIONS &lt;int&gt;, SIM_TIME &lt;dbl&gt;, COMPLETED &lt;chr&gt;,
-## #   SEED &lt;int&gt;</code></pre>
-<p>As can be seen from the printed results, each result from the <code>Summarise()</code> function has been paired with their respective condition, meta-statistics have been properly named, and three additional columns have been appended to the results: <code>REPLICATIONS</code>, which indicates how many time the conditions were performed, <code>SIM_TIME</code>, indicating the time (in seconds) it took to completely finish the respective conditions, and <code>SEED</code>, which indicates the random seeds used by <code>SimDesign</code> for each condition (for reproducibility). A call to <code>View()</code> in the R console may also be a nice way to sift through the <code>res</code> object.</p>
-</div>
-<div id="interpreting-the-results" class="section level2" number="2.4">
-<h2 number="2.4"><span class="header-section-number">2.4</span> Interpreting the results</h2>
-<p>In this case, visually inspecting the simulation table is enough to understand what is occurring, though for other Monte Carlo simulations use of ANOVAs, marginalized tables, and graphics should be used to capture the essentially phenomenon in the results. Monte Carlo simulations are just like collecting and analysing data for experiments, so my advice would be to put on your analysis hats and present your data as though it were data collected from the real world.</p>
-<p>In this particular simulation, it is readily apparent that using the un-adjusted mean will adequately recover the population mean with little bias. The precision also seems to increase as sample sizes increase, which is indicated by the decreasing RMSE statistics. Generally, trimming causes less efficiency in the estimates, where greater amounts of trimming results in even less efficiency, and using the median as a proxy to estimate the mean is the least effective method. This is witnessed rather clearly in the following table, which prints the relative efficiency of the estimators:</p>
-<pre class="r"><code>REs &lt;- res[,grepl(&#39;RE\\.&#39;, colnames(res))]
-data.frame(Design, REs)</code></pre>
-<pre><code>##   sample_size distribution RE.mean_no_trim RE.mean_trim.1 RE.mean_trim.2
-## 1          30         norm               1            1.0            1.1
-## 2          60         norm               1            1.1            1.1
-## 3         120         norm               1            1.1            1.2
-## 4         240         norm               1            1.1            1.1
-## 5          30          chi               1            1.3            1.9
-## 6          60          chi               1            2.0            3.2
-## 7         120          chi               1            3.3            5.7
-## 8         240          chi               1            5.7           10.5
-##   RE.median
-## 1       1.4
-## 2       1.6
-## 3       1.5
-## 4       1.6
-## 5       2.8
-## 6       5.1
-## 7       9.2
-## 8      17.1</code></pre>
-<p>Finally, when the <span class="math inline">\(\chi^2\)</span> distribution was investigated only the un-adjusted mean accurately portrayed the population mean. This isn’t surprising, because the trimmed mean is, after all, making inferences about the population trimmed mean, and the median is making inferences about, well, the median. Only when the distributions under investigation are symmetric are the statistics able to draw inferences about the same inferences about the mean of the population.</p>
+<pre><code>## # A tibble: 6 x 86
+##   sample_size nitems bias.FIML.as1 bias.FIML.as2 bias.FIML.as3 bias.FIML.as4
+##         &lt;dbl&gt;  &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;
+## 1         250     10       0.00999       0.0135       -0.0202        0.186  
+## 2         500     10      -0.0211        0.0187       -0.0182        0.104  
+## 3        1000     10      -0.00395      -0.00148      -0.0134        0.0779 
+## 4         250     20       0.0606        0.0118        0.0647       -0.0263 
+## 5         500     20       0.0192        0.0454        0.0218       -0.00636
+## 6        1000     20       0.0200        0.0186        0.00798      -0.0115 
+## # … with 80 more variables: bias.FIML.as5 &lt;dbl&gt;, bias.FIML.as6 &lt;dbl&gt;,
+## #   bias.FIML.as7 &lt;dbl&gt;, bias.FIML.as8 &lt;dbl&gt;, bias.FIML.as9 &lt;dbl&gt;,
+## #   bias.FIML.as10 &lt;dbl&gt;, bias.DWLS.as1 &lt;dbl&gt;, bias.DWLS.as2 &lt;dbl&gt;,
+## #   bias.DWLS.as3 &lt;dbl&gt;, bias.DWLS.as4 &lt;dbl&gt;, bias.DWLS.as5 &lt;dbl&gt;,
+## #   bias.DWLS.as6 &lt;dbl&gt;, bias.DWLS.as7 &lt;dbl&gt;, bias.DWLS.as8 &lt;dbl&gt;,
+## #   bias.DWLS.as9 &lt;dbl&gt;, bias.DWLS.as10 &lt;dbl&gt;, RMSE.FIML.as1 &lt;dbl&gt;,
+## #   RMSE.FIML.as2 &lt;dbl&gt;, RMSE.FIML.as3 &lt;dbl&gt;, RMSE.FIML.as4 &lt;dbl&gt;,
+## #   RMSE.FIML.as5 &lt;dbl&gt;, RMSE.FIML.as6 &lt;dbl&gt;, RMSE.FIML.as7 &lt;dbl&gt;,
+## #   RMSE.FIML.as8 &lt;dbl&gt;, RMSE.FIML.as9 &lt;dbl&gt;, RMSE.FIML.as10 &lt;dbl&gt;,
+## #   RMSE.DWLS.as1 &lt;dbl&gt;, RMSE.DWLS.as2 &lt;dbl&gt;, RMSE.DWLS.as3 &lt;dbl&gt;,
+## #   RMSE.DWLS.as4 &lt;dbl&gt;, RMSE.DWLS.as5 &lt;dbl&gt;, RMSE.DWLS.as6 &lt;dbl&gt;,
+## #   RMSE.DWLS.as7 &lt;dbl&gt;, RMSE.DWLS.as8 &lt;dbl&gt;, RMSE.DWLS.as9 &lt;dbl&gt;,
+## #   RMSE.DWLS.as10 &lt;dbl&gt;, bias.FIML.as11 &lt;dbl&gt;, bias.FIML.as12 &lt;dbl&gt;,
+## #   bias.FIML.as13 &lt;dbl&gt;, bias.FIML.as14 &lt;dbl&gt;, bias.FIML.as15 &lt;dbl&gt;,
+## #   bias.FIML.as16 &lt;dbl&gt;, bias.FIML.as17 &lt;dbl&gt;, bias.FIML.as18 &lt;dbl&gt;,
+## #   bias.FIML.as19 &lt;dbl&gt;, bias.FIML.as20 &lt;dbl&gt;, bias.DWLS.as11 &lt;dbl&gt;,
+## #   bias.DWLS.as12 &lt;dbl&gt;, bias.DWLS.as13 &lt;dbl&gt;, bias.DWLS.as14 &lt;dbl&gt;,
+## #   bias.DWLS.as15 &lt;dbl&gt;, bias.DWLS.as16 &lt;dbl&gt;, bias.DWLS.as17 &lt;dbl&gt;,
+## #   bias.DWLS.as18 &lt;dbl&gt;, bias.DWLS.as19 &lt;dbl&gt;, bias.DWLS.as20 &lt;dbl&gt;,
+## #   RMSE.FIML.as11 &lt;dbl&gt;, RMSE.FIML.as12 &lt;dbl&gt;, RMSE.FIML.as13 &lt;dbl&gt;,
+## #   RMSE.FIML.as14 &lt;dbl&gt;, RMSE.FIML.as15 &lt;dbl&gt;, RMSE.FIML.as16 &lt;dbl&gt;,
+## #   RMSE.FIML.as17 &lt;dbl&gt;, RMSE.FIML.as18 &lt;dbl&gt;, RMSE.FIML.as19 &lt;dbl&gt;,
+## #   RMSE.FIML.as20 &lt;dbl&gt;, RMSE.DWLS.as11 &lt;dbl&gt;, RMSE.DWLS.as12 &lt;dbl&gt;,
+## #   RMSE.DWLS.as13 &lt;dbl&gt;, RMSE.DWLS.as14 &lt;dbl&gt;, RMSE.DWLS.as15 &lt;dbl&gt;,
+## #   RMSE.DWLS.as16 &lt;dbl&gt;, RMSE.DWLS.as17 &lt;dbl&gt;, RMSE.DWLS.as18 &lt;dbl&gt;,
+## #   RMSE.DWLS.as19 &lt;dbl&gt;, RMSE.DWLS.as20 &lt;dbl&gt;, REPLICATIONS &lt;int&gt;,
+## #   SIM_TIME &lt;dbl&gt;, COMPLETED &lt;chr&gt;, SEED &lt;int&gt;</code></pre>
+<p>In this particular formulation the <code>mirt</code> and <code>lavaan</code> package analyses have been completely isolated into their own respective functions, and in principle could therefore be analyzed independently in future simulation studies. This adds a nicer layer of potential modularity to the Analyse portion of the <code>SimDesign</code> framework, where re-using or modifying previous <code>SimDesign</code> code should be less painful.</p>
 </div>
 </div>
-<div id="conceptual-walk-through-of-what-runsimulation-is-doing" class="section level1" number="3">
-<h1 number="3"><span class="header-section-number">3</span> Conceptual walk-through of what runSimulation() is doing</h1>
-<p>The following is a conceptual breakdown of what <code>runSimulation()</code> is actually doing behind the scenes. Here we demonstrate the results from the first condition (row 1 of <code>Design</code>) to show what each function returns.</p>
-<p>A single replication in a Monte Carlo simulation results in the following objects:</p>
-<pre class="r"><code>(condition &lt;- Design[1, ])</code></pre>
-<pre><code>## # A tibble: 1 x 2
-##   sample_size distribution
-##         &lt;dbl&gt; &lt;chr&gt;       
-## 1          30 norm</code></pre>
-<pre class="r"><code>dat &lt;- Generate(condition)
-dat</code></pre>
-<pre><code>##  [1] 2.37 3.18 2.16 4.60 3.33 2.18 3.49 3.74 3.58 2.69 4.51 3.39 2.38 0.79 4.12
-## [16] 2.96 2.98 3.94 3.82 3.59 3.92 3.78 3.07 1.01 3.62 2.94 2.84 1.53 2.52 3.42</code></pre>
-<pre class="r"><code>res &lt;- Analyse(condition, dat)
-res</code></pre>
-<pre><code>## mean_no_trim  mean_trim.1  mean_trim.2       median 
-##          3.1          3.2          3.2          3.3</code></pre>
-<p>We can see that <code>Generate()</code> returns a <code>numeric</code> vector which is accepted by <code>Analyse()</code>. The <code>Analyse()</code> function then completes the analysis portion using the generated data, and returns a named vector with the observed parameter estimates. Of course, this is only a single replication, and therefore is not really meaningful in the grand scheme of things; so, it must be repeated a number of times.</p>
-<pre class="r"><code># repeat 1000x
-results &lt;- matrix(0, 1000, 4)
-colnames(results) &lt;- names(res)
-for(i in 1:1000){
-    dat &lt;- Generate(condition)
-    res &lt;- Analyse(condition, dat)
-    results[i, ] &lt;- res
+<div id="analyseif" class="section level1" number="2">
+<h1 number="2"><span class="header-section-number">2</span> <code>AnalyseIf()</code></h1>
+<p>In situations where analysis functions defined in the <code>analyse</code> list should only be applied in certain design conditions, users can include an <code>AnalyseIf()</code> definition at the beginning of their respective functions to ensure the analyses are only executed when the provided logical is <code>TRUE</code>. This logical ensures the data generation conditions are suitable for the analysis function to be investigated; otherwise, it is skipped over in the generate-analyse-summarise work-flow.</p>
+<p>As a continuation from above, say that an investigator was also interested in recovering the slope parameters of a factor analysis model where the observed indicator variable were continuous as well as discrete. The <code>Design</code> definition may therefore look like the following.</p>
+<pre class="r"><code>Design &lt;- createDesign(sample_size = sample_sizes, 
+                       nitems = nitems, 
+                       indicators = c(&#39;discrete&#39;, &#39;continuous&#39;))
+Design</code></pre>
+<pre><code>## # A tibble: 12 x 3
+##    sample_size nitems indicators
+##          &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt;     
+##  1         250     10 discrete  
+##  2         500     10 discrete  
+##  3        1000     10 discrete  
+##  4         250     20 discrete  
+##  5         500     20 discrete  
+##  6        1000     20 discrete  
+##  7         250     10 continuous
+##  8         500     10 continuous
+##  9        1000     10 continuous
+## 10         250     20 continuous
+## 11         500     20 continuous
+## 12        1000     20 continuous</code></pre>
+<p>Provided that the <code>Generate()</code> step utilized this <code>indicators</code> factor, this would imply that the <code>dat</code> object returned from <code>Generate()</code> could consist of discrete or continuous data. In the case of continuous indicator variables, <code>lavaan</code> could be used as it supports such indicator types; however, <code>mirt</code> cannot. So, to ensure that only the analysis function pertaining to <code>lavaan</code> is used one could include the following replacement definition that used <code>mirt</code>, but now includes an <code>AnalyseIf()</code> logical given the <code>indicators</code> variable’s state.</p>
+<pre class="r"><code>Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
+    AnalyseIf(condition$indicators == &#39;discrete&#39;)
+    # equivalently: 
+    #   AnalyseIf(indicators == &#39;discrete&#39;, condition)
+    #   with(condition, AnalyseIf(indicators == &#39;discrete&#39;))
+    mod &lt;- mirt(dat, 1L, verbose=FALSE)
+    if(!extract.mirt(mod, &#39;converged&#39;)) stop(&#39;mirt did not converge&#39;)
+    cfs &lt;- coef(mod, simplify = TRUE, digits = Inf)
+    FIML_as &lt;- cfs$items[,1L] / 1.702
+    
+    ret &lt;- c(as=unname(FIML_as))
+    ret
+}</code></pre>
+<p>Using this definition the final object returned by <code>runSimulation()</code> will provide suitable <code>NA</code> placeholders (where appropriate). For continuous indicators the results will be presented as though <code>mirt</code> was never used for the continuous indicator conditions controlled by the <code>Design</code> object.</p>
+<div id="applying-one-analyse-function-per-condition" class="section level2" number="2.1">
+<h2 number="2.1"><span class="header-section-number">2.1</span> Applying one analyse function per-condition</h2>
+<p>Interestingly, <code>AnalyseIf()</code> could also be used to select only one analysis function at a time given the components in the <code>Design</code> object. For instance, if the <code>Design</code> definition were constructed using</p>
+<pre class="r"><code>Design &lt;- createDesign(sample_size = sample_sizes, 
+                       nitems = nitems, 
+                       method = c(&#39;FIML&#39;, &#39;DWLS&#39;))
+Design</code></pre>
+<pre><code>## # A tibble: 12 x 3
+##    sample_size nitems method
+##          &lt;dbl&gt;  &lt;dbl&gt; &lt;chr&gt; 
+##  1         250     10 FIML  
+##  2         500     10 FIML  
+##  3        1000     10 FIML  
+##  4         250     20 FIML  
+##  5         500     20 FIML  
+##  6        1000     20 FIML  
+##  7         250     10 DWLS  
+##  8         500     10 DWLS  
+##  9        1000     10 DWLS  
+## 10         250     20 DWLS  
+## 11         500     20 DWLS  
+## 12        1000     20 DWLS</code></pre>
+<p>and the analysis functions above were supplied defined as</p>
+<pre class="r"><code>Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
+    AnalyseIf(method == &#39;FIML&#39;, condition)
+    #...
 }
-head(results)</code></pre>
-<pre><code>##      mean_no_trim mean_trim.1 mean_trim.2 median
-## [1,]          3.1         3.1         3.1    2.9
-## [2,]          3.1         3.1         3.1    3.1
-## [3,]          3.1         3.1         3.0    2.8
-## [4,]          2.7         2.6         2.6    2.7
-## [5,]          3.2         3.2         3.2    3.0
-## [6,]          3.1         3.1         3.0    3.1</code></pre>
-<p>The matrix stored in <code>results</code> contains 1000 parameter estimates returned from each statistic. After this is obtained, we can move on to summarising the output through the <code>Summarise()</code> function to obtain average estimates, their associated sampling error, their efficiency, and so on.</p>
-<pre class="r"><code>Summarise(condition, results) </code></pre>
-<pre><code>## bias.mean_no_trim  bias.mean_trim.1  bias.mean_trim.2       bias.median 
-##           -0.0011           -0.0031           -0.0035           -0.0037 
-## RMSE.mean_no_trim  RMSE.mean_trim.1  RMSE.mean_trim.2       RMSE.median 
-##            0.1739            0.1777            0.1859            0.2146 
-##   RE.mean_no_trim    RE.mean_trim.1    RE.mean_trim.2         RE.median 
-##            1.0000            1.0442            1.1425            1.5225</code></pre>
-<p>This scheme is then repeated for each row in the <code>Design</code> object until the entire simulation study is complete.</p>
-<p>Of course, <code>runSimulation()</code> does much more than this conceptual outline, which is why it exists. Namely, errors and warnings are controlled and tracked, data is re-drawn when needed, parallel processing is supported, debugging is easier with the <code>debug</code> input (or by inserting <code>browser()</code> directly), temporary and full results can be saved to external files, the simulation state can be saved/restored, build-in safety features are included, and more. The point, however, is that you as the user <em>should not be bogged down with the nitty-gritty details of setting up the simulation work-flow/features</em>; instead, you need only focus your time on the important generate-analyse-summarise steps, organized in the body of these function, required to obtain your interesting simulation results.</p>
-<p>To access further examples and instructions feel free to visit the <a href="https://github.com/philchalmers/SimDesign/wiki">package wiki on Github</a></p>
+
+Analyse.DWLS &lt;- function(condition, dat, fixed_objects = NULL) {
+    AnalyseIf(method == &#39;DWLS&#39;, condition)
+    # ...
+}</code></pre>
+<p>then only one analysis function will be applied at a time in the simulation experiment. Users may find this a more natural setup than having to merge all analysis information into a single <code>Analyse()</code> definition. The downside, however, is that the analysis function will be applied to different generated datasets, which while theoretically unbiased could have ramifications should the analysis functions throw errors at different rates (even when explicitly supplying a <code>seed</code> vector input to <code>runSimulation()</code>).</p>
+</div>
 </div>
 
 

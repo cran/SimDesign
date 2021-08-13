@@ -138,7 +138,8 @@
 #'   user if they wish to generate the data with the \code{analyse} step, but for real-world
 #'   simulations this is generally not recommended
 #'
-#' @param analyse user-defined analysis function that acts on the data generated from
+#' @param analyse user-defined analysis function (or named list of functions)
+#'   that acts on the data generated from
 #'   \code{\link{Generate}} (or, if \code{generate} was omitted, can be used to generate and
 #'   analyses the simulated data). See \code{\link{Analyse}} for details
 #'
@@ -402,7 +403,7 @@
 #'
 #' @param debug a string indicating where to initiate a \code{browser()} call for editing
 #' and debugging, and pairs
-#'   particularly well with the \code{load_seed} argument for precice debugging.
+#'   particularly well with the \code{load_seed} argument for precise debugging.
 #'   General options are \code{'none'} (default; no debugging), \code{'error'}, which
 #'   starts the debugger
 #'   when any error in the code is detected in one of three generate-analyse-summarise functions,
@@ -411,6 +412,12 @@
 #'   or not. Specific options include: \code{'generate'}
 #'   to debug the data simulation function, \code{'analyse'} to debug the computational function, and
 #'   \code{'summarise'} to debug the aggregation function.
+#'
+#'   If the \code{Analyse} argument is supplied as a named list of functions then it is also possible
+#'   to debug the specific function of interest by passing the name of the respective function in the list.
+#'   For instance, if \code{analyse = list(A1=Analyse.A1, A2=Analyse.A2)} then passing
+#'   \code{debug = 'A1'} will debug only the first function in this list, and all remaining analysis
+#'   functions will be ignored.
 #'
 #'   Alternatively, users may place \code{\link{browser}} calls within the respective functions for
 #'   debugging at specific lines, which is useful when debugging based on conditional evaluations (e.g.,
@@ -482,7 +489,7 @@
 #'   \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
 #'   \code{\link{SimExtract}},
 #'   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-#'   \code{\link{aggregate_simulations}}, \code{\link{Attach}},
+#'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
 #'   \code{\link{SimShiny}}
 #'
 #' @export runSimulation
@@ -778,6 +785,30 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
+    ANALYSE_FUNCTIONS <- NULL
+    if(is.list(analyse)){
+        stopifnot(length(names(analyse)) > 0L)
+        if(debug %in% c('all', 'analyse'))
+            stop('debug input not supported when analyse is a list', call.=FALSE)
+        if(any(debug == names(analyse))){
+            analyse <- analyse[[which(debug == names(analyse))]]
+            debug <- 'analyse'
+        } else {
+            for(i in 1L:length(analyse))
+                analyse[[i]] <- compiler::cmpfun(analyse[[i]])
+            .SIMDENV$ANALYSE_FUNCTIONS <- ANALYSE_FUNCTIONS <- analyse
+            analyse <- combined_Analyses
+            for(i in 1L:length(ANALYSE_FUNCTIONS)){
+                char_functions <- deparse(substitute(ANALYSE_FUNCTIONS[[i]]))
+                if(any(grepl('browser\\(', char_functions))){
+                    if(verbose && parallel)
+                        message(paste0('A browser() call was detected. Parallel processing/object ',
+                                       'saving will be disabled while visible'))
+                    save <- save_results <- save_seeds <- parallel <- MPI <- FALSE
+                }
+            }
+        }
+    }
     if(is.null(seed)){
         seed <- if(missing(design))
             rint(1L, min=1L, max = 2147483647L)
@@ -820,8 +851,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!all(names(save_results) %in%
             c('compname', 'save_results_dirname')))
         stop('save_details contains elements that are not supported', call.=FALSE)
-    Generate <- compiler::cmpfun(Generate)
-    Analyse <- compiler::cmpfun(Analyse)
+    generate <- compiler::cmpfun(generate)
+    analyse <- compiler::cmpfun(analyse)
 
     compname <- save_details$compname
     safe <- save_details$safe
@@ -917,6 +948,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         stop('number of replications must be greater than or equal to 1', call. = FALSE)
     if(!(debug %in% c('none', 'analyse', 'generate', 'summarise', 'all', 'error')))
         stop('debug input is not valid', call. = FALSE)
+    if(!is.null(ANALYSE_FUNCTIONS) && debug == 'analyse')
+        stop(c('debug = \"analyse" not supported when functions are a list. Please place a browser()',
+             " in the respective function location that you are trying to debug"), call.=FALSE)
     if(any(names(design) == 'REPLICATION')){
         stop("REPLICATION is a reserved keyword in the design object. Please use another name",
              call.=FALSE)
@@ -947,6 +981,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             on.exit(parallel::stopCluster(cl))
         }
         parallel::clusterExport(cl=cl, export_funs, envir = parent.frame(1L))
+        parallel::clusterExport(cl=cl, "ANALYSE_FUNCTIONS", envir = environment())
         if(verbose)
             message(sprintf("\nNumber of parallel clusters in use: %i", length(cl)))
     }
@@ -1263,6 +1298,7 @@ summary.SimDesign <- function(object, ...){
     ret$stored_results <- NULL
     ret$error_seeds <- NULL
     ret$warning_seeds <- NULL
+    ret$summarise_list <- NULL
     ret
 }
 

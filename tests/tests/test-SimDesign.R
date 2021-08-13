@@ -602,5 +602,70 @@ test_that('SimDesign', {
     lst <- SimExtract(res, 'summarise')
     expect_equal(names(lst), c("N=250", "N=500"))
 
+    ## modular
+    Design <- createDesign(factor1 = 1,
+                           factor2 = c(1,2))
+
+    generate <- function(condition, fixed_objects = NULL) {
+        dat <- 1
+        dat
+    }
+
+    analyse1 <- function(condition, dat, fixed_objects = NULL) {
+        ret <- c(a1=1)
+        ret
+    }
+
+    analyse2 <- function(condition, dat, fixed_objects = NULL) {
+        ret <- c(a2=2)
+        ret
+    }
+
+    summarise <- function(condition, results, fixed_objects = NULL) {
+        ret <- colMeans(results)
+        ret
+    }
+
+    res <- runSimulation(design=Design, replications=5, generate=generate,
+                         analyse=list(analyse1=analyse1, analyse2=analyse2),
+                         summarise=summarise, parallel=FALSE, verbose=FALSE)
+    expect_true(all(c("analyse1.a1", "analyse2.a2") %in% names(res)))
+
+    # skip over some
+    analyse1 <- function(condition, dat, fixed_objects = NULL) {
+        AnalyseIf(factor2 != 2, condition)
+        ret <- c(a1=1)
+        ret
+    }
+
+    res <- runSimulation(design=Design, replications=5, generate=generate,
+                         analyse=list(analyse1=analyse1, analyse2=analyse2),
+                         summarise=summarise, parallel=TRUE, verbose=FALSE)
+    expect_true(all(c("analyse1.a1", "analyse2.a2") %in% names(res)))
+    expect_true(is.na(res$analyse1.a1[2]))
+
+    # fuzzy strings
+    Analyse <- function(condition, dat, fixed_objects = NULL) {
+        C <- matrix(c(1,.2, 0, 1), 2)
+        if(sample(c(TRUE, FALSE), 1))
+            C[2,2] <- runif(1, -1e-8, 1e-8)
+        ret <- det(solve(C %*% t(C)))
+        ret
+    }
+
+    Summarise <- function(condition, results, fixed_objects = NULL) {
+        ret <- c(bias = NaN, RMSE = NaN)
+        ret
+    }
+
+    #-------------------------------------------------------------------
+
+    res <- runSimulation(replications=200, analyse=Analyse, summarise=Summarise,
+                         verbose=FALSE, seed = 1234)
+    out <- SimExtract(res, what = 'errors')
+    expect_true(ncol(out) == 2L)
+    out <- SimExtract(res, what = 'errors', fuzzy = FALSE)
+    expect_true(ncol(out) > 2L)
+
 })
 

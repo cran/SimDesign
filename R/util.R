@@ -1,3 +1,5 @@
+.SIMDENV <- new.env(parent=emptyenv())
+
 # return a character vector of functions defined in .GlobalEnv
 parent_env_fun <- function(){
     nms <- ls(envir = parent.frame(2L))
@@ -170,3 +172,50 @@ unwind_apply_wind.list <- function(lst, mat, fun, ...){
     }
     ret
 }
+
+combined_Analyses <- function(condition, dat, fixed_objects = NULL){
+    if(!is.null(.SIMDENV$ANALYSE_FUNCTIONS))
+        ANALYSE_FUNCTIONS <- .SIMDENV$ANALYSE_FUNCTIONS
+    nfuns <- length(ANALYSE_FUNCTIONS)
+    nms <- names(ANALYSE_FUNCTIONS)
+    ret <- vector('list', nfuns)
+    names(ret) <- nms
+    for(i in nms){
+        tried <- try(ANALYSE_FUNCTIONS[[i]](condition=condition, dat=dat,
+                                            fixed_objects=fixed_objects), silent=TRUE)
+        if(is(tried, 'try-error'))
+            if(tried == 'Error : ANALYSEIF RAISED ERROR\n')
+                tried <- NULL
+        ret[[i]] <- tried
+    }
+    if(all(sapply(ret, function(x) is.numeric(x) ||
+                  (is.data.frame(x) && nrow(x) == 1L))))
+        ret <- unlist(ret)
+    ret
+}
+
+toTabledResults <- function(results){
+    tabled_results <- if(is.data.frame(results[[1]]) && nrow(results[[1L]]) == 1L){
+        dplyr::bind_rows(results)
+    } else if((is.data.frame(results[[1]]) && nrow(results[[1]]) > 1L) || is.list(results[[1L]])){
+        results
+    } else {
+        dplyr::bind_rows(as.data.frame(do.call(rbind, results)))
+    }
+    tabled_results
+}
+
+stackResults <- function(results){
+    if(!is.list(results[[1L]]) || (is.data.frame(results[[1L]]) &&
+                                   nrow(results[[1L]]) == 1L)){
+        old_nms <- names(results[[1L]])
+        results <- as.data.frame(do.call(rbind, results))
+        if(length(unique(colnames(results))) != ncol(results) && ncol(results) > 1L)
+            stop('Object of results returned from analyse must have unique names', call.=FALSE)
+        rownames(results) <- NULL
+        if(ncol(results) == 1L && is.null(old_nms)) results <- results[,1]
+    }
+    results
+}
+
+
