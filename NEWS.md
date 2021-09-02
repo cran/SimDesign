@@ -1,5 +1,13 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.7.1
+
+- Added `RSE()` function to compute the relative behaviour of the average standard error to the 
+  standard deviation of a set of parameter estimates across the replications 
+  (`RSE = E(par_SEs) / SD(par_ests)`)
+
+- Bugfix for new list input for analysis functions when error raised (reported by Mark Lai)
+
 ## Changes in SimDesign 2.7
 
 - `SimExtract()` gains a `fuzzy` argument to allow fuzzy matching of error and warning messages.
