@@ -201,6 +201,10 @@
 #'   with the \code{::} operator
 #'   (e.g., \code{extraDistr::rgumbel()})
 #'
+#' @param beep logical; call the \code{beepr} package when the simulation is completed?
+#'
+#' @param sound \code{sound} argument passed to \code{beepr::beep()}
+#'
 #' @param notification an optional character vector input that can be used to send
 #'   Pushbullet notifications from a configured
 #'   computer. This reports information such as the total execution time, the condition
@@ -327,8 +331,21 @@
 #'        should a REPLICATION element be added to
 #'        the \code{condition} object when performing the simulation to track which specific
 #'        replication experiment is being evaluated? This is useful when, for instance, attempting
-#'        to run external software programs (e.g., Mplus) that require saving temporary datasets
+#'        to run external software programs (e.g., Mplus) that require saving temporary data sets
 #'        to the hard-drive (see the Wiki for examples)}
+#'
+#'      \item{\code{try_all_analyse}}{logical; when \code{analyse} is a list, should every generated
+#'        data set be analyzed by each function definition in the \code{analyse} list?
+#'        Default is \code{TRUE}.
+#'
+#'        Note that this \code{TRUE} default can be computationally demanding when some analysis
+#'        functions require more computational resources than others, and the data should be
+#'        discarded early as an invalid candidate (e.g., estimating a model via maximum-likelihood
+#'        in on analyze component, while estimating a model using MCMC estimation on another). Hence,
+#'        the main benefit of using \code{FALSE} instead is that the data set may be rejected earlier,
+#'        where easier/faster to estimate \code{analyse} definitions should be placed earlier in the list
+#'        as the functions are evaluated in sequence
+#'        (e.g., \code{Analyse = list(MLE=MLE_definition, MCMC=MCMC_definition)}) }
 #'
 #'      \item{\code{allow_na}}{logical (default is \code{FALSE}); should \code{NA}s be allowed in the
 #'       analyse step as a valid result from the simulation analysis?}
@@ -402,8 +419,7 @@
 #'   Default is \code{TRUE}
 #'
 #' @param debug a string indicating where to initiate a \code{browser()} call for editing
-#' and debugging, and pairs
-#'   particularly well with the \code{load_seed} argument for precise debugging.
+#'   and debugging, and pairs particularly well with the \code{load_seed} argument for precise debugging.
 #'   General options are \code{'none'} (default; no debugging), \code{'error'}, which
 #'   starts the debugger
 #'   when any error in the code is detected in one of three generate-analyse-summarise functions,
@@ -673,9 +689,9 @@
 #' res
 #' View(res)
 #'
-#' ## save final results to a file upon completion (not run)
+#' ## save final results to a file upon completion, and play a beep when done
 #' runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
-#'               generate=Generate, analyse=Analyse, summarise=Summarise)
+#'               generate=Generate, analyse=Analyse, summarise=Summarise, beep=TRUE)
 #'
 #' ## same as above, but send a notification via Pushbullet upon completion
 #' library(RPushbullet) # read-in default JSON file
@@ -778,16 +794,17 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL, filename = NULL,
                           debug = 'none', load_seed = NULL,
                           save_results = FALSE, parallel = FALSE, ncores = parallel::detectCores(),
-                          cl = NULL, notification = 'none', CI = .95, seed = NULL,
+                          cl = NULL, notification = 'none', beep = FALSE, sound = 1,
+                          CI = .95, seed = NULL,
                           boot_method='none', boot_draws = 1000L, max_errors = 50L,
                           save_seeds = FALSE, save = TRUE, store_results = FALSE,
                           save_details = list(), extra_options = list(),
                           progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
-    ANALYSE_FUNCTIONS <- NULL
+    ANALYSE_FUNCTIONS <- TRY_ALL_ANALYSE <- NULL
     if(is.list(analyse)){
-        stopifnot(length(names(analyse)) > 0L)
+        # stopifnot(length(names(analyse)) > 0L)
         if(debug %in% c('all', 'analyse'))
             stop('debug input not supported when analyse is a list', call.=FALSE)
         if(any(debug == names(analyse))){
@@ -797,6 +814,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             for(i in 1L:length(analyse))
                 analyse[[i]] <- compiler::cmpfun(analyse[[i]])
             .SIMDENV$ANALYSE_FUNCTIONS <- ANALYSE_FUNCTIONS <- analyse
+            .SIMDENV$TRY_ALL_ANALYSE <- TRY_ALL_ANALYSE  <-
+                ifelse(is.null(extra_options$try_all_analyse),
+                       TRUE, extra_options$try_all_analyse)
             analyse <- combined_Analyses
             for(i in 1L:length(ANALYSE_FUNCTIONS)){
                 char_functions <- deparse(substitute(ANALYSE_FUNCTIONS[[i]]))
@@ -982,6 +1002,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         }
         parallel::clusterExport(cl=cl, export_funs, envir = parent.frame(1L))
         parallel::clusterExport(cl=cl, "ANALYSE_FUNCTIONS", envir = environment())
+        parallel::clusterExport(cl=cl, "TRY_ALL_ANALYSE", envir = environment())
         if(verbose)
             message(sprintf("\nNumber of parallel clusters in use: %i", length(cl)))
     }
@@ -1240,6 +1261,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     wen <- colnames(Final)[grepl('WARNING:', colnames(Final))]
     ERROR_msg <- Final[ ,ten, drop=FALSE]
     WARNING_msg <- Final[ ,wen, drop=FALSE]
+    colnames(ERROR_msg) <- gsub("ERROR: ." , "ERROR:  ", colnames(ERROR_msg))
+    colnames(WARNING_msg) <- gsub("WARNING: ." , "WARNING:  ", colnames(WARNING_msg))
     ERRORS <- as.integer(rowSums(ERROR_msg, na.rm = TRUE))
     WARNINGS <- as.integer(rowSums(WARNING_msg, na.rm = TRUE))
     en <- c('REPLICATIONS', 'SIM_TIME', 'COMPLETED', 'SEED')
@@ -1285,6 +1308,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     if(save || save_results || save_seeds) file.remove(file.path(out_rootdir, tmpfilename))
     if(notification %in% c('condition', 'complete')) notification_final(Final)
+    if(beep)
+        beepr::beep(sound=sound)
     return(Final)
 }
 

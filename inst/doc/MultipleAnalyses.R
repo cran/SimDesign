@@ -513,14 +513,21 @@ Design <- createDesign(sample_size = sample_sizes,
                        method = c('FIML', 'DWLS'))
 Design
 
-## -----------------------------------------------------------------------------
-Analyse.FIML <- function(condition, dat, fixed_objects = NULL) {
-    AnalyseIf(method == 'FIML', condition)
-    #...
-}
-
-Analyse.DWLS <- function(condition, dat, fixed_objects = NULL) {
-    AnalyseIf(method == 'DWLS', condition)
-    # ...
-}
+## ----eval=FALSE---------------------------------------------------------------
+#  Analyse.FIML <- function(condition, dat, fixed_objects = NULL) {
+#      AnalyseIf(method == 'FIML', condition)
+#      #...
+#  }
+#  
+#  Analyse.DWLS <- function(condition, dat, fixed_objects = NULL) {
+#      AnalyseIf(method == 'DWLS', condition)
+#      # ...
+#  }
+#  
+#  # ...
+#  res <- runSimulation(Design, replications=100, verbose=FALSE, parallel=TRUE,
+#                       generate=Generate,
+#                       analyse=list(Analyse.FIML, Analyse.DWLS),
+#                       summarise=Summarise, filename = 'mirt_lavaan',
+#                       packages=c('mirt', 'lavaan'), fixed_objects=pars)
 

@@ -22,6 +22,8 @@ runSimulation(
   ncores = parallel::detectCores(),
   cl = NULL,
   notification = "none",
+  beep = FALSE,
+  sound = 1,
   CI = 0.95,
   seed = NULL,
   boot_method = "none",
@@ -117,8 +119,7 @@ simulation results to. If the extension
   existing files. Default is \code{NULL}, indicating no file will be saved by default}
 
 \item{debug}{a string indicating where to initiate a \code{browser()} call for editing
-and debugging, and pairs
-  particularly well with the \code{load_seed} argument for precise debugging.
+  and debugging, and pairs particularly well with the \code{load_seed} argument for precise debugging.
   General options are \code{'none'} (default; no debugging), \code{'error'}, which
   starts the debugger
   when any error in the code is detected in one of three generate-analyse-summarise functions,
@@ -207,6 +208,10 @@ that you must  use either the "MPI" or "PSOCK" clusters)}
   \code{'condition'} to send a notification after each condition has completed,
   or \code{'complete'} to send
   a notification only when the simulation has finished.}
+
+\item{beep}{logical; call the \code{beepr} package when the simulation is completed?}
+
+\item{sound}{\code{sound} argument passed to \code{beepr::beep()}}
 
 \item{CI}{bootstrap confidence interval level (default is 95\%)}
 
@@ -352,8 +357,21 @@ errors are thrown in any
        should a REPLICATION element be added to
        the \code{condition} object when performing the simulation to track which specific
        replication experiment is being evaluated? This is useful when, for instance, attempting
-       to run external software programs (e.g., Mplus) that require saving temporary datasets
+       to run external software programs (e.g., Mplus) that require saving temporary data sets
        to the hard-drive (see the Wiki for examples)}
+
+     \item{\code{try_all_analyse}}{logical; when \code{analyse} is a list, should every generated
+       data set be analyzed by each function definition in the \code{analyse} list?
+       Default is \code{TRUE}.
+
+       Note that this \code{TRUE} default can be computationally demanding when some analysis
+       functions require more computational resources than others, and the data should be
+       discarded early as an invalid candidate (e.g., estimating a model via maximum-likelihood
+       in on analyze component, while estimating a model using MCMC estimation on another). Hence,
+       the main benefit of using \code{FALSE} instead is that the data set may be rejected earlier,
+       where easier/faster to estimate \code{analyse} definitions should be placed earlier in the list
+       as the functions are evaluated in sequence
+       (e.g., \code{Analyse = list(MLE=MLE_definition, MCMC=MCMC_definition)}) }
 
      \item{\code{allow_na}}{logical (default is \code{FALSE}); should \code{NA}s be allowed in the
       analyse step as a valid result from the simulation analysis?}
@@ -711,9 +729,9 @@ res <- runSimulation(design=Design, replications=1000, parallel=TRUE,
 res
 View(res)
 
-## save final results to a file upon completion (not run)
+## save final results to a file upon completion, and play a beep when done
 runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
-              generate=Generate, analyse=Analyse, summarise=Summarise)
+              generate=Generate, analyse=Analyse, summarise=Summarise, beep=TRUE)
 
 ## same as above, but send a notification via Pushbullet upon completion
 library(RPushbullet) # read-in default JSON file

@@ -1,5 +1,17 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.8
+
+- Using a list definition for `Analyse` input now executes all functions by default
+  regardless of errors thrown. Error messages and seeds remain captured in the output,
+  however are labelled according to the number of errors that were observed (e.g.,
+  `SimExtra(result, what = 'errors')` may return column with 
+  `"ERROR:  2 INDEPENDENT ERRORS THROWN: ..."`). Previous early termination default 
+  can be reset by passing `extra_options = list(try_all_analyse = FALSE)` to `runSimulation()`.
+  Special thanks to Mark Lai for bringing this to my attention on Issue #20
+
+- Added `beep` argument to `runSimulation()` to play a beep message via the `beepr`
+
 ## Changes in SimDesign 2.7.1
 
 - Added `RSE()` function to compute the relative behaviour of the average standard error to the 
