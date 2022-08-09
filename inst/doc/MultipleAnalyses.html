@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2021-12-08" />
+<meta name="date" content="2022-08-09" />
 
 <title>Multiple Analysis Functions</title>
 
@@ -1330,6 +1330,7 @@ if (window.hljs) {
 
 
 
+
 <style type="text/css">
 .main-container {
   max-width: 940px;
@@ -1350,6 +1351,9 @@ button.code-folding-btn:focus {
 }
 summary {
   display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
 }
 pre code {
   padding: 0;
@@ -1514,7 +1518,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Multiple Analysis Functions</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2021-12-08</h4>
+<h4 class="date">2022-08-09</h4>
 
 </div>
 
@@ -1690,21 +1694,22 @@ Summarise &lt;- function(condition, results, fixed_objects = NULL) {
                      packages=c(&#39;mirt&#39;, &#39;lavaan&#39;), fixed_objects=pars)</code></pre>
 <pre class="r"><code>res</code></pre>
 <pre><code>## # A tibble: 6 × 86
-##   sample_size nitems bias.FIML.as1 bias.FIML.as2 bias.FIML.as3 bias.FIML.as4
-##         &lt;dbl&gt;  &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;         &lt;dbl&gt;
-## 1         250     10       0.00999       0.0135       -0.0202        0.186  
-## 2         500     10      -0.0211        0.0187       -0.0182        0.104  
-## 3        1000     10      -0.00395      -0.00148      -0.0134        0.0779 
-## 4         250     20       0.0606        0.0118        0.0647       -0.0263 
-## 5         500     20       0.0192        0.0454        0.0218       -0.00636
-## 6        1000     20       0.0200        0.0186        0.00798      -0.0115 
-## # … with 80 more variables: bias.FIML.as5 &lt;dbl&gt;, bias.FIML.as6 &lt;dbl&gt;,
-## #   bias.FIML.as7 &lt;dbl&gt;, bias.FIML.as8 &lt;dbl&gt;, bias.FIML.as9 &lt;dbl&gt;,
+##   sample…¹ nitems bias.F…² bias.F…³ bias.F…⁴ bias.F…⁵ bias.F…⁶ bias.F…⁷ bias.F…⁸
+##      &lt;dbl&gt;  &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
+## 1      250     10  0.00999  0.0135  -0.0202   0.186    9.27e-3 -0.00394  3.21e-2
+## 2      500     10 -0.0211   0.0187  -0.0182   0.104    2.93e-2 -0.0154   2.31e-3
+## 3     1000     10 -0.00395 -0.00148 -0.0134   0.0779   3.57e-3 -0.0154  -7.43e-3
+## 4      250     20  0.0606   0.0118   0.0647  -0.0263   5.82e-4 -0.0116  -5.64e-2
+## 5      500     20  0.0192   0.0454   0.0218  -0.00636  2.03e-2 -0.00169  1.91e-4
+## 6     1000     20  0.0200   0.0186   0.00798 -0.0115  -1.28e-2 -0.0219  -6.23e-4
+## # … with 77 more variables: bias.FIML.as8 &lt;dbl&gt;, bias.FIML.as9 &lt;dbl&gt;,
 ## #   bias.FIML.as10 &lt;dbl&gt;, bias.DWLS.as1 &lt;dbl&gt;, bias.DWLS.as2 &lt;dbl&gt;,
 ## #   bias.DWLS.as3 &lt;dbl&gt;, bias.DWLS.as4 &lt;dbl&gt;, bias.DWLS.as5 &lt;dbl&gt;,
 ## #   bias.DWLS.as6 &lt;dbl&gt;, bias.DWLS.as7 &lt;dbl&gt;, bias.DWLS.as8 &lt;dbl&gt;,
 ## #   bias.DWLS.as9 &lt;dbl&gt;, bias.DWLS.as10 &lt;dbl&gt;, RMSE.FIML.as1 &lt;dbl&gt;,
-## #   RMSE.FIML.as2 &lt;dbl&gt;, RMSE.FIML.as3 &lt;dbl&gt;, RMSE.FIML.as4 &lt;dbl&gt;, …</code></pre>
+## #   RMSE.FIML.as2 &lt;dbl&gt;, RMSE.FIML.as3 &lt;dbl&gt;, RMSE.FIML.as4 &lt;dbl&gt;,
+## #   RMSE.FIML.as5 &lt;dbl&gt;, RMSE.FIML.as6 &lt;dbl&gt;, RMSE.FIML.as7 &lt;dbl&gt;, …
+## # ℹ Use `colnames()` to see all variable names</code></pre>
 <p>In this particular formulation the <code>mirt</code> and <code>lavaan</code> package analyses have been completely isolated into their own respective functions, and in principle could therefore be analyzed independently in future simulation studies. This adds a nicer layer of potential modularity to the Analyse portion of the <code>SimDesign</code> framework, where re-using or modifying previous <code>SimDesign</code> code should be less painful.</p>
 </div>
 </div>

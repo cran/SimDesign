@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2021-12-08" />
+<meta name="date" content="2022-08-09" />
 
 <title>Catching errors</title>
 
@@ -1330,6 +1330,7 @@ if (window.hljs) {
 
 
 
+
 <style type="text/css">
 .main-container {
   max-width: 940px;
@@ -1350,6 +1351,9 @@ button.code-folding-btn:focus {
 }
 summary {
   display: list-item;
+}
+details > summary > p:only-child {
+  display: inline;
 }
 pre code {
   padding: 0;
@@ -1514,7 +1518,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Catching errors</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2021-12-08</h4>
+<h4 class="date">2022-08-09</h4>
 
 </div>
 
@@ -1565,20 +1569,21 @@ Summarise &lt;- function(condition, results, fixed_objects = NULL) {
                        generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Wed Dec  8 19:01:05 2021;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Tue Aug  9 15:10:45 2022;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Wed Dec  8 19:01:05 2021;   Total elapsed time: 0.07s 
+Design row: 2/3;   Started: Tue Aug  9 15:10:45 2022;   Total elapsed time: 0.10s 
 ## 
 ## 
-Design row: 3/3;   Started: Wed Dec  8 19:01:05 2021;   Total elapsed time: 0.14s</code></pre>
+Design row: 3/3;   Started: Tue Aug  9 15:10:45 2022;   Total elapsed time: 0.20s</code></pre>
 <pre class="r"><code>print(result)</code></pre>
 <pre><code>## # A tibble: 3 × 8
-##       N   bias REPLICATIONS SIM_TIME COMPLETED              SEED ERRORS WARNINGS
-##   &lt;dbl&gt;  &lt;dbl&gt;        &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;                 &lt;int&gt;  &lt;int&gt;    &lt;int&gt;
-## 1    10 0.0611          100   0.0730 Wed Dec  8 19:01:…   1.14e9     53       59
-## 2    20 0.0143          100   0.0670 Wed Dec  8 19:01:…   3.13e8     52       60
-## 3    30 0.0179          100   0.0690 Wed Dec  8 19:01:…   8.66e8     42       56</code></pre>
+##       N   bias REPLICATIONS SIM_TIME COMPLETED               SEED ERRORS WARNI…¹
+##   &lt;dbl&gt;  &lt;dbl&gt;        &lt;int&gt;    &lt;dbl&gt; &lt;chr&gt;                  &lt;int&gt;  &lt;int&gt;   &lt;int&gt;
+## 1    10 0.0611          100   0.0960 Tue Aug  9 15:10:45 … 1.14e9     53      59
+## 2    20 0.0143          100   0.107  Tue Aug  9 15:10:45 … 3.13e8     52      60
+## 3    30 0.0179          100   0.0750 Tue Aug  9 15:10:46 … 8.66e8     42      56
+## # … with abbreviated variable name ¹​WARNINGS</code></pre>
 <p>What you’ll immediately notice from this output object is that counts of the error and warning messages have been appended to the <code>result</code> object. This is useful to determine just how problematic the errors and warnings are based on their frequency alone. Furthermore, the specific frequency in which the errors/warnings occurred are also included for each design condition (here the <code>t.test.default()</code> error, where no inputs were supplied, occurred more often than the manually thrown error as well as the invalid-input error) after extracting and inspecting <code>SimExtract(results, what = &#39;errors&#39;)</code> and <code>SimExtract(results, what = &#39;warnings&#39;)</code>.</p>
 <pre class="r"><code>SimExtract(result, what = &#39;errors&#39;)</code></pre>
 <pre><code>##    N ERROR:  Error in t.test.default(&quot;invalid&quot;) : not enough &#39;x&#39; observations\n
@@ -1605,14 +1610,18 @@ Design row: 3/3;   Started: Wed Dec  8 19:01:05 2021;   Total elapsed time: 0.14
 <pre class="r"><code>seeds &lt;- SimExtract(result, what = &#39;error_seeds&#39;)
 head(seeds[,1:3])</code></pre>
 <pre><code>## # A tibble: 6 × 3
-##   Design_row_1.1..Error.in.t.t… Design_row_1.2..Ma… Design_row_1.3..Error.in.t.…
-##                           &lt;int&gt;               &lt;int&gt;                        &lt;int&gt;
-## 1                         10403               10403                        10403
-## 2                           624                  21                           65
-## 3                    -159038368          -230613222                   -230613222
-## 4                    1905303777           203707493                    203707493
-## 5                    -371375826          1161141503                   1161141503
-## 6                   -1012234281           549195142                    549195142</code></pre>
+##   Design_row_1.1..Error.in.t.test.default.....argument..x..is.…¹ Desig…² Desig…³
+##                                                            &lt;int&gt;   &lt;int&gt;   &lt;int&gt;
+## 1                                                          10403  1.04e4  1.04e4
+## 2                                                            624  2.1 e1  6.5 e1
+## 3                                                     -159038368 -2.31e8 -2.31e8
+## 4                                                     1905303777  2.04e8  2.04e8
+## 5                                                     -371375826  1.16e9  1.16e9
+## 6                                                    -1012234281  5.49e8  5.49e8
+## # … with abbreviated variable names
+## #   ¹​Design_row_1.1..Error.in.t.test.default.....argument..x..is.missing..with.no.default.,
+## #   ²​Design_row_1.2..Manual.error.thrown.,
+## #   ³​Design_row_1.3..Error.in.t.test.default.....argument..x..is.missing..with.no.default.</code></pre>
 <p>Given these seeds, replicating an exact error can be achieved by a) extracting a single column into an <code>integer</code> vector, and b) passing this vector to the <code>load_seed</code> input. For example, replicating the first error message can be achieved as follows, where it makes the most sense to immediately go into the debugging mode via the <code>debug</code> inputs.</p>
 <p>Note: It is important to manually select the correct <code>Design</code> row using this error extraction approach; otherwise, the seed will clearly not replicate the exact problem state.</p>
 <pre class="r"><code>picked_seed &lt;- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
