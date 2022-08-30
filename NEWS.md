@@ -1,7 +1,11 @@
 # NEWS file for SimDesign
 
-## Changes in SimDesign 2.9
+## Changes in SimDesign 2.9.1
 
+- `extra_options` gains support for `.options.mpi` to control the MPI properties
+  documented in `doMPI`
+- `quite()` now removes the sunk connection temp file to save storage
+  issues (e.g., when distributing on Slurm)
 - `Attach()` gains an `omit` argument to omit specific elements from being attached
   to the working environment (default still attaches all objects supplied)
 
