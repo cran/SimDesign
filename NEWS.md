@@ -1,14 +1,16 @@
 # NEWS file for SimDesign
 
-## Changes in SimDesign 2.10
+## Changes in SimDesign 2.10.1
 
-- Make the package `future` ready by using `library(future)` to replace the built-in
-  parallel processing inputs. Attaching the `future` package make previous arguments
-  to `runSimulation()` unnecessary (e.g., `cl`, `parallel`, etc)
+- Support the `future` package by using `runSimulation(..., parallel = 'future')` 
+  to replace the built-in parallel processing inputs. Using the `future` package 
+  approach makes several arguments to `runSimulation()` unnecessary as these 
+  can be specified when defining `future::plan()` (e.g., `cl`, `MPI`, etc)
   
-- When using the `future` approach the `progressr` package is now used whenever 
-  `progress = TRUE` (default). Allows the progress bar to be modified by the front-end
-  user (see `?runSimulatino` for an example)
+- When using the `future` approach the `progressr` package is used. 
+  Allows the progress bar to be started via `progressr::with_progress()` and 
+  modified by the front-end user (see `?runSimulatino` for an example 
+  using `progressr::handler()`)
 
 ## Changes in SimDesign 2.9.1
 

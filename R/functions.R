@@ -313,7 +313,7 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
             if(is(simlist, 'try-error')){
                 .GlobalEnv$.Random.seed <- current_Random.seed
                 debug(generate)
-                on.exit(myundebug(generate))
+                on.exit(myundebug(generate), add = TRUE)
                 generate(condition=condition, fixed_objects=fixed_objects)
                 myundebug(generate)
             }
@@ -338,7 +338,7 @@ mainsim <- function(index, condition, generate, analyse, fixed_objects, max_erro
         if(!use_try){
             if(is(res, 'try-error')){
                 debug(analyse)
-                on.exit(myundebug(analyse))
+                on.exit(myundebug(analyse), add = TRUE)
                 .GlobalEnv$.Random.seed <- current_Random.seed
                 simlist <- generate(condition=condition, fixed_objects=fixed_objects)
                 try(analyse(dat=simlist, condition=condition, fixed_objects=fixed_objects), TRUE)

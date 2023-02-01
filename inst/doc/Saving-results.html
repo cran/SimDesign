@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-01-24" />
+<meta name="date" content="2023-02-01" />
 
 <title>Saving additional simulation results and state</title>
 
@@ -253,7 +253,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Saving additional simulation results and state</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-01-24</h4>
+<h4 class="date">2023-02-01</h4>
 
 </div>
 
@@ -293,13 +293,13 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Tue Jan 24 16:53:47 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Wed Feb  1 15:04:18 2023;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Tue Jan 24 16:53:47 2023;   Total elapsed time: 0.28s 
+Design row: 2/3;   Started: Wed Feb  1 15:04:19 2023;   Total elapsed time: 0.31s 
 ## 
 ## 
-Design row: 3/3;   Started: Tue Jan 24 16:53:48 2023;   Total elapsed time: 0.57s</code></pre>
+Design row: 3/3;   Started: Wed Feb  1 15:04:19 2023;   Total elapsed time: 0.63s</code></pre>
 <p>Check that temporary file exists.</p>
 <pre class="r"><code>files &lt;- dir()
 files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
@@ -314,13 +314,13 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Tue Jan 24 16:53:48 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Wed Feb  1 15:04:19 2023;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Tue Jan 24 16:53:48 2023;   Total elapsed time: 0.27s 
+Design row: 2/3;   Started: Wed Feb  1 15:04:19 2023;   Total elapsed time: 0.26s 
 ## 
 ## 
-Design row: 3/3;   Started: Tue Jan 24 16:53:48 2023;   Total elapsed time: 0.53s</code></pre>
+Design row: 3/3;   Started: Wed Feb  1 15:04:20 2023;   Total elapsed time: 0.53s</code></pre>
 <p>Check which files exist.</p>
 <pre class="r"><code>files &lt;- dir()
 files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
@@ -336,13 +336,13 @@ files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Tue Jan 24 16:53:49 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Wed Feb  1 15:04:20 2023;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Tue Jan 24 16:53:49 2023;   Total elapsed time: 0.26s 
+Design row: 2/3;   Started: Wed Feb  1 15:04:20 2023;   Total elapsed time: 0.27s 
 ## 
 ## 
-Design row: 3/3;   Started: Tue Jan 24 16:53:49 2023;   Total elapsed time: 0.54s</code></pre>
+Design row: 3/3;   Started: Wed Feb  1 15:04:21 2023;   Total elapsed time: 0.53s</code></pre>
 <pre class="r"><code>dir &lt;- dir()
 directory &lt;- dir[grepl(&#39;SimDesign-results&#39;, dir)]
 dir(directory)</code></pre>
@@ -451,13 +451,13 @@ str(input)</code></pre>
               generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Tue Jan 24 16:53:50 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   Started: Wed Feb  1 15:04:22 2023;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 2/3;   Started: Tue Jan 24 16:53:50 2023;   Total elapsed time: 0.00s 
+Design row: 2/3;   Started: Wed Feb  1 15:04:22 2023;   Total elapsed time: 0.00s 
 ## 
 ## 
-Design row: 3/3;   Started: Tue Jan 24 16:53:50 2023;   Total elapsed time: 0.01s</code></pre>
+Design row: 3/3;   Started: Wed Feb  1 15:04:22 2023;   Total elapsed time: 0.01s</code></pre>
 <pre class="r"><code>list_results &lt;- SimExtract(res, what = &#39;results&#39;)
 list_results</code></pre>
 <pre><code>## $`N=10`

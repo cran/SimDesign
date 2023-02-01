@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-01-24" />
+<meta name="date" content="2023-02-01" />
 
 <title>Parallel computing information</title>
 
@@ -253,14 +253,14 @@ div.tocify {
 
 <h1 class="title toc-ignore">Parallel computing information</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-01-24</h4>
+<h4 class="date">2023-02-01</h4>
 
 </div>
 
 
 <div id="cluster-computing" class="section level1" number="1">
 <h1><span class="header-section-number">1</span> Cluster computing</h1>
-<p>SimDesign code may be released to a computing system which supports parallel cluster computations using the industry standard Message Passing Interface (MPI) form. This simply requires that the computers be setup using the usual MPI requirements (typically, running some flavor of Linux, have password-less open-SSH access, IP addresses have been added to the <code>/etc/hosts</code> file or <code>~/.ssh/config</code>, etc). More generally though, these resources are widely available through professional organizations dedicated to super-computing.</p>
+<p><code>SimDesign</code> code may be released to a computing system which supports parallel cluster computations using the industry standard Message Passing Interface (MPI) form. This simply requires that the computers be setup using the usual MPI requirements (typically, running some flavor of Linux, have password-less open-SSH access, IP addresses have been added to the <code>/etc/hosts</code> file or <code>~/.ssh/config</code>, etc). More generally though, these resources are widely available through professional organizations dedicated to super-computing.</p>
 <p>To setup the R code for an MPI cluster the argument <code>MPI = TRUE</code> needs to be added to the <code>extra_options</code> list input, which wraps the appropriate MPI directives around <code>runSimulation</code>. At this point the source files can be submitted using suitable BASH commands to execute the <code>mpirun</code> tool. For example,</p>
 <pre class="r"><code>library(doMPI)
 cl &lt;- startMPIcluster()
@@ -271,6 +271,7 @@ closeCluster(cl)
 mpi.quit()</code></pre>
 <p>The necessary <code>SimDesign</code> files must be uploaded to the dedicated master node so that a BASH call to <code>mpirun</code> can be used to distribute the work across slaves. For instance, if the following BASH command is run on the master node then 16 processes will be summoned (1 master, 15 slaves) across the computers named <code>localhost</code>, <code>slave1</code>, and <code>slave2</code> in the ssh <code>config</code> file.</p>
 <p><code>mpirun -np 16 -H localhost,slave1,slave2 R --slave -f simulation.R</code></p>
+<p>A similar setup can also be used via the recently supported <code>future</code> interface (see below).</p>
 </div>
 <div id="network-computing" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Network computing</h1>
@@ -301,12 +302,41 @@ spec &lt;- c(rep(primary, 8), rep(&#39;slave&#39;, 6))
 cl &lt;- makeCluster(master=primary, spec=spec)
 Final &lt;- runSimulation(..., cl=cl)
 stopCluster(cl)</code></pre>
+<p>A similar setup can also be used via the recently supported <code>future</code> interface (see below).</p>
 </div>
 <div id="poor-mans-cluster-computing-for-independent-nodes" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> Poor man’s cluster computing for independent nodes</h1>
 <p>In the event that you do not have access to a Beowulf-type cluster (described in the section on “Network Computing”) but have multiple personal computers then the simulation code can be manually distributed across each independent computer instead.</p>
 <p>This simply requires passing a smaller value to the <code>replications</code> argument on each computer and later aggregating the results using the <code>aggregate_simulations()</code> function. For instance, if you have two computers available on different networks and wanted a total of 500 replications you could pass <code>replications = 300</code> to one computer and<code>replications = 200</code> to the other along with a <code>filename</code> argument (or simply saving the final objects as <code>.rds</code> files manually after <code>runSimulation()</code> has finished). This will create two distinct <code>.rds</code> files which can be combined later with the <code>aggregate_simulations()</code> function. The benefit of this approach over MPI or setting up a Beowulf cluster is that computers need not be linked on the same network, and, should the need arise, the temporary simulation results can be migrated to another computer in case of a complete hardware failure by moving the saved temp files to another node, modifying the suitable <code>compname</code> input to <code>save_details</code> (or, if the <code>filename</code> and <code>tmpfilename</code> were modified, matching those files accordingly), and resuming the simulation as normal.</p>
 <p>Note that this is also a useful tactic if the MPI or Network computing options require you to submit smaller jobs due to time and resource constraint-related reasons, where fewer replications/nodes should be requested. After all the jobs are completed and saved to their respective files, <code>aggregate_simulations()</code> can then collapse the files as if the simulations were run all at once. Hence, <code>SimDesign</code> makes submitting smaller jobs to super-computing resources considerably less error prone than managing a number of smaller jobs manually.</p>
+</div>
+<div id="using-the-future-framework" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Using the <code>future</code> framework</h1>
+<p>The <code>future</code> framework (see <code>help(future, package = &#39;future&#39;)</code>) can also be used for distributing the asynchronous function evaluations by changing the logical input in <code>runSimulation(..., parallel = TRUE/FALSE)</code> to the character vector <code>runSimulation(..., parallel = &#39;future&#39;)</code>, while the computation plan is pre-specified via <code>future::plan()</code>. For example, to initialize a local two-worker parallel processing computational plan one can use the follow:</p>
+<pre class="r"><code>library(future)
+plan(multisession, workers = 2)
+
+res &lt;- runSimulation(design=Design, replications=1000, generate=Generate, 
+                     analyse=Analyse, summarise=Summarise,
+                     parallel = &#39;future&#39;)</code></pre>
+<p>The benefit of using the <code>future</code> framework is the automatic support of many distinct back-ends, such as, for instance, HPC clusters that control the distribution of jobs via Slurm or TORQUE (e.g., see the <code>future.batchtools</code> package).</p>
+<p>For progress reporting the <code>progressr</code> package is required and is intended as a wrapper around <code>runSimulation()</code>. Specifically, wrap the function <code>with_progress()</code> around <code>runSimulation()</code> after having specified the type of <code>handler()</code> to use, such as via the following.</p>
+<pre class="r"><code>library(progressr)
+
+# Rstudio style handler (if using RStudio)
+handlers(&quot;rstudio&quot;)
+
+# or using the cli package for terminal-based progress 
+handlers(&#39;cli&#39;)
+
+# See help(progressr) for additional options and details
+
+# to use progressr, wrap/pipe inside with_progress() 
+res &lt;- with_progress(runSimulation(design=Design, replications=1000, generate=Generate, 
+                     analyse=Analyse, summarise=Summarise,
+                     parallel = &#39;future&#39;))</code></pre>
+<p>Finally, when the parallel computations are complete be sure to manually reset the computation plan to free any workers via</p>
+<pre class="r"><code>plan(sequential) # release workers</code></pre>
 </div>
 
 

@@ -45,3 +45,30 @@ par(mar=c(3,3,1,1)+.1)
 #  Final <- runSimulation(..., cl=cl)
 #  stopCluster(cl)
 
+## ----eval=FALSE---------------------------------------------------------------
+#  library(future)
+#  plan(multisession, workers = 2)
+#  
+#  res <- runSimulation(design=Design, replications=1000, generate=Generate,
+#                       analyse=Analyse, summarise=Summarise,
+#                       parallel = 'future')
+
+## ----eval=FALSE---------------------------------------------------------------
+#  library(progressr)
+#  
+#  # Rstudio style handler (if using RStudio)
+#  handlers("rstudio")
+#  
+#  # or using the cli package for terminal-based progress
+#  handlers('cli')
+#  
+#  # See help(progressr) for additional options and details
+#  
+#  # to use progressr, wrap/pipe inside with_progress()
+#  res <- with_progress(runSimulation(design=Design, replications=1000, generate=Generate,
+#                       analyse=Analyse, summarise=Summarise,
+#                       parallel = 'future'))
+
+## ----eval=FALSE---------------------------------------------------------------
+#  plan(sequential) # release workers
+
