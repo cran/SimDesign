@@ -61,12 +61,17 @@ print(result)
 ## -----------------------------------------------------------------------------
 SimExtract(result, what = 'errors')
 
+## ----eval=FALSE---------------------------------------------------------------
+#  runSimulation(..., debug = 'error-4')
+
 ## -----------------------------------------------------------------------------
 seeds <- SimExtract(result, what = 'error_seeds')
 head(seeds[,1:3])
 
 ## ----eval=FALSE---------------------------------------------------------------
 #  picked_seed <- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
-#  runSimulation(Design[1,], replications = 100, load_seed=picked_seed, debug='analyse',
+#  
+#  # debug analyse() for first row of Design object via debug='analyse-1'
+#  runSimulation(Design, replications = 100, load_seed=picked_seed, debug='analyse-1',
 #                generate=Generate, analyse=Analyse, summarise=Summarise)
 

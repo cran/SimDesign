@@ -607,7 +607,9 @@ RE <- function(x, MSE = FALSE, percent = FALSE, unname = FALSE){
 #'
 #'
 RSE <- function(SE, ests, unname = FALSE){
-    if(is.matrix(SE)) SE <- colMeans(SE)
+    if(!is.matrix(ests)) ests <- as.matrix(ests)
+    if(!is.matrix(SE)) SE <- as.matrix(SE)
+    SE <- colMeans(SE)
     SD <- apply(ests, 2L, sd)
     ret <- SE / SD
     if(unname) ret <- unname(ret)
@@ -853,7 +855,7 @@ RD <- function(est, pop, as.vector = TRUE, unname = FALSE){
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #'
-#' @seealso \code{\link{ECR}}
+#' @seealso \code{\link{ECR}}, \code{\link{Bradley1978}}
 #'
 #' @export EDR
 #' @references

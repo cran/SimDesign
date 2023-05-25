@@ -135,10 +135,13 @@
 #'   to be varied. See \code{\link{createDesign}} for the standard approach
 #'   to create this simulation design object
 #'
-#' @param generate user-defined data and parameter generating function.
+#' @param generate user-defined data and parameter generating function (or named list of functions).
 #'   See \code{\link{Generate}} for details. Note that this argument may be omitted by the
 #'   user if they wish to generate the data with the \code{analyse} step, but for real-world
-#'   simulations this is generally not recommended
+#'   simulations this is generally not recommended. If multiple generate functions are provided
+#'   as a list then the list of generate functions are executed in order until the first valid
+#'   generate function is executed, where the subsequent generation functions are then ignored
+#'   (see \code{\link{GenerateIf}} to only apply data generation for specific conditions).
 #'
 #' @param analyse user-defined analysis function (or named list of functions)
 #'   that acts on the data generated from
@@ -404,13 +407,17 @@
 #'     \item{\code{save_results_dirname}}{a string indicating the name of the folder to save
 #'       result objects to when \code{save_results = TRUE}. If a directory/folder does not exist
 #'       in the current working directory then a unique one will be created automatically. Default is
-#'       \code{'SimDesign-results_'} with the associated \code{compname} appended}
+#'       \code{'SimDesign-results_'} with the associated \code{compname} appended if no
+#'       \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
+#'       in the string}
 #'
 #'     \item{\code{save_seeds_dirname}}{a string indicating the name of the folder to save
 #'       \code{.Random.seed} objects to when \code{save_seeds = TRUE}. If a directory/folder
 #'       does not exist
 #'       in the current working directory then one will be created automatically. Default is
-#'       \code{'SimDesign-seeds_'} with the associated \code{compname} appended}
+#'       \code{'SimDesign-seeds_'} with the associated \code{compname} appended if no
+#'       \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
+#'       in the string}
 #'
 #'   }
 #'
@@ -422,7 +429,7 @@
 #'   is going wrong in the generate-analyse phases. Default is 50
 #'
 #' @param ncores number of cores to be used in parallel execution (ignored if using the
-#'   \code{future} package approach). Default uses all available
+#'   \code{future} package approach). Default uses all available minus 1
 #'
 #' @param save logical; save the temporary simulation state to the hard-drive? This is useful
 #'   for simulations which require an extended amount of time, though for shorter simulations
@@ -457,7 +464,14 @@
 #'   \code{debug = 'A1'} will debug only the first function in this list, and all remaining analysis
 #'   functions will be ignored.
 #'
-#'   Alternatively, users may place \code{\link{browser}} calls within the respective functions for
+#'   For debugging specific rows in the \code{Design} input (e.g.,
+#'   when a number of initial rows successfully complete but the \code{k}th
+#'   row fails) the row number can be appended to the standard
+#'   \code{debug} input using a \code{'-'} separator.
+#'   For instance, debugging whenever an error is raised
+#'   in the second row of \code{Design} can be declared via \code{debug = 'error-2'}.
+#'
+#'   Finally, users may place \code{\link{browser}} calls within the respective functions for
 #'   debugging at specific lines, which is useful when debugging based on conditional evaluations (e.g.,
 #'   \code{if(this == 'problem') browser()}). Note that parallel computation flags
 #'   will automatically be disabled when a \code{browser()} is detected or when a debugging
@@ -682,12 +696,12 @@
 #' }
 #'
 #' Analyse <- function(condition, dat, fixed_objects = NULL) {
-#'     welch <- t.test(DV ~ group, dat)
-#'     ind <- t.test(DV ~ group, dat, var.equal=TRUE)
+#'     welch <- t.test(DV ~ group, dat)$p.value
+#'     independent <- t.test(DV ~ group, dat, var.equal=TRUE)$p.value
 #'
 #'     # In this function the p values for the t-tests are returned,
 #'     #  and make sure to name each element, for future reference
-#'     ret <- c(welch = welch$p.value, independent = ind$p.value)
+#'     ret <- nc(welch, independent)
 #'     ret
 #' }
 #'
@@ -739,9 +753,11 @@
 #'     ret
 #' }
 #'
+#' ## The following debugs the analyse function for the
+#' ## second row of the Design input
 #' runSimulation(design=Design, replications=1000,
 #'               generate=Generate, analyse=Analyse, summarise=Summarise,
-#'               parallel=TRUE)
+#'               parallel=TRUE, debug='analyse-2')
 #'
 #'
 #' ####################################
@@ -847,7 +863,8 @@
 runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL, filename = NULL,
                           debug = 'none', load_seed = NULL,
-                          save_results = FALSE, parallel = FALSE, ncores = parallel::detectCores(),
+                          save_results = FALSE, parallel = FALSE,
+                          ncores = parallel::detectCores() - 1L,
                           cl = NULL, notification = 'none', beep = FALSE, sound = 1,
                           CI = .95, seed = NULL,
                           boot_method='none', boot_draws = 1000L, max_errors = 50L,
@@ -861,6 +878,43 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         useFuture <- tolower(parallel) == 'future'
         parallel <- TRUE
     } else useFuture <- FALSE
+    if(is.null(seed)){
+        seed <- if(missing(design))
+            rint(1L, min=1L, max = 2147483647L)
+        else rint(nrow(design), min=1L, max = 2147483647L)
+    }
+    if(debug != 'none'){
+        if(grepl('-', debug)){
+            tmp <- strsplit(debug, '-')[[1]]
+            debug <- tmp[1L]
+            design <- design[as.integer(tmp[2L]), , drop=FALSE]
+            seed <- seed[as.integer(tmp[2L])]
+        }
+    }
+    if(missing(generate) && !missing(analyse))
+        generate <- function(condition, dat, fixed_objects = NULL){}
+    if(is.list(generate)){
+        if(debug %in% c('all', 'generate'))
+            stop('debug input not supported when generate is a list', call.=FALSE)
+        if(any(debug == names(generate))){
+            generate <- generate[[which(debug == names(generate))]]
+            debug <- 'generate'
+        } else {
+            for(i in 1L:length(generate))
+                generate[[i]] <- compiler::cmpfun(generate[[i]])
+            .SIMDENV$GENERATE_FUNCTIONS <- generate
+            generate <- combined_Generate
+            for(i in 1L:length(generate)){
+                char_functions <- deparse(substitute(.SIMDENV$GENERATE_FUNCTIONS[[i]]))
+                if(any(grepl('browser\\(', char_functions))){
+                    if(verbose && parallel)
+                        message(paste0('A browser() call was detected. Parallel processing/object ',
+                                       'saving will be disabled while visible'))
+                    save <- save_results <- save_seeds <- parallel <- MPI <- useFuture <- FALSE
+                }
+            }
+        }
+    }
     if(is.list(analyse)){
         # stopifnot(length(names(analyse)) > 0L)
         if(debug %in% c('all', 'analyse'))
@@ -887,11 +941,6 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             }
         }
     }
-    if(is.null(seed)){
-        seed <- if(missing(design))
-            rint(1L, min=1L, max = 2147483647L)
-        else rint(nrow(design), min=1L, max = 2147483647L)
-    }
     stopifnot(notification %in% c('none', 'condition', 'complete'))
     if(notification != 'none')
         if(!("RPushbullet" %in% (.packages())))
@@ -916,8 +965,6 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         else extra_options$type
     include_replication_index <- ifelse(is.null(extra_options$include_replication_index),
                                         FALSE, extra_options$include_replication_index)
-    if(missing(generate) && !missing(analyse))
-        generate <- function(condition, dat, fixed_objects = NULL){}
     NA_summarise <- FALSE
     if(!missing(summarise)){
         NA_summarise <- if(!is.function(summarise) && is.na(summarise)) TRUE else FALSE
@@ -944,10 +991,20 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!verbose) progress <- FALSE
     if(is.null(compname)) compname <- Sys.info()['nodename']
     if(is.null(safe)) safe <- TRUE
-    if(is.null(out_rootdir)) { out_rootdir <- '.' } else { dir.create(out_rootdir, showWarnings=FALSE) }
-    if(is.null(tmpfilename)) tmpfilename <- paste0('SIMDESIGN-TEMPFILE_', compname, '.rds')
-    if(is.null(save_results_dirname)) save_results_dirname <- paste0('SimDesign-results_', compname)
-    if(is.null(save_seeds_dirname)) save_seeds_dirname <- paste0('SimDesign-seeds_', compname)
+    if(is.null(out_rootdir)) { out_rootdir <- '.' }
+       else { dir.create(out_rootdir, showWarnings=FALSE) }
+    if(is.null(tmpfilename))
+        tmpfilename <- paste0('SIMDESIGN-TEMPFILE_', compname, '.rds')
+    if(is.null(save_results_dirname)){
+        save_results_dirname <-
+            if(!is.null(filename)) paste0(filename, '-results_', compname)
+            else paste0('SimDesign-results_', compname)
+    }
+    if(is.null(save_seeds_dirname)){
+        save_seeds_dirname <- if(!is.null(filename))
+            paste0(filename, '-seeds_', compname)
+            else paste0('SimDesign-seeds_', compname)
+    }
     if(!is.null(filename)){
         if(grepl('\\.rds', filename))
             filename <- gsub('\\.rds', '', filename)
@@ -975,6 +1032,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         verbose <- FALSE
         store_results <- TRUE
     }
+    SimSolveRun <- !is.null(attr(design, 'SimSolve'))
     stopifnot(!missing(replications))
     replications <- as.integer(replications)
     if(!is.null(seed))
@@ -1072,9 +1130,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     names(Result_list) <- names(stored_Results_list) <- rownames(design)
     time0 <- time1 <- proc.time()[3L]
     files <- dir(out_rootdir)
-    if(!MPI && any(files == tmpfilename) && is.null(load_seed)){
+    if(!MPI && any(files == tmpfilename) && is.null(load_seed) && debug == 'none'){
         if(verbose)
-            message(sprintf('Resuming simulation from %s file with %i replications.',
+            message(sprintf(c('Resuming simulation from %s file with %i replications. ',
+                              '\nIf not intended, use SimClean() prior to calling runSimulation()'),
                             file.path(out_rootdir, tmpfilename), replications))
         Result_list <- readRDS(file.path(out_rootdir, tmpfilename))
         if(!is.null(Result_list[[1L]]$REPLICATIONS))
@@ -1089,7 +1148,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 Result_list <- tmp_new
             }
         }
-        start <- min(which(sapply(Result_list, is.null)))
+        start <- min(c(which(sapply(Result_list, is.null)), nrow(design)))
         time0 <- time1 - Result_list[[start-1L]]$SIM_TIME
     }
     if(file.exists(tmpfilename)){
@@ -1174,7 +1233,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         time0 <- proc.time()[3L]
         if(summarise_asis){
             if(verbose)
-                print_progress(i, nrow(design), stored_time=stored_time, progress=progress)
+                print_progress(i, nrow(design), stored_time=stored_time, progress=progress,
+                               condition=if(was_tibble) dplyr::as_tibble(design[i,])
+                               else design[i,])
             Result_list[[i]] <- Analysis(Functions=Functions,
                                          condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                            else design[i,],
@@ -1202,7 +1263,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         } else {
             stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
             if(verbose)
-                print_progress(i, nrow(design), stored_time=stored_time, progress=progress)
+                print_progress(i, nrow(design), stored_time=stored_time, progress=progress,
+                               condition=if(was_tibble) dplyr::as_tibble(design[i,])
+                               else design[i,])
             if(save_seeds)
                 dir.create(file.path(out_rootdir,
                                      paste0(save_seeds_dirname, '/design-row-', i)),
@@ -1226,6 +1289,18 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             warnings_as_errors=warnings_as_errors,
                             progress=progress, store_results=store_results, use_try=use_try,
                             stop_on_fatal=stop_on_fatal)
+            if(SimSolveRun){
+                full_results <- attr(tmp, 'full_results')
+                condition <- if(was_tibble) dplyr::as_tibble(design[i,]) else design[i,]
+                summary_results <- sapply(1L:replications, function(i){
+                    summarise(condition=condition,
+                              results=if(!is.data.frame(full_results) &&
+                                         is.list(full_results)) full_results[i]
+                                      else full_results[i, , drop=FALSE],
+                              fixed_objects=fixed_objects)
+                })
+                return(list(value=tmp[1L], summary_results=summary_results))
+            }
             if(store_results){
                 stored_Results_list[[i]] <- attr(tmp, 'full_results')
                 attr(tmp, 'full_results') <- NULL
@@ -1292,16 +1367,20 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         attr(Result_list[[x]], "summarise_list")
     )
     Final <- dplyr::bind_rows(Result_list)
+    FATAL_TERMINATION <- NA
     if(!stop_on_fatal && any(colnames(Final) == 'FATAL_TERMINATION')){
         warning('One or more design rows were fatally terminated. Please inspect/debug row(s): ',
                 paste(which(!is.na(Final$FATAL_TERMINATION)), collapse=','), call.=FALSE)
+        FATAL_TERMINATION <- Final$FATAL_TERMINATION
     }
     SIM_TIME <- Final$SIM_TIME
     COMPLETED <- Final$COMPLETED
     Final$SIM_TIME <- Final$ID <- Final$COMPLETED <-
-        Final$REPLICATIONS <- Final$REPLICATION <- NULL
-    Final <- data.frame(Final, REPLICATIONS=replications, SIM_TIME, COMPLETED, check.names=FALSE,
-                        stringsAsFactors=FALSE)
+        Final$REPLICATIONS <- Final$REPLICATION <- Final$FATAL_TERMINATION <- NULL
+    Final <- data.frame(Final, FATAL_TERMINATION,
+                        REPLICATIONS=replications, SIM_TIME=SIM_TIME,
+                        COMPLETED, check.names=FALSE, stringsAsFactors=FALSE)
+    if(all(is.na(Final$FATAL_TERMINATION))) Final$FATAL_TERMINATION <- NULL
     if(is.null(Final$SEED)) Final$SEED <- NA
     if(!is.null(seed)) Final$SEED <- seed
     if(!is.null(filename) && safe){ #save file
@@ -1350,15 +1429,15 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     } else pack_vers <- NULL
     pick <- c(save_results, save_seeds)
     if(!is.null(filename)) pick <- c(save, pick)
-    attr(Final, "ERROR_msg") <- dplyr::as_tibble(ERROR_msg)
-    attr(Final, "WARNING_msg") <- dplyr::as_tibble(WARNING_msg)
+    attr(Final, "ERROR_msg") <- dplyr::as_tibble(collect_unique(ERROR_msg))
+    attr(Final, "WARNING_msg") <- dplyr::as_tibble(collect_unique(WARNING_msg))
     attr(Final, 'extra_info') <- list(sessionInfo = sessioninfo::session_info(), packages=pack_vers,
                                       save_info = c(filename=filename,
                                                     save_results_dirname=save_results_dirname,
                                                     save_seeds_dirname=save_seeds_dirname)[pick],
                                       ncores = if(parallel) length(cl) else if(MPI) NA else 1L,
                                       number_of_conditions = nrow(design),
-                                      date_completed = date(), total_elapsed_time = sum(Final$SIM_TIME),
+                                      date_completed = noquote(date()), total_elapsed_time = sum(SIM_TIME),
                                       error_seeds=dplyr::as_tibble(error_seeds),
                                       warning_seeds=dplyr::as_tibble(warning_seeds),
                                       stored_results = if(store_results) stored_Results_list else NULL,
@@ -1385,7 +1464,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
 #' @export
 summary.SimDesign <- function(object, ...){
     ret <- attr(object, 'extra_info')
-    ret$total_elapsed_time <- timeFormater(ret$total_elapsed_time, TRUE)
+    ret$total_elapsed_time <- noquote(timeFormater(ret$total_elapsed_time, TRUE))
     ret$stored_results <- NULL
     ret$error_seeds <- NULL
     ret$warning_seeds <- NULL
@@ -1401,6 +1480,8 @@ summary.SimDesign <- function(object, ...){
 #' @rdname runSimulation
 #' @export
 print.SimDesign <- function(x, list2char = TRUE, ...){
+    if(!is.null(x$SIM_TIME))
+        x$SIM_TIME <- sapply(x$SIM_TIME, function(x) noquote(timeFormater(x)))
     class(x) <- c('Design', class(x)[-1L])
     print(x=x, list2char=list2char, ...)
 }

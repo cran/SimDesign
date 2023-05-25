@@ -19,7 +19,7 @@ runSimulation(
   load_seed = NULL,
   save_results = FALSE,
   parallel = FALSE,
-  ncores = parallel::detectCores(),
+  ncores = parallel::detectCores() - 1L,
   cl = NULL,
   notification = "none",
   beep = FALSE,
@@ -52,10 +52,13 @@ to create this simulation design object}
 condition (i.e., each row in \code{design}).
 Must be greater than 0}
 
-\item{generate}{user-defined data and parameter generating function.
+\item{generate}{user-defined data and parameter generating function (or named list of functions).
 See \code{\link{Generate}} for details. Note that this argument may be omitted by the
 user if they wish to generate the data with the \code{analyse} step, but for real-world
-simulations this is generally not recommended}
+simulations this is generally not recommended. If multiple generate functions are provided
+as a list then the list of generate functions are executed in order until the first valid
+generate function is executed, where the subsequent generation functions are then ignored
+(see \code{\link{GenerateIf}} to only apply data generation for specific conditions).}
 
 \item{analyse}{user-defined analysis function (or named list of functions)
 that acts on the data generated from
@@ -135,7 +138,14 @@ simulation results to. If the extension
   \code{debug = 'A1'} will debug only the first function in this list, and all remaining analysis
   functions will be ignored.
 
-  Alternatively, users may place \code{\link{browser}} calls within the respective functions for
+  For debugging specific rows in the \code{Design} input (e.g.,
+  when a number of initial rows successfully complete but the \code{k}th
+  row fails) the row number can be appended to the standard
+  \code{debug} input using a \code{'-'} separator.
+  For instance, debugging whenever an error is raised
+  in the second row of \code{Design} can be declared via \code{debug = 'error-2'}.
+
+  Finally, users may place \code{\link{browser}} calls within the respective functions for
   debugging at specific lines, which is useful when debugging based on conditional evaluations (e.g.,
   \code{if(this == 'problem') browser()}). Note that parallel computation flags
   will automatically be disabled when a \code{browser()} is detected or when a debugging
@@ -191,7 +201,7 @@ primarily useful for debugging purposes.
   computing plan when the jobs are completed}
 
 \item{ncores}{number of cores to be used in parallel execution (ignored if using the
-\code{future} package approach). Default uses all available}
+\code{future} package approach). Default uses all available minus 1}
 
 \item{cl}{cluster object defined by \code{\link{makeCluster}} used to run code in parallel
   (ignored if using the \code{\link[future]{future}} package approach).
@@ -327,13 +337,17 @@ errors are thrown in any
     \item{\code{save_results_dirname}}{a string indicating the name of the folder to save
       result objects to when \code{save_results = TRUE}. If a directory/folder does not exist
       in the current working directory then a unique one will be created automatically. Default is
-      \code{'SimDesign-results_'} with the associated \code{compname} appended}
+      \code{'SimDesign-results_'} with the associated \code{compname} appended if no
+      \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
+      in the string}
 
     \item{\code{save_seeds_dirname}}{a string indicating the name of the folder to save
       \code{.Random.seed} objects to when \code{save_seeds = TRUE}. If a directory/folder
       does not exist
       in the current working directory then one will be created automatically. Default is
-      \code{'SimDesign-seeds_'} with the associated \code{compname} appended}
+      \code{'SimDesign-seeds_'} with the associated \code{compname} appended if no
+      \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
+      in the string}
 
   }}
 
@@ -722,12 +736,12 @@ Generate <- function(condition, fixed_objects = NULL) {
 }
 
 Analyse <- function(condition, dat, fixed_objects = NULL) {
-    welch <- t.test(DV ~ group, dat)
-    ind <- t.test(DV ~ group, dat, var.equal=TRUE)
+    welch <- t.test(DV ~ group, dat)$p.value
+    independent <- t.test(DV ~ group, dat, var.equal=TRUE)$p.value
 
     # In this function the p values for the t-tests are returned,
     #  and make sure to name each element, for future reference
-    ret <- c(welch = welch$p.value, independent = ind$p.value)
+    ret <- nc(welch, independent)
     ret
 }
 
@@ -779,9 +793,11 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
     ret
 }
 
+## The following debugs the analyse function for the
+## second row of the Design input
 runSimulation(design=Design, replications=1000,
               generate=Generate, analyse=Analyse, summarise=Summarise,
-              parallel=TRUE)
+              parallel=TRUE, debug='analyse-2')
 
 
 ####################################

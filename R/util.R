@@ -44,10 +44,25 @@ timeFormater <- function(time, decimals = TRUE){
     resTime
 }
 
-print_progress <- function(row, trow, stored_time, progress){
+print_progress <- function(row, trow, stored_time, progress, condition){
     if(progress) cat('\n')
-    cat(sprintf('\rDesign row: %i/%i;   Started: %s;   Total elapsed time: %s \n',
+    tmp <- as.list(subset(condition, select=colnames(condition) != "ID"))
+    nms <- names(tmp)
+    nms2 <- do.call(c, lapply(tmp, as.character))
+    wdth <- 85 - 13
+    condstring <- paste0(nms, '=', nms2, collapse=', ')
+    if(nchar(condstring) > wdth){
+        nms <- abbreviate(nms, minlength = 6)
+        condstring <- paste0(nms, '=', nms2, collapse=', ')
+        if(nchar(condstring) > wdth){
+            nms2 <- abbreviate(nms2)
+            condstring <- paste0(nms, '=', nms2, collapse=', ')
+        }
+    }
+    cat(sprintf('\rDesign row: %i/%i;   Started: %s;   Total elapsed time: %s ',
                 row, trow, date(), timeFormater(sum(stored_time))))
+    cat(sprintf('\n Conditions: %s\n', condstring))
+    if(progress) cat('\r')
     invisible(NULL)
 }
 
@@ -128,7 +143,150 @@ quiet <- function(..., messages=FALSE, cat=FALSE){
     out
 }
 
+#' Auto-named Concatenation of Vector or List
+#'
+#' This is a wrapper to the function \code{\link{c}}, however names the respective elements
+#' according to their input object name. For this reason, nesting \code{nc()} calls
+#' is not recommended (joining independent \code{nc()} calls via \code{c()}
+#' is however reasonable).
+#'
+#' @param ... objects to be concatenated
+#'
+#' @param use.names logical indicating if \code{names} should be preserved (unlike \code{\link{c}},
+#'   default is \code{FALSE})
+#'
+#' @param error.on.duplicate logical; if the same object name appears in the returning object
+#'   should an error be thrown? Default is \code{TRUE}
+#'
+#' @export
+#'
+#' @references
+#'
+#' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
+#' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
+#' \doi{10.20982/tqmp.16.4.p248}
+#'
+#' Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
+#' Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
+#' \doi{10.1080/10691898.2016.1246953}
+#'
+#' @examples
+#'
+#' A <- 1
+#' B <- 2
+#' C <- 3
+#'
+#' names(C) <- 'LetterC'
+#'
+#' # compare the following
+#' c(A, B, C) # unnamed
+#'
+#' nc(A, B, C) # named
+#' nc(this=A, B, C) # respects override named (same as c() )
+#' nc(this=A, B, C, use.names = TRUE) # preserve original name
+#'
+#' \dontrun{
+#' # throws errors if names not unique
+#' nc(this=A, this=B, C)
+#' nc(LetterC=A, B, C, use.names=TRUE)
+#' }
+#'
+#' # poor input choice names
+#' nc(t.test(c(1:2))$p.value, t.test(c(3:4))$p.value)
+#'
+#' # better to explicitly provide name
+#' nc(T1 = t.test(c(1:2))$p.value,
+#'    T2 = t.test(c(3:4))$p.value)
+#'
+#' # vector of unnamed inputs
+#' A <- c(5,4,3,2,1)
+#' B <- c(100, 200)
+#'
+#' nc(A, B, C) # A's and B's numbered uniquely
+#' c(A, B, C)  # compare
+#' nc(beta=A, B, C) # replacement of object name
+#'
+#' # retain names attributes (but append object name, when appropriate)
+#' names(A) <- letters[1:5]
+#' nc(A, B, C)
+#' nc(beta=A, B, C)
+#' nc(A, B, C, use.names=TRUE)
+#'
+#' # mix and match if some named elements work while others do not
+#' c( nc(A, B, use.names=TRUE), nc(C))
+#'
+#' \dontrun{
+#' # error, 'b' appears twice
+#' names(B) <- c('b', 'b2')
+#' nc(A, B, C, use.names=TRUE)
+#' }
+#'
+#' # List input
+#' A <- list(1)
+#' B <- list(2:3)
+#' C <- list('C')
+#'
+#' names(C) <- 'LetterC'
+#'
+#' # compare the following
+#' c(A, B, C) # unnamed
+#'
+#' nc(A, B, C) # named
+#' nc(this=A, B, C) # respects override named (same as c() and list() )
+#' nc(this=A, B, C, use.names = TRUE) # preserve original name
+#'
+#'
+nc <- function(..., use.names=FALSE, error.on.duplicate = TRUE){
+    dots <- list(...)
+    len <- sapply(dots, length)
+    object <- as.list(substitute(list(...)))[-1L]
+    nms <- sapply(object, function(x) paste0(as.character(x), collapse='_'))
+    nms[names(nms) != ""] <- names(nms[names(nms) != ""])
+    if(any(len > 1L)){
+        nms <- as.list(nms)
+        for(i in length(nms):1L){
+            if(len[i] > 1L)
+                nms[[i]] <- paste0(rep(nms[[i]], len[i]),
+                                   if(!is.null(names(dots[[i]]))) "." else NULL,
+                                if(is.null(names(dots[[i]]))) 1L:len[i]
+                                else names(dots[[i]]))
+        }
+        nms <- do.call(c, nms)
+    }
+    if(use.names){
+        tmp <- do.call(c, lapply(dots, function(x){
+            ret <- names(x)
+            if(is.null(ret)) ret <- rep(NA, length(x))
+            ret
+        }))
+        nms[!is.na(tmp)] <- tmp[!is.na(tmp)]
+    }
+    nms <- gsub("\\$\\_", "", nms)
+    if(error.on.duplicate)
+        if(any(duplicated(nms)))
+            stop(sprintf('Vector/list contains the following duplicated names: %s',
+                         paste0(nms[duplicated(nms)], collapse=', ')),
+                 call.=FALSE)
+    ret <- c(...)
+    names(ret) <- nms
+    ret
+}
+
 isList <- function(x) !is.data.frame(x) && is.list(x)
+
+reduceTable <- function(tab){
+    tab <- dplyr::bind_rows(tab)
+    uniq <- sort(unique(tab$x))
+    reps <- val <- numeric(length(uniq))
+    for(i in seq_len(length(val))){
+        tmp <- tab[uniq[i] == tab$x, , drop=FALSE]
+        reps[i] <- sum(tmp$reps)
+        val[i] <- sum(as.numeric(tmp$y) * as.numeric(tmp$reps) / reps[i])
+    }
+    reduced <- data.frame(y=val, x=uniq, reps=reps)
+    reduced
+
+}
 
 sim_results_check <- function(sim_results){
     if(is(sim_results, 'try-error'))
@@ -212,6 +370,27 @@ combined_Analyses <- function(condition, dat, fixed_objects = NULL){
     ret
 }
 
+combined_Generate <- function(condition, fixed_objects = NULL){
+    if(!is.null(.SIMDENV$GENERATE_FUNCTIONS))
+        GENERATE_FUNCTIONS <- .SIMDENV$GENERATE_FUNCTIONS
+    nfuns <- length(GENERATE_FUNCTIONS)
+    ret <- vector('list', nfuns)
+    nms <- names(GENERATE_FUNCTIONS)
+    names(ret) <- nms
+    if(is.null(nms)) nms <- 1L:nfuns
+    for(i in nms){
+        tried <- try(GENERATE_FUNCTIONS[[i]](condition=condition,
+                                            fixed_objects=fixed_objects), silent=TRUE)
+        if(is(tried, 'try-error')){
+            if(tried == 'Error : GENERATEIF RAISED ERROR\n')
+                tried <- NULL
+        } else ret <- tried
+    }
+    if(is.null(ret))
+        stop('No data was generated for supplied condition. Please fix', call.=FALSE)
+    ret
+}
+
 toTabledResults <- function(results){
     tabled_results <- if(is.data.frame(results[[1]]) && nrow(results[[1L]]) == 1L){
         dplyr::bind_rows(results)
@@ -236,4 +415,54 @@ stackResults <- function(results){
     results
 }
 
+SimSolveData <- function(burnin, full = TRUE){
+    pick <- !sapply(.SIMDENV$stored_results, is.null)
+    pick[1L:burnin] <- FALSE
+    if(full){
+        DV <- do.call(c, .SIMDENV$stored_results[pick])
+        IV <- rep(.SIMDENV$stored_medhistory[pick],
+                  times=sapply(.SIMDENV$stored_results[pick], length))
+        ret <- data.frame(y=DV, x=IV)
+    } else {
+        ret <- do.call(rbind, .SIMDENV$stored_history[pick])
+        ret$weights <- 1/sqrt(ret$reps)
+    }
+    ret
+}
 
+SimSolveUniroot <- function(SimMod, b, interval, median){
+    f.root <- function(x, b)
+        predict(SimMod, newdata = data.frame(x=x), type = 'response') - b
+    res <- try(uniroot(f.root, b=b, interval = interval), silent = TRUE)
+    if(is(res, 'try-error')){ # in case original interval is poor for interpolation
+        for(i in seq_len(20L)){
+            if(grepl('end points not of opposite sign', res)){
+                diff <- abs(interval - median)
+                interval[which.max(diff)] <- mean(c(median, interval[which.max(diff)]))
+                res <- try(uniroot(f.root, b=b, interval = interval), silent = TRUE)
+                if(!is(res, 'try-error')) break
+            }
+        }
+    }
+    if(is(res, 'try-error')) return(c(NA, NA))
+    root <- res$root
+    # se <- predict(SimMod, newdata = data.frame(x=root),
+    #               se = TRUE, type = 'response')$se.fit
+    root
+}
+
+collect_unique <- function(x){
+    if(any(duplicated(colnames(x)))){
+        uniq <- unique(colnames(x))
+        for(u in uniq){
+            pick <- colnames(x) %in% u
+            if(sum(pick) == 1L) next
+            whc <- sort(which(pick))
+            tmp <- rowSums(x[,pick, drop=FALSE], na.rm = TRUE)
+            tmp <- ifelse(tmp == 0, NA, tmp)
+            x[[whc[1L]]] <- tmp
+            x[whc[2L:length(whc)]] <- NULL
+        }
+    }
+    x
+}

@@ -1,5 +1,41 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.11
+
+- `PBA()` function added for probabilistic bisection algorithm, with associated
+  `print()` and `plot()` S3 methods
+
+- `debug` gains `'-'` structure to allow debugging on specific
+  rows of the `design` input. For instance, if the simulation 
+  ran successfully until row 10, and unknown errors terminated the simulation, 
+  then using `runSimulation(..., debug = 'error-10')` 
+  will initiate the debugger on the first instance for the 10th row 
+  conditions in the supplied `design` object
+  
+- Progress reporting now includes abbreviated condition names and values
+  in the console per condition
+  
+- New function `nc()` to be used in situation where uniquely naming a vector or list
+  according to the object names is useful (cf. `x <- c(A,B,C)`, which typically
+  returns an unnamed vector, to `x <- nc(A,B,C)`, in which `names(x)` is `"A" "B" "C"`).
+  This is mainly useful in the `Analyse()` step where objects must be named uniquely
+  in order to track the results in `Summarise()`
+  
+- Added `Bradley1978()` for test of Bradley's (1978) robustness interval for 
+  empirical detection/coverage rate statistics
+  
+- `runSimulation(..., Generate)` can now be specified as a named list of functions
+  similar to `Analyse()`, however only the first valid data generation function
+  will be used as the constructor of the simulated data (see the new `GenerateIf()` 
+  function to control the flow of these generation steps). This list input should
+  really only be used when the population generation functions are differ widely
+  depending on the `condition` under investigation
+  
+- `SimFunctions()` adds a few new inputs for saving one or more files (`save_structure`),
+  defining one or more generate function (`nGenerate`), whether to include an extra
+  file for user-defined objects and functions (`extra_file`), and whether a basic
+  `knitr::spin()` header should be included when saving the files (`spin_header`)
+
 ## Changes in SimDesign 2.10.1
 
 - Support the `future` package by using `runSimulation(..., parallel = 'future')` 

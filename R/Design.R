@@ -68,8 +68,12 @@
 #' }
 createDesign <- function(..., subset, tibble = TRUE, stringsAsFactors = FALSE){
     dots <- list(...)
+    if(any(sapply(dots, is, class2='data.frame') | sapply(dots, is, class2='tibble')))
+        stop('data.frame/tibble design elements not supported; please use a list input instead',
+             call. = FALSE)
     if(is.null(names(dots)) || any(names(dots) == ""))
-        stop("Please provide meaningful names for each supplied simulation factor")
+        stop("Please provide meaningful names for each supplied simulation factor",
+             call.=FALSE)
     ret <- expand.grid(..., stringsAsFactors = stringsAsFactors)
     if (!missing(subset)){
         e <- substitute(subset)
@@ -78,6 +82,9 @@ createDesign <- function(..., subset, tibble = TRUE, stringsAsFactors = FALSE){
             stop("'subset' must be logical")
         ret <- ret[r & !is.na(r), , drop=FALSE]
     }
+    pick <- apply(ret, 2, function(x) all(is.na(x)))
+    if(any(pick))
+        ret[,pick] <- as.numeric(ret[,pick])
     if(tibble) ret <- dplyr::as_tibble(ret)
     class(ret) <- c('Design', class(ret))
     ret
@@ -89,14 +96,18 @@ createDesign <- function(..., subset, tibble = TRUE, stringsAsFactors = FALSE){
 #'   as character vectors for better printing of the levels? Note that this
 #'   does not change the original classes of the object, just how they are printed.
 #'   Default is TRUE
+#' @param pillar.sigfig number of significant digits to print. Default is 5
 #' @export
-print.Design <- function(x, list2char = TRUE, ...){
+print.Design <- function(x, list2char = TRUE, pillar.sigfig = 5, ...){
     classes <- sapply(x, class)
     if(list2char && any(classes == 'list') && is(x, 'tbl_df'))
         x <- list2char(x)
     classes2 <- sapply(x, class)
     class(x) <- class(x)[!(class(x) %in% 'Design')]
+    old <- options(pillar.sigfig=pillar.sigfig)
     printDesign(x, whichlist=  which(classes != classes2), ...)
+    options(old)
+    invisible(NULL)
 }
 
 list2char <- function(x){
