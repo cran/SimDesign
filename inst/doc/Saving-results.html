@@ -11,9 +11,9 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-05-25" />
+<meta name="date" content="2023-07-07" />
 
-<title>Saving additional simulation results and state</title>
+<title>Saving simulation results and state</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1516,9 +1516,9 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Saving additional simulation results and state</h1>
+<h1 class="title toc-ignore">Saving simulation results and state</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-05-25</h4>
+<h4 class="date">2023-07-07</h4>
 
 </div>
 
@@ -1558,15 +1558,15 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Thu May 25 16:13:15 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: N=10
 ## 
 ## 
-Design row: 2/3;   Started: Thu May 25 16:13:16 2023;   Total elapsed time: 0.30s 
+Design row: 2/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.29s 
 ##  Conditions: N=20
 ## 
 ## 
-Design row: 3/3;   Started: Thu May 25 16:13:16 2023;   Total elapsed time: 0.61s 
+Design row: 3/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.61s 
 ##  Conditions: N=30
 ## </code></pre>
 <p>Check that temporary file exists.</p>
@@ -1583,15 +1583,15 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Thu May 25 16:13:16 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: N=10
 ## 
 ## 
-Design row: 2/3;   Started: Thu May 25 16:13:16 2023;   Total elapsed time: 0.28s 
+Design row: 2/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.28s 
 ##  Conditions: N=20
 ## 
 ## 
-Design row: 3/3;   Started: Thu May 25 16:13:17 2023;   Total elapsed time: 0.57s 
+Design row: 3/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.56s 
 ##  Conditions: N=30
 ## </code></pre>
 <p>Check which files exist.</p>
@@ -1609,15 +1609,15 @@ files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Thu May 25 16:13:17 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   RAM used: 56.8 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: N=10
 ## 
 ## 
-Design row: 2/3;   Started: Thu May 25 16:13:17 2023;   Total elapsed time: 0.28s 
+Design row: 2/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.28s 
 ##  Conditions: N=20
 ## 
 ## 
-Design row: 3/3;   Started: Thu May 25 16:13:17 2023;   Total elapsed time: 0.56s 
+Design row: 3/3;   RAM used: 56.7 Mb;   Total elapsed time: 0.56s 
 ##  Conditions: N=30
 ## </code></pre>
 <pre class="r"><code>dir &lt;- dir()
@@ -1628,9 +1628,8 @@ dir(directory)</code></pre>
 <pre class="r"><code>row1 &lt;- readRDS(paste0(directory, &#39;/results-row-1.rds&#39;))
 str(row1)</code></pre>
 <pre><code>## List of 6
-##  $ condition    : tibble [1 × 2] (S3: tbl_df/tbl/data.frame)
-##   ..$ ID: int 1
-##   ..$ N : num 10
+##  $ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+##   ..$ N: num 10
 ##  $ results      :&#39;data.frame&#39;:   1000 obs. of  1 variable:
 ##   ..$ p: num [1:1000] 0.363 0.816 0.555 0.696 0.931 ...
 ##  $ errors       : &#39;table&#39; int[0 (1d)] 
@@ -1642,10 +1641,10 @@ str(row1)</code></pre>
 ##   .. ..$ warnings: NULL
 ##  $ warning_seeds: NULL</code></pre>
 <pre class="r"><code>row1$condition</code></pre>
-<pre><code>## # A tibble: 1 × 2
-##      ID     N
-##   &lt;int&gt; &lt;dbl&gt;
-## 1     1    10</code></pre>
+<pre><code>## # A tibble: 1 × 1
+##       N
+##   &lt;dbl&gt;
+## 1    10</code></pre>
 <pre class="r"><code>head(row1$results)</code></pre>
 <pre><code>##        p
 ## 1 0.3628
@@ -1655,12 +1654,12 @@ str(row1)</code></pre>
 ## 5 0.9306
 ## 6 0.1617</code></pre>
 <p>or, equivalently, with the <code>SimResults()</code> function</p>
-<pre class="r"><code>row1 &lt;- SimResults(res, 1)
+<pre class="r"><code># first row
+row1 &lt;- SimResults(res, which = 1)
 str(row1)</code></pre>
 <pre><code>## List of 6
-##  $ condition    : tibble [1 × 2] (S3: tbl_df/tbl/data.frame)
-##   ..$ ID: int 1
-##   ..$ N : num 10
+##  $ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+##   ..$ N: num 10
 ##  $ results      :&#39;data.frame&#39;:   1000 obs. of  1 variable:
 ##   ..$ p: num [1:1000] 0.363 0.816 0.555 0.696 0.931 ...
 ##  $ errors       : &#39;table&#39; int[0 (1d)] 
@@ -1671,14 +1670,13 @@ str(row1)</code></pre>
 ##   ..- attr(*, &quot;dimnames&quot;)=List of 1
 ##   .. ..$ warnings: NULL
 ##  $ warning_seeds: NULL</code></pre>
-<p>The <code>SimResults()</code> function has the added benefit that it can read-in all simulation results at once, or simply hand pick which ones should be inspected. For example, here is how all the saved results can be inspected:</p>
+<p>The <code>SimResults()</code> function has the added benefit that it can read-in all simulation results at once (only recommended if RAM can hold all the information), or simply hand pick which ones should be inspected. For example, here is how all the saved results can be inspected:</p>
 <pre class="r"><code>input &lt;- SimResults(res)
 str(input)</code></pre>
 <pre><code>## List of 3
 ##  $ :List of 6
-##   ..$ condition    : tibble [1 × 2] (S3: tbl_df/tbl/data.frame)
-##   .. ..$ ID: int 1
-##   .. ..$ N : num 10
+##   ..$ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+##   .. ..$ N: num 10
 ##   ..$ results      :&#39;data.frame&#39;:    1000 obs. of  1 variable:
 ##   .. ..$ p: num [1:1000] 0.363 0.816 0.555 0.696 0.931 ...
 ##   ..$ errors       : &#39;table&#39; int[0 (1d)] 
@@ -1690,9 +1688,8 @@ str(input)</code></pre>
 ##   .. .. ..$ warnings: NULL
 ##   ..$ warning_seeds: NULL
 ##  $ :List of 6
-##   ..$ condition    : tibble [1 × 2] (S3: tbl_df/tbl/data.frame)
-##   .. ..$ ID: int 2
-##   .. ..$ N : num 20
+##   ..$ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+##   .. ..$ N: num 20
 ##   ..$ results      :&#39;data.frame&#39;:    1000 obs. of  1 variable:
 ##   .. ..$ p: num [1:1000] 0.674 0.481 0.12 0.27 0.325 ...
 ##   ..$ errors       : &#39;table&#39; int[0 (1d)] 
@@ -1704,9 +1701,8 @@ str(input)</code></pre>
 ##   .. .. ..$ warnings: NULL
 ##   ..$ warning_seeds: NULL
 ##  $ :List of 6
-##   ..$ condition    : tibble [1 × 2] (S3: tbl_df/tbl/data.frame)
-##   .. ..$ ID: int 3
-##   .. ..$ N : num 30
+##   ..$ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
+##   .. ..$ N: num 30
 ##   ..$ results      :&#39;data.frame&#39;:    1000 obs. of  1 variable:
 ##   .. ..$ p: num [1:1000] 0.664 0.527 0.848 0.528 0.956 ...
 ##   ..$ errors       : &#39;table&#39; int[0 (1d)] 
@@ -1717,52 +1713,46 @@ str(input)</code></pre>
 ##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
 ##   .. .. ..$ warnings: NULL
 ##   ..$ warning_seeds: NULL</code></pre>
-<p>Should the need arise to remove the results directory then the <code>SimClean()</code> function is the easiest way to remove unwanted files and directories.</p>
+<p>Should the need arise to remove the results directory then the <code>SimClean()</code> function is the easiest way to remove all unwanted files and directories.</p>
 <pre class="r"><code>SimClean(results = TRUE)</code></pre>
 </div>
-<div id="option-store_results-true-false-by-default-and-not-recommended-for-serious-use" class="section level1" number="3">
-<h1 number="3"><span class="header-section-number">3</span> Option: <code>store_results = TRUE</code> (<code>FALSE</code> by default, and not recommended for serious use)</h1>
-<p>Similar to <code>save_results = TRUE</code>, though less recommended for RAM related reasons (if the number of replications/<code>design</code> conditions is too large then the R session may run out of memory as the simulation progresses), users can pass <code>store_results = TRUE</code> to store the complete simulation results in the returned object.</p>
-<p>After the simulation is complete, these results can be extracted using <code>SimExtract(results, what = &#39;results&#39;)</code>. For example,</p>
+<div id="option-store_results-true-false-by-default-and-not-recommended-if-ram-is-an-issue" class="section level1" number="3">
+<h1 number="3"><span class="header-section-number">3</span> Option: <code>store_results = TRUE</code> (<code>FALSE</code> by default, and not recommended if RAM is an issue)</h1>
+<p>Similar to <code>save_results = TRUE</code>, though less recommended for RAM related reasons, users can pass <code>store_results = TRUE</code> to store the complete simulation results in the returned object. This should only be used if the number of replications/<code>design</code> conditions is small enough, otherwise the R session may run out of memory as the simulation progresses. After the simulation is complete, these results can be extracted using <code>SimExtract(results, what = &#39;results&#39;)</code>. For example,</p>
 <pre class="r"><code>res &lt;- runSimulation(Design, replications = 3, store_results=TRUE,
               generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   Started: Thu May 25 16:13:18 2023;   Total elapsed time: 0.00s 
+Design row: 1/3;   RAM used: 57.4 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: N=10
 ## 
 ## 
-Design row: 2/3;   Started: Thu May 25 16:13:18 2023;   Total elapsed time: 0.00s 
+Design row: 2/3;   RAM used: 57.4 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: N=20
 ## 
 ## 
-Design row: 3/3;   Started: Thu May 25 16:13:18 2023;   Total elapsed time: 0.01s 
+Design row: 3/3;   RAM used: 57.4 Mb;   Total elapsed time: 0.01s 
 ##  Conditions: N=30
 ## </code></pre>
-<pre class="r"><code>list_results &lt;- SimExtract(res, what = &#39;results&#39;)
-list_results</code></pre>
-<pre><code>## $`N=10`
-##          p
-## 1 0.427849
-## 2 0.794487
-## 3 0.003854
-## 
-## $`N=20`
-##         p
-## 1 0.08479
-## 2 0.14410
-## 3 0.88922
-## 
-## $`N=30`
-##         p
-## 1 0.03818
-## 2 0.94444
-## 3 0.39311</code></pre>
+<pre class="r"><code>results &lt;- SimExtract(res, what = &#39;results&#39;)
+results</code></pre>
+<pre><code>## # A tibble: 9 × 2
+##       N       p
+##   &lt;dbl&gt;   &lt;dbl&gt;
+## 1    10 0.428  
+## 2    10 0.794  
+## 3    10 0.00385
+## 4    20 0.0848 
+## 5    20 0.144  
+## 6    20 0.889  
+## 7    30 0.0382 
+## 8    30 0.944  
+## 9    30 0.393</code></pre>
 </div>
 <div id="my-recommendations" class="section level1" number="4">
 <h1 number="4"><span class="header-section-number">4</span> My recommendations</h1>
 <p>My general recommendation when running simulations is to supply a <code>filename = &#39;some_simulation_name&#39;</code> when your simulation is finally ready for run time (particularly for simulations which take a long time to finish), and to leave the default <code>save = TRUE</code> to track any temporary files in the event of unexpected crashes. As the aggregation of the simulation results is often what you are interested in then this approach will ensure that the results are stored in a succinct manner for later analyses.</p>
-<p>As well, passing <code>save_results = TRUE</code> will save all the results from the input <code>Analysis()</code> function which was passed to <code>Summarise()</code>, as well as save a final file to your hard-drive (but with the built-in safety feature that it will never over-write previously saved files). Hence, you’ll be able to inspect all the elements manually if the need were to arise (e.g., to inspect <code>ECR(res1, alpha = .01)</code> instead of the <code>ECR(results, alpha = .05)</code> which may have only been used in the <code>Summarise()</code> function). However, do this <strong>only</strong> if your hard-drive can store all of the analysis results; if you are not careful, you could easily fill up your entire drive with the analysis results alone.</p>
+<p>As well, passing either <code>store_results = TRUE</code> or <code>save_results = TRUE</code>, depending on RAM considerations, will save all the <code>results</code> objects passed to <code>Summarise()</code>. Hence, you’ll be able to inspect all the elements manually if the need were to arise (e.g., to inspect <code>ECR(results, alpha = .01)</code> instead of <code>ECR(results, alpha = .05)</code> which may have only been used in the initial <code>Summarise()</code> function; see <code>reSummarise()</code> as well). However, do this <strong>only</strong> if your hard-drive/RAM can store all of the analysis results.</p>
 <p>Finally, if you are worried about reproducibility, particularly during the debugging states, then the <code>seed</code> and <code>save_seeds</code> are the arguments you should utilize. <code>seed</code> sets the global seed for each design row, while <code>save_seed</code> writes the <code>.Random.seed</code> state to the hard-disk for complete reproducibility within each design condition (note that all seeds can be saved in parallel or when running simulations on single cores). If <code>save_seed</code> were used then the exact simulation state can be reloaded to the generated data by passing the specific saved seed file to <code>load_seed</code>. That said, problematic error states are automatically stored within the returned simulation object (which can be extracted via <code>SimExtract()</code>), and therefore if the purpose of saving the seeds is to help with debugging the package already automatically collects such information to replicate potentially hard-to-find errors/bugs within each design condition.</p>
 </div>
 

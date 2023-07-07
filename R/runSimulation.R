@@ -148,31 +148,32 @@
 #'   \code{\link{Generate}} (or, if \code{generate} was omitted, can be used to generate and
 #'   analyses the simulated data). See \code{\link{Analyse}} for details
 #'
-#' @param summarise optional (but highly recommended) user-defined summary function
+#' @param summarise optional (but strongly recommended) user-defined summary function
 #'   from \code{\link{Summarise}} to be used to compute meta-statistical summary
 #'   information after all the replications have completed within
-#'   each \code{design} condition.
+#'   each \code{design} condition. Note that unlike the Generate and Analyse
+#'   steps, the Summarise portion is not as important to perfectly organize
+#'   as the results can be summarised later on by using the built-in
+#'   \code{\link{reSummarise}} function (provided either
+#'   \code{store_results = TRUE} or \code{save_results = TRUE} were included).
 #'
-#'   Omitting this function will return a list of \code{data.frame}s (or a
-#'   single \code{data.frame}, if only one row in
-#'   \code{design} is supplied) or, for more general objects (such as \code{list}s), a \code{list}
+#'   Omitting this function will return a tibble with the \code{Design}
+#'   and associated results information for all
+#'   \code{nrow(Design) * repliations} evaluations if the results from each
+#'   \code{Analyse()} call was a one-dimensional vector.
+#'   For more general objects returned by \code{Analyse()}
+#'   (such as \code{list}s), a \code{list}
 #'   containing the results returned form \code{\link{Analyse}}.
-#'   Alternatively, the value \code{NA} can be passed to let the
-#'   generate-analyse-summarise process to run as usual,
-#'   where the summarise components are instead included only as a placeholder.
-#'   Omitting this input is only recommended for didactic purposes because it
-#'   leaves out a large amount of
+#'   This is generally only recommended for didactic purposes because the results
+#'   will leave out a large amount of
 #'   information (e.g., try-errors, warning messages, saving files, etc), can
-#'   witness memory related issues,
-#'   and generally is not as flexible internally.
-#'
-#'   If users do not wish to supply a summarise function then it
-#'   is is recommended to pass \code{NA} to this argument while also supplying
-#'   passing \code{save_results = TRUE} to
-#'   save the results to the hard-drive during the simulation. This provides a
-#'   more RAM friendly alternative to storing all the Generate-Analyse results
-#'   in the working environment, where
-#'   the Analysis results can be summarised at a later time
+#'   witness memory related issues if the Analyse function returns larger objects,
+#'   and generally is not as flexible internally. However, it may be useful
+#'   when replications are expensive and ANOVA-based decompositions involving
+#'   the within-condition replication information are of interest, though
+#'   of course this  can be circumvented by using \code{store_results = TRUE} or
+#'   \code{save_results = TRUE} with or without a supplied \code{summarise}
+#'   definition.
 #'
 #' @param replications number of independent replications to perform per
 #'   condition (i.e., each row in \code{design}).
@@ -433,7 +434,8 @@
 #'
 #' @param save logical; save the temporary simulation state to the hard-drive? This is useful
 #'   for simulations which require an extended amount of time, though for shorter simulations
-#'   can be disabled to slightly improve computational efficiency. When \code{TRUE}, a temp file
+#'   can be disabled to slightly improve computational efficiency. When \code{TRUE},
+#'   which is the default when evaluating \code{replications > 10}, a temp file
 #'   will be created in the working directory which allows the simulation state to be saved
 #'   and recovered (in case of power outages, crashes, etc). As well, triggering this flag will
 #'   save any fatal \code{.Random.seed} states when conditions unexpectedly crash (where each seed
@@ -442,10 +444,9 @@
 #'   be removed.
 #'
 #'   To recover your simulation at the last known location (having patched the issues in the
-#'    previous execution code)
-#'   simply re-run the code you used to
+#'   previous execution code) simply re-run the code you used to
 #'   initially define the simulation and the external file will automatically be detected and read-in.
-#'   Default is \code{TRUE}
+#'   Default is \code{TRUE} when \code{replications > 10} and \code{FALSE} otherwise
 #'
 #' @param debug a string indicating where to initiate a \code{browser()} call for editing
 #'   and debugging, and pairs particularly well with the \code{load_seed} argument for precise debugging.
@@ -526,6 +527,8 @@
 #' \code{REPLICATIONS} to indicate the number of Monte Carlo replications,
 #' \code{SIM_TIME} to indicate how long (in seconds) it took to complete
 #' all the Monte Carlo replications for each respective design condition,
+#' \code{RAM_USED} amount of RAM that was in use at the time of completing
+#'   each simulation condition,
 #' \code{COMPLETED} to indicate the date in which the given simulation condition completed,
 #' \code{SEED} for the integer values in the \code{seed} argument, and, if applicable,
 #' \code{ERRORS} and \code{WARNINGS} which contain counts for the number of error or warning
@@ -588,13 +591,14 @@
 #'
 #' # help(Analyse)
 #' Analyse <- function(condition, dat, fixed_objects = NULL) {
-#'     ret <- mean(dat) # mean of the sample data vector
+#'     ret <- c(mean=mean(dat)) # mean of the sample data vector
 #'     ret
 #' }
 #'
 #' # help(Summarise)
 #' Summarise <- function(condition, results, fixed_objects = NULL) {
-#'     ret <- c(mu=mean(results), SE=sd(results)) # mean and SD summary of the sample means
+#'     # mean and SD summary of the sample means
+#'     ret <- c(mu=mean(results$mean), SE=sd(results$mean))
 #'     ret
 #' }
 #'
@@ -603,39 +607,59 @@
 #' #### Step 3 --- Collect results by looping over the rows in design
 #'
 #' # run the simulation
+#' Final <- runSimulation(design=Design, replications=10,
+#'                        generate=Generate, analyse=Analyse, summarise=Summarise)
+#' Final
+#'
+#' \dontrun{
+#' # reproduce exact simulation
+#' Final_rep <- runSimulation(design=Design, replications=10, seed=Final$SEED,
+#'                        generate=Generate, analyse=Analyse, summarise=Summarise)
+#' Final_rep
+#'
+#' # run with more standard number of replications (note the storage message)
 #' Final <- runSimulation(design=Design, replications=1000,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' Final
 #'
-#' # reproduce exact simulation
-#' Final_rep <- runSimulation(design=Design, replications=1000, seed=Final$SEED,
-#'                        generate=Generate, analyse=Analyse, summarise=Summarise)
-#' Final_rep
-#'
-#'
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Extras
-#' \dontrun{
 #' # compare SEs estimates to the true SEs from the formula sigma/sqrt(N)
 #' 5 / sqrt(Design$N)
 #'
 #' # To store the results from the analyse function either
-#' #   a) omit a definition of of summarise(), or
-#' #   b) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
-#' # Note that the latter method should be adopted for longer simulations
+#' #   a) omit a definition of summarise() to return all results,
+#' #   b) use store_results = TRUE to store results internally and later
+#' #      extract with SimExtract(..., what = 'results'), or
+#' #   c) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
+#' #
+#' #   Note that method c) should be adopted for larger simulations, particularly
+#' #   if RAM storage could be an issue and error/warning message information is important.
 #'
-#' # e.g., the a) approach
-#' res <- runSimulation(design=Design, replications=1000,
+#' # a) approach
+#' res <- runSimulation(design=Design, replications=5,
 #'                      generate=Generate, analyse=Analyse)
-#' str(res)
-#' head(res[[1]])
+#' res
 #'
-#' # or b) approach
-#' Final <- runSimulation(design=Design, replications=1000, save_results=TRUE,
+#' # b) approach
+#' res <- runSimulation(design=Design, replications=5, store_results=TRUE,
+#'                      generate=Generate, analyse=Analyse, summarise=Summarise)
+#' res
+#' SimExtract(res, 'results')
+#'
+#' # c) approach
+#' Final <- runSimulation(design=Design, replications=5, save_results=TRUE,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
+#'
+#' # read-in all conditions (can be memory heavy)
 #' res <- SimResults(Final)
-#' str(res)
+#' res
 #' head(res[[1]]$results)
+#'
+#' # just first condition
+#' res <- SimResults(Final, which=1)
+#' head(res$results)
+#' dplyr::tibble(res$condition, res$results)
 #'
 #'
 #' # obtain empirical bootstrapped CIs during an initial run
@@ -736,6 +760,13 @@
 #' runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
 #'               generate=Generate, analyse=Analyse, summarise=Summarise,
 #'               notification = 'complete')
+#'
+#' ## Submit as RStudio job (requires job package and active RStudio session)
+#' job::job({
+#'   res <- runSimulation(design=Design, replications=100,
+#'                        generate=Generate, analyse=Analyse, summarise=Summarise)
+#' }, title='t-test simulation')
+#' res  # object res returned to console when completed
 #'
 #' ## Debug the generate function. See ?browser for help on debugging
 #' ##   Type help to see available commands (e.g., n, c, where, ...),
@@ -862,13 +893,13 @@
 #'
 runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL, filename = NULL,
-                          debug = 'none', load_seed = NULL,
-                          save_results = FALSE, parallel = FALSE,
-                          ncores = parallel::detectCores() - 1L,
+                          debug = 'none', load_seed = NULL, save = replications > 10,
+                          save_results = FALSE, store_results = FALSE,
+                          parallel = FALSE, ncores = parallel::detectCores() - 1L,
                           cl = NULL, notification = 'none', beep = FALSE, sound = 1,
                           CI = .95, seed = NULL,
                           boot_method='none', boot_draws = 1000L, max_errors = 50L,
-                          save_seeds = FALSE, save = TRUE, store_results = FALSE,
+                          save_seeds = FALSE,
                           save_details = list(), extra_options = list(),
                           progress = TRUE, verbose = TRUE)
 {
@@ -965,6 +996,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         else extra_options$type
     include_replication_index <- ifelse(is.null(extra_options$include_replication_index),
                                         FALSE, extra_options$include_replication_index)
+    if(verbose){
+        if(replications >= 200)
+            if(!save_results && !store_results)
+                message(c('NOTE: save_results = TRUE or store_results = TRUE ',
+                        'are recommended for higher replication simulations'))
+    }
     NA_summarise <- FALSE
     if(!missing(summarise)){
         NA_summarise <- if(!is.function(summarise) && is.na(summarise)) TRUE else FALSE
@@ -1229,11 +1266,14 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         c(save_results_dirname=file.path(out_rootdir, save_results_dirname),
           save_seeds_dirname=file.path(out_rootdir, save_seeds_dirname))
     if(progress) verbose <- TRUE
+    memory_used <- character(nrow(design)+1L)
+    memory_used[1L] <- RAM_used()
     for(i in start:end){
         time0 <- proc.time()[3L]
         if(summarise_asis){
             if(verbose)
-                print_progress(i, nrow(design), stored_time=stored_time, progress=progress,
+                print_progress(i, nrow(design), stored_time=stored_time,
+                               RAM=memory_used[i], progress=progress,
                                condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                else design[i,])
             Result_list[[i]] <- Analysis(Functions=Functions,
@@ -1260,10 +1300,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             stored_time <- stored_time + (time1 - time0)
             if(notification == 'condition')
                 notification_condition(design[i,], Result_list[[i]], nrow(design))
+            memory_used[i+1L] <- RAM_used()
         } else {
             stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
             if(verbose)
-                print_progress(i, nrow(design), stored_time=stored_time, progress=progress,
+                print_progress(i, nrow(design), stored_time=stored_time,
+                               RAM=memory_used[i], progress=progress,
                                condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                else design[i,])
             if(save_seeds)
@@ -1318,8 +1360,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             Result_list[[i]]$SIM_TIME <- time1 - time0
             if(notification == 'condition')
                 notification_condition(design[i,], Result_list[[i]], nrow(design))
+            memory_used[i+1L] <- RAM_used()
         }
     }
+    memory_used <- memory_used[-1L]
     attr(Result_list, 'SimDesign_names') <- NULL
     if(NA_summarise){
         Result_list <- lapply(Result_list, function(x){
@@ -1327,21 +1371,44 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             x
         })
     }
+    if(store_results){
+        if(is(stored_Results_list[[1L]], 'data.frame') ||
+           is(stored_Results_list[[1L]], 'matrix')){
+            nms <- c(colnames(design), colnames(stored_Results_list[[1L]]))
+            for(i in seq_len(length(stored_Results_list)))
+                stored_Results_list[[i]] <- cbind(design[i,],
+                                                 stored_Results_list[[i]], row.names=NULL)
+            stored_Results_list <- dplyr::bind_rows(stored_Results_list)
+            colnames(stored_Results_list) <- nms
+            stored_Results_list$ID <- NULL
+            stored_Results_list <- dplyr::as_tibble(stored_Results_list)
+        }
+    }
     if(summarise_asis){
         design$ID <- design$REPLICATION <- NULL
-        nms <- colnames(design)
-        nms2 <- matrix(character(0L), nrow(design), ncol(design))
-        for(i in 1L:ncol(design))
-            nms2[,i] <- paste0(nms[i], '=', design[,i], if(i < ncol(design)) '; ')
-        nms2 <- apply(nms2, 1L, paste0, collapse='')
-        names(Result_list) <- nms2
-        if(is.list(Result_list[[1L]][[1L]]))
+        if(is(Result_list[[1L]], 'data.frame') || is(Result_list[[1L]], 'matrix')){
+            nms <- c(colnames(design), colnames(Result_list[[1L]]))
             for(i in seq_len(length(Result_list)))
-                attr(Result_list[[i]][[1L]], 'try_errors') <-
-                attr(Result_list[[i]][[1L]], 'try_error_seeds') <-
-                attr(Result_list[[i]][[1L]], 'warning_seeds') <-
-                attr(Result_list[[i]][[1L]], 'summarise_list') <- NULL
-        if(nrow(design) == 1L) Result_list <- Result_list[[1L]]
+                Result_list[[i]] <- cbind(design[i,], Result_list[[i]], row.names = NULL)
+            ret <- dplyr::bind_rows(Result_list)
+            colnames(ret) <- nms
+            ret <- dplyr::as_tibble(ret)
+            return(ret)
+        } else {
+            nms <- colnames(design)
+            nms2 <- matrix(character(0L), nrow(design), ncol(design))
+            for(i in 1L:ncol(design))
+                nms2[,i] <- paste0(nms[i], '=', design[,i], if(i < ncol(design)) '; ')
+            nms2 <- apply(nms2, 1L, paste0, collapse='')
+            names(Result_list) <- nms2
+            if(is.list(Result_list[[1L]][[1L]]))
+                for(i in seq_len(length(Result_list)))
+                    attr(Result_list[[i]][[1L]], 'try_errors') <-
+                    attr(Result_list[[i]][[1L]], 'try_error_seeds') <-
+                    attr(Result_list[[i]][[1L]], 'warning_seeds') <-
+                    attr(Result_list[[i]][[1L]], 'summarise_list') <- NULL
+            if(nrow(design) == 1L) Result_list <- Result_list[[1L]]
+        }
         return(Result_list)
     }
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
@@ -1379,6 +1446,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         Final$REPLICATIONS <- Final$REPLICATION <- Final$FATAL_TERMINATION <- NULL
     Final <- data.frame(Final, FATAL_TERMINATION,
                         REPLICATIONS=replications, SIM_TIME=SIM_TIME,
+                        RAM_USED=memory_used,
                         COMPLETED, check.names=FALSE, stringsAsFactors=FALSE)
     if(all(is.na(Final$FATAL_TERMINATION))) Final$FATAL_TERMINATION <- NULL
     if(is.null(Final$SEED)) Final$SEED <- NA
@@ -1410,7 +1478,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     colnames(WARNING_msg) <- gsub("WARNING: ." , "WARNING:  ", colnames(WARNING_msg))
     ERRORS <- as.integer(rowSums(ERROR_msg, na.rm = TRUE))
     WARNINGS <- as.integer(rowSums(WARNING_msg, na.rm = TRUE))
-    en <- c('REPLICATIONS', 'SIM_TIME', 'COMPLETED', 'SEED')
+    en <- c('REPLICATIONS', 'SIM_TIME', 'RAM_USED', 'SEED', 'COMPLETED')
     bsen <- colnames(Final)[grepl('BOOT_', colnames(Final))]
     sn <- colnames(Final)[!(colnames(Final) %in% c(dn, en, ten, wen, bsen))]
     Final <- data.frame(Final[ ,c(dn, sn, bsen, en)], ERRORS, WARNINGS,
@@ -1480,7 +1548,7 @@ summary.SimDesign <- function(object, ...){
 #' @rdname runSimulation
 #' @export
 print.SimDesign <- function(x, list2char = TRUE, ...){
-    if(!is.null(x$SIM_TIME))
+    if(suppressWarnings(!is.null(x$SIM_TIME)))
         x$SIM_TIME <- sapply(x$SIM_TIME, function(x) noquote(timeFormater(x)))
     class(x) <- c('Design', class(x)[-1L])
     print(x=x, list2char=list2char, ...)

@@ -16,7 +16,7 @@ library(SimDesign)
 SimFunctions()
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  SimFunctions('mysim')
+#  SimDesign::SimFunctions('mysim')
 
 ## ----eval=FALSE---------------------------------------------------------------
 #  SimFunctions('mysim', singlefile = FALSE, comments = TRUE)

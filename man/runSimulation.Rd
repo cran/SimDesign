@@ -17,7 +17,9 @@ runSimulation(
   filename = NULL,
   debug = "none",
   load_seed = NULL,
+  save = replications > 10,
   save_results = FALSE,
+  store_results = FALSE,
   parallel = FALSE,
   ncores = parallel::detectCores() - 1L,
   cl = NULL,
@@ -30,8 +32,6 @@ runSimulation(
   boot_draws = 1000L,
   max_errors = 50L,
   save_seeds = FALSE,
-  save = TRUE,
-  store_results = FALSE,
   save_details = list(),
   extra_options = list(),
   progress = TRUE,
@@ -65,31 +65,32 @@ that acts on the data generated from
 \code{\link{Generate}} (or, if \code{generate} was omitted, can be used to generate and
 analyses the simulated data). See \code{\link{Analyse}} for details}
 
-\item{summarise}{optional (but highly recommended) user-defined summary function
+\item{summarise}{optional (but strongly recommended) user-defined summary function
   from \code{\link{Summarise}} to be used to compute meta-statistical summary
   information after all the replications have completed within
-  each \code{design} condition.
+  each \code{design} condition. Note that unlike the Generate and Analyse
+  steps, the Summarise portion is not as important to perfectly organize
+  as the results can be summarised later on by using the built-in
+  \code{\link{reSummarise}} function (provided either
+  \code{store_results = TRUE} or \code{save_results = TRUE} were included).
 
-  Omitting this function will return a list of \code{data.frame}s (or a
-  single \code{data.frame}, if only one row in
-  \code{design} is supplied) or, for more general objects (such as \code{list}s), a \code{list}
+  Omitting this function will return a tibble with the \code{Design}
+  and associated results information for all
+  \code{nrow(Design) * repliations} evaluations if the results from each
+  \code{Analyse()} call was a one-dimensional vector.
+  For more general objects returned by \code{Analyse()}
+  (such as \code{list}s), a \code{list}
   containing the results returned form \code{\link{Analyse}}.
-  Alternatively, the value \code{NA} can be passed to let the
-  generate-analyse-summarise process to run as usual,
-  where the summarise components are instead included only as a placeholder.
-  Omitting this input is only recommended for didactic purposes because it
-  leaves out a large amount of
+  This is generally only recommended for didactic purposes because the results
+  will leave out a large amount of
   information (e.g., try-errors, warning messages, saving files, etc), can
-  witness memory related issues,
-  and generally is not as flexible internally.
-
-  If users do not wish to supply a summarise function then it
-  is is recommended to pass \code{NA} to this argument while also supplying
-  passing \code{save_results = TRUE} to
-  save the results to the hard-drive during the simulation. This provides a
-  more RAM friendly alternative to storing all the Generate-Analyse results
-  in the working environment, where
-  the Analysis results can be summarised at a later time}
+  witness memory related issues if the Analyse function returns larger objects,
+  and generally is not as flexible internally. However, it may be useful
+  when replications are expensive and ANOVA-based decompositions involving
+  the within-condition replication information are of interest, though
+  of course this  can be circumvented by using \code{store_results = TRUE} or
+  \code{save_results = TRUE} with or without a supplied \code{summarise}
+  definition.}
 
 \item{fixed_objects}{(optional) an object (usually a named \code{list})
 containing additional user-defined objects
@@ -171,6 +172,22 @@ primarily useful for debugging purposes.
   then it WILL be important to modify the \code{design} input in order to load this
   exact seed for the corresponding design row. Default is \code{NULL}}
 
+\item{save}{logical; save the temporary simulation state to the hard-drive? This is useful
+  for simulations which require an extended amount of time, though for shorter simulations
+  can be disabled to slightly improve computational efficiency. When \code{TRUE},
+  which is the default when evaluating \code{replications > 10}, a temp file
+  will be created in the working directory which allows the simulation state to be saved
+  and recovered (in case of power outages, crashes, etc). As well, triggering this flag will
+  save any fatal \code{.Random.seed} states when conditions unexpectedly crash (where each seed
+  is stored row-wise in an external .rds file), which provides a much easier mechanism
+  to debug issues (see \code{load_seed} for details). Upon completion, this temp file will
+  be removed.
+
+  To recover your simulation at the last known location (having patched the issues in the
+  previous execution code) simply re-run the code you used to
+  initially define the simulation and the external file will automatically be detected and read-in.
+  Default is \code{TRUE} when \code{replications > 10} and \code{FALSE} otherwise}
+
 \item{save_results}{logical; save the results returned from \code{\link{Analyse}} to external
   \code{.rds} files located in the defined \code{save_results_dirname} directory/folder?
   Use this if you would like to keep track of the individual parameters returned from
@@ -187,6 +204,18 @@ primarily useful for debugging purposes.
   Carlo simulation is performed.
   See also \code{\link{reSummarise}} for applying summarise functions from saved
   simulation results}
+
+\item{store_results}{logical; store the complete tables of simulation results
+  in the returned object? This is \code{FALSE} by default to help avoid RAM
+  issues (see \code{save_results} as a more suitable alternative). However, if the \code{Design}
+  object is omitted from the call to \code{runSimulation()}, or the number of rows in \code{Design}
+  is exactly 1, then this argument is automatically set to \code{TRUE} as RAM storage will no
+  longer be an issue.
+
+  To extract these results
+  pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
+  of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
+  \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is}
 
 \item{parallel}{logical; use parallel processing from the \code{parallel}
   package over each unique condition?
@@ -287,34 +316,6 @@ errors are thrown in any
   Hence, this option is only of
   interest when \emph{all} of the replications must be reproducible (which occurs very rarely),
   otherwise the defaults to \code{runSimulation} should be sufficient}
-
-\item{save}{logical; save the temporary simulation state to the hard-drive? This is useful
-  for simulations which require an extended amount of time, though for shorter simulations
-  can be disabled to slightly improve computational efficiency. When \code{TRUE}, a temp file
-  will be created in the working directory which allows the simulation state to be saved
-  and recovered (in case of power outages, crashes, etc). As well, triggering this flag will
-  save any fatal \code{.Random.seed} states when conditions unexpectedly crash (where each seed
-  is stored row-wise in an external .rds file), which provides a much easier mechanism
-  to debug issues (see \code{load_seed} for details). Upon completion, this temp file will
-  be removed.
-
-  To recover your simulation at the last known location (having patched the issues in the
-   previous execution code)
-  simply re-run the code you used to
-  initially define the simulation and the external file will automatically be detected and read-in.
-  Default is \code{TRUE}}
-
-\item{store_results}{logical; store the complete tables of simulation results
-  in the returned object? This is \code{FALSE} by default to help avoid RAM
-  issues (see \code{save_results} as a more suitable alternative). However, if the \code{Design}
-  object is omitted from the call to \code{runSimulation()}, or the number of rows in \code{Design}
-  is exactly 1, then this argument is automatically set to \code{TRUE} as RAM storage will no
-  longer be an issue.
-
-  To extract these results
-  pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
-  of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
-  \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is}
 
 \item{save_details}{a list pertaining to information regarding how and where files should be saved
   when the \code{save} or \code{save_results} flags are triggered.
@@ -451,6 +452,8 @@ The right-most column information for each condition are:
 \code{REPLICATIONS} to indicate the number of Monte Carlo replications,
 \code{SIM_TIME} to indicate how long (in seconds) it took to complete
 all the Monte Carlo replications for each respective design condition,
+\code{RAM_USED} amount of RAM that was in use at the time of completing
+  each simulation condition,
 \code{COMPLETED} to indicate the date in which the given simulation condition completed,
 \code{SEED} for the integer values in the \code{seed} argument, and, if applicable,
 \code{ERRORS} and \code{WARNINGS} which contain counts for the number of error or warning
@@ -628,13 +631,14 @@ Generate <- function(condition, fixed_objects = NULL) {
 
 # help(Analyse)
 Analyse <- function(condition, dat, fixed_objects = NULL) {
-    ret <- mean(dat) # mean of the sample data vector
+    ret <- c(mean=mean(dat)) # mean of the sample data vector
     ret
 }
 
 # help(Summarise)
 Summarise <- function(condition, results, fixed_objects = NULL) {
-    ret <- c(mu=mean(results), SE=sd(results)) # mean and SD summary of the sample means
+    # mean and SD summary of the sample means
+    ret <- c(mu=mean(results$mean), SE=sd(results$mean))
     ret
 }
 
@@ -643,39 +647,59 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
 #### Step 3 --- Collect results by looping over the rows in design
 
 # run the simulation
+Final <- runSimulation(design=Design, replications=10,
+                       generate=Generate, analyse=Analyse, summarise=Summarise)
+Final
+
+\dontrun{
+# reproduce exact simulation
+Final_rep <- runSimulation(design=Design, replications=10, seed=Final$SEED,
+                       generate=Generate, analyse=Analyse, summarise=Summarise)
+Final_rep
+
+# run with more standard number of replications (note the storage message)
 Final <- runSimulation(design=Design, replications=1000,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 Final
 
-# reproduce exact simulation
-Final_rep <- runSimulation(design=Design, replications=1000, seed=Final$SEED,
-                       generate=Generate, analyse=Analyse, summarise=Summarise)
-Final_rep
-
-
 #~~~~~~~~~~~~~~~~~~~~~~~~
 #### Extras
-\dontrun{
 # compare SEs estimates to the true SEs from the formula sigma/sqrt(N)
 5 / sqrt(Design$N)
 
 # To store the results from the analyse function either
-#   a) omit a definition of of summarise(), or
-#   b) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
-# Note that the latter method should be adopted for longer simulations
+#   a) omit a definition of summarise() to return all results,
+#   b) use store_results = TRUE to store results internally and later
+#      extract with SimExtract(..., what = 'results'), or
+#   c) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
+#
+#   Note that method c) should be adopted for larger simulations, particularly
+#   if RAM storage could be an issue and error/warning message information is important.
 
-# e.g., the a) approach
-res <- runSimulation(design=Design, replications=1000,
+# a) approach
+res <- runSimulation(design=Design, replications=5,
                      generate=Generate, analyse=Analyse)
-str(res)
-head(res[[1]])
+res
 
-# or b) approach
-Final <- runSimulation(design=Design, replications=1000, save_results=TRUE,
+# b) approach
+res <- runSimulation(design=Design, replications=5, store_results=TRUE,
+                     generate=Generate, analyse=Analyse, summarise=Summarise)
+res
+SimExtract(res, 'results')
+
+# c) approach
+Final <- runSimulation(design=Design, replications=5, save_results=TRUE,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
+
+# read-in all conditions (can be memory heavy)
 res <- SimResults(Final)
-str(res)
+res
 head(res[[1]]$results)
+
+# just first condition
+res <- SimResults(Final, which=1)
+head(res$results)
+dplyr::tibble(res$condition, res$results)
 
 
 # obtain empirical bootstrapped CIs during an initial run
@@ -776,6 +800,13 @@ library(RPushbullet) # read-in default JSON file
 runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
               generate=Generate, analyse=Analyse, summarise=Summarise,
               notification = 'complete')
+
+## Submit as RStudio job (requires job package and active RStudio session)
+job::job({
+  res <- runSimulation(design=Design, replications=100,
+                       generate=Generate, analyse=Analyse, summarise=Summarise)
+}, title='t-test simulation')
+res  # object res returned to console when completed
 
 ## Debug the generate function. See ?browser for help on debugging
 ##   Type help to see available commands (e.g., n, c, where, ...),

@@ -11,7 +11,8 @@ parent_env_fun <- function(){
 load_packages <- function(packages){
     if(!is.null(packages))
         for(pack in packages)
-            require(substitute(pack), character.only=TRUE, quietly=TRUE)
+            suppressWarnings(require(substitute(pack), character.only=TRUE,
+                    quietly=TRUE, warn.conflicts=FALSE))
     invisible(NULL)
 }
 
@@ -44,7 +45,7 @@ timeFormater <- function(time, decimals = TRUE){
     resTime
 }
 
-print_progress <- function(row, trow, stored_time, progress, condition){
+print_progress <- function(row, trow, stored_time, RAM, progress, condition){
     if(progress) cat('\n')
     tmp <- as.list(subset(condition, select=colnames(condition) != "ID"))
     nms <- names(tmp)
@@ -59,8 +60,8 @@ print_progress <- function(row, trow, stored_time, progress, condition){
             condstring <- paste0(nms, '=', nms2, collapse=', ')
         }
     }
-    cat(sprintf('\rDesign row: %i/%i;   Started: %s;   Total elapsed time: %s ',
-                row, trow, date(), timeFormater(sum(stored_time))))
+    cat(sprintf('\rDesign row: %i/%i;   RAM used: %s;   Total elapsed time: %s ',
+                row, trow, RAM, timeFormater(sum(stored_time))))
     cat(sprintf('\n Conditions: %s\n', condstring))
     if(progress) cat('\r')
     invisible(NULL)
@@ -430,11 +431,12 @@ SimSolveData <- function(burnin, full = TRUE){
     ret
 }
 
-SimSolveUniroot <- function(SimMod, b, interval, median){
+SimSolveUniroot <- function(SimMod, b, interval, max.interval, median){
     f.root <- function(x, b)
         predict(SimMod, newdata = data.frame(x=x), type = 'response') - b
     res <- try(uniroot(f.root, b=b, interval = interval), silent = TRUE)
     if(is(res, 'try-error')){ # in case original interval is poor for interpolation
+        interval <- max.interval
         for(i in seq_len(20L)){
             if(grepl('end points not of opposite sign', res)){
                 diff <- abs(interval - median)
@@ -465,4 +467,17 @@ collect_unique <- function(x){
         }
     }
     x
+}
+
+RAM_used <- function(){
+    # borrowed and modified from pryr::node_size(), 13-06-2023
+    bit <- 8L * .Machine$sizeof.pointer
+    if (!(bit == 32L || bit == 64L)) {
+        stop("Unknown architecture", call. = FALSE)
+    }
+    val <- if (bit == 32L) 28L else 56L
+    # end borrowed portion
+    bytes <- sum(gc()[, 1] * c(val, 8))
+    size <- structure(bytes, class="object_size")
+    format(size, 'MB')
 }

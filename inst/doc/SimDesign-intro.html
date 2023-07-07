@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-05-25" />
+<meta name="date" content="2023-07-07" />
 
 <title>Introduction to the SimDesign package</title>
 
@@ -1518,19 +1518,19 @@ div.tocify {
 
 <h1 class="title toc-ignore">Introduction to the SimDesign package</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-05-25</h4>
+<h4 class="date">2023-07-07</h4>
 
 </div>
 
 
-<p>Designing Monte Carlo simulations can be a fun and rewarding experience. Whether you are interested in evaluating the performance of a new optimizer, re-evaluating previous research claims (like the ANOVA is ‘robust’ to violations of normality), determine power rates for an upcoming research proposal, or simply to appease a strange thought in your head about a new statistical idea you heard about, designing Monte Carlo simulations can be incredibly rewarding and are extremely important to those who are statistically oriented. However, organizing simulations can be a challenge, and all too often coders resort to the dreaded “for-loop” strategy, <em>for</em>-ever resulting in confusing, error prone, and simulation specific code. The package <code>SimDesign</code> is one attempt to fix these and other issues that often arise when designing Monte Carlo simulation experiments.</p>
+<p>Whether you are interested in evaluating the performance of a new optimizer or estimation criteria, re-evaluating previous research claims (e.g., ANOVA is ‘robust’ to violations of normality), determine power rates for an upcoming research proposal, or simply to appease a strange thought in your head about a new statistical idea you heard about, designing Monte Carlo simulations can be incredibly rewarding and are extremely important to those who are statistically oriented. However, organizing simulations can be a challenge, particularly to those new to the topic, where all too often coders resort to the inefficient and error prone strategies (e.g., the dreaded “for-loop” strategy, <em>for</em>-ever resulting in confusing, error prone, and simulation specific code). The package <code>SimDesign</code> is one attempt to fix these and other issues that often arise when designing Monte Carlo simulation experiments, while also providing a templated setup that is designed to support many useful features that can be useful when evaluating simulation research.</p>
 <p>Generally speaking, Monte Carlo simulations can be broken into three major components:</p>
 <ul>
 <li><strong>generate</strong> your data from some model/probability density function given various <strong>design</strong> conditions to be studied (e.g., sample size, distributions, group sizes, etc),</li>
 <li><strong>analyse</strong> the generated data using whatever statistical analyses you are interested in (e.g., <span class="math inline">\(t\)</span>-test, ANOVA, SEMs, IRT, etc), and collect the statistics/CIs/<span class="math inline">\(p\)</span>-values/parameter estimates you are interested in, and</li>
 <li><strong>summarise</strong> the results after repeating the simulations <span class="math inline">\(R\)</span> number of times to obtain empirical estimates of the population’s behavior.</li>
 </ul>
-<p>Each operation above represents the essential components of the <code>SimDesign</code> package. The <strong>design</strong> component is represented by a <code>data.frame</code> object containing the simulation conditions to be investigated, while <strong>generate</strong>, <strong>analyse</strong>, and <strong>summarise</strong> represent user-defined functions which comprise the three steps in the simulation. Each of these components are constructed and passed to the <code>runSimulation()</code> function where the simulation steps are evaluated, ultimately returning a <code>data.frame</code> object containing the simulation results.</p>
+<p>Each operation above represents the essential components of the <code>SimDesign</code> package. The <strong>design</strong> component is represented by a <code>tibble</code>-like object containing the simulation conditions to be investigated, while <strong>generate</strong>, <strong>analyse</strong>, and <strong>summarise</strong> represent user-defined functions which comprise the three steps in the simulation. Each of these components are constructed and passed to the <code>runSimulation()</code> function where the simulation steps are evaluated, ultimately returning a <code>tibble</code>-like object containing the simulation results.</p>
 <div id="a-general-overview" class="section level1" number="1">
 <h1 number="1"><span class="header-section-number">1</span> A general overview</h1>
 <p>After loading the <code>SimDesign</code> package, we begin by defining the required user-constructed functions. To expedite this process, a call to <code>SimFunctions()</code> will create a template to be filled in, where all the necessary functional arguments have been pre-assigned, and only the body of the functions need to be modified. The documentation of each argument can be found in the respective R help files, however there organization is very simple conceptually.</p>
@@ -1567,10 +1567,10 @@ res &lt;- runSimulation(design=Design, replications=1000, generate=Generate,
                      analyse=Analyse, summarise=Summarise)
 res</code></pre>
 <p>Alternatively, if you are lazy (read: efficient) or just don’t like copy-and-pasting, <code>SimFunctions()</code> can write the output to a file by providing a <code>filename</code> argument. The following creates a file (<code>mysim.R</code>) containing the simulation design/execution and required user-defined functions.</p>
-<pre class="r"><code>SimFunctions(&#39;mysim&#39;)</code></pre>
+<pre class="r"><code>SimDesign::SimFunctions(&#39;mysim&#39;)</code></pre>
 <p>For larger simulations, you may want to use two files, and if you’d prefer to have helpful comments included then these can be achieved with the <code>singlefile</code> and <code>comments</code> arguments, respectively.</p>
 <pre class="r"><code>SimFunctions(&#39;mysim&#39;, singlefile = FALSE, comments = TRUE)</code></pre>
-<p>The choice of using a single file or not is entirely a matter of preference, and will not influence the overall simulation implementation.</p>
+<p>The choice of using a single file or not is entirely a matter of preference, and will not influence the overall simulation implementation. However, should you wish to include separate analysis or generate functions the arguments <code>nGenerate</code> and <code>nAnalyse</code> can be useful to compartmentalize generally distinct portions of the code (e.g., one analyse function for fitting and extracting components of a structural equation model, and one analyse function for fitting and extracting information form an item response theory model).</p>
 </div>
 <div id="simulation-determine-estimator-efficiency" class="section level1" number="2">
 <h1 number="2"><span class="header-section-number">2</span> Simulation: Determine estimator efficiency</h1>
@@ -1628,7 +1628,7 @@ Design</code></pre>
 }</code></pre>
 <p>Again, <code>condition</code> is the same as was defined before, while <code>results</code> is a <code>matrix</code> containing all the results from <code>Analyse()</code>, where each row represents the result returned from each respective replication, and the number of columns is equal to the length of a single vector returned by <code>Analyse()</code>.</p>
 <p>That sounds much more complicated than it is — all you really need to know for this simulation is that an <span class="math inline">\(R\)</span> x 4 matrix called <code>results</code> is available to build a suitable summary from. Because the results is a matrix, <code>apply()</code> is useful to apply a function over each respective row. The bias and RMSE are obtained for each respective statistic, and the overall result is returned as a vector.</p>
-<p>Stopping for a moment and thinking carefully, we know that each <code>condition</code> will be paired with a unique vector returned from <code>Summarise()</code>. Therefore, you might be thinking that the result returned from the simulation will be in a rectangular form, such as in a <code>matrix</code> or <code>data.frame</code>. Well, you’d be right — good for you.</p>
+<p>Stopping for a moment and thinking carefully, we know that each <code>condition</code> will be paired with a unique vector returned from <code>Summarise()</code>. Therefore, you might be thinking that the result returned from the simulation will be in a rectangular form, such as in a <code>matrix</code>, <code>data.frame</code>, or <code>tibble</code>. Well, you’d be right!</p>
 </div>
 <div id="putting-it-all-together" class="section level2" number="2.3">
 <h2 number="2.3"><span class="header-section-number">2.3</span> Putting it all together</h2>
@@ -1637,39 +1637,39 @@ Design</code></pre>
                          analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/8;   Started: Thu May 25 16:13:19 2023;   Total elapsed time: 0.00s 
+Design row: 1/8;   RAM used: 57.4 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: sample_size=30, distribution=norm
 ## 
 ## 
-Design row: 2/8;   Started: Thu May 25 16:13:19 2023;   Total elapsed time: 0.35s 
+Design row: 2/8;   RAM used: 57.5 Mb;   Total elapsed time: 0.32s 
 ##  Conditions: sample_size=60, distribution=norm
 ## 
 ## 
-Design row: 3/8;   Started: Thu May 25 16:13:19 2023;   Total elapsed time: 0.70s 
+Design row: 3/8;   RAM used: 57.5 Mb;   Total elapsed time: 0.65s 
 ##  Conditions: sample_size=120, distribution=norm
 ## 
 ## 
-Design row: 4/8;   Started: Thu May 25 16:13:20 2023;   Total elapsed time: 1.06s 
+Design row: 4/8;   RAM used: 57.5 Mb;   Total elapsed time: 0.98s 
 ##  Conditions: sample_size=240, distribution=norm
 ## 
 ## 
-Design row: 5/8;   Started: Thu May 25 16:13:20 2023;   Total elapsed time: 1.45s 
+Design row: 5/8;   RAM used: 57.5 Mb;   Total elapsed time: 1.37s 
 ##  Conditions: sample_size=30, distribution=chi
 ## 
 ## 
-Design row: 6/8;   Started: Thu May 25 16:13:20 2023;   Total elapsed time: 1.79s 
+Design row: 6/8;   RAM used: 57.5 Mb;   Total elapsed time: 1.70s 
 ##  Conditions: sample_size=60, distribution=chi
 ## 
 ## 
-Design row: 7/8;   Started: Thu May 25 16:13:21 2023;   Total elapsed time: 2.13s 
+Design row: 7/8;   RAM used: 57.5 Mb;   Total elapsed time: 2.19s 
 ##  Conditions: sample_size=120, distribution=chi
 ## 
 ## 
-Design row: 8/8;   Started: Thu May 25 16:13:21 2023;   Total elapsed time: 2.49s 
+Design row: 8/8;   RAM used: 57.5 Mb;   Total elapsed time: 3.19s 
 ##  Conditions: sample_size=240, distribution=chi
 ## </code></pre>
 <pre class="r"><code>res</code></pre>
-<pre><code>## # A tibble: 8 × 18
+<pre><code>## # A tibble: 8 × 19
 ##   sample…¹ distr…² bias.mea…³ bias.mea…⁴ bias.mea…⁵ bias.med…⁶ RMSE.m…⁷ RMSE.m…⁸
 ##      &lt;dbl&gt; &lt;chr&gt;        &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;      &lt;dbl&gt;    &lt;dbl&gt;    &lt;dbl&gt;
 ## 1       30 norm    -4.8080e-3 -4.6834e-3 -2.9265e-3  4.8276e-3 0.18539  0.18976 
@@ -1680,12 +1680,12 @@ Design row: 8/8;   Started: Thu May 25 16:13:21 2023;   Total elapsed time: 2.49
 ## 6       60 chi     -4.2835e-3 -3.4631e-1 -4.9384e-1 -6.3638e-1 0.31925  0.45470 
 ## 7      120 chi     -5.0244e-3 -3.4566e-1 -4.8818e-1 -6.3533e-1 0.22368  0.40627 
 ## 8      240 chi     -5.8300e-5 -3.4650e-1 -4.8943e-1 -6.3179e-1 0.15787  0.37689 
-## # … with 10 more variables: RMSE.mean_trim.2 &lt;dbl&gt;, RMSE.median &lt;dbl&gt;,
+## # … with 11 more variables: RMSE.mean_trim.2 &lt;dbl&gt;, RMSE.median &lt;dbl&gt;,
 ## #   RE.mean_no_trim &lt;dbl&gt;, RE.mean_trim.1 &lt;dbl&gt;, RE.mean_trim.2 &lt;dbl&gt;,
-## #   RE.median &lt;dbl&gt;, REPLICATIONS &lt;int&gt;, SIM_TIME &lt;chr&gt;, COMPLETED &lt;chr&gt;,
-## #   SEED &lt;int&gt;, and abbreviated variable names ¹​sample_size, ²​distribution,
-## #   ³​bias.mean_no_trim, ⁴​bias.mean_trim.1, ⁵​bias.mean_trim.2, ⁶​bias.median,
-## #   ⁷​RMSE.mean_no_trim, ⁸​RMSE.mean_trim.1
+## #   RE.median &lt;dbl&gt;, REPLICATIONS &lt;int&gt;, SIM_TIME &lt;chr&gt;, RAM_USED &lt;chr&gt;,
+## #   SEED &lt;int&gt;, COMPLETED &lt;chr&gt;, and abbreviated variable names ¹​sample_size,
+## #   ²​distribution, ³​bias.mean_no_trim, ⁴​bias.mean_trim.1, ⁵​bias.mean_trim.2,
+## #   ⁶​bias.median, ⁷​RMSE.mean_no_trim, ⁸​RMSE.mean_trim.1
 ## # ℹ Use `colnames()` to see all variable names</code></pre>
 <p>As can be seen from the printed results, each result from the <code>Summarise()</code> function has been paired with their respective condition, meta-statistics have been properly named, and three additional columns have been appended to the results: <code>REPLICATIONS</code>, which indicates how many time the conditions were performed, <code>SIM_TIME</code>, indicating the time (in seconds) it took to completely finish the respective conditions, and <code>SEED</code>, which indicates the random seeds used by <code>SimDesign</code> for each condition (for reproducibility). A call to <code>View()</code> in the R console may also be a nice way to sift through the <code>res</code> object.</p>
 </div>
@@ -1758,8 +1758,8 @@ head(results)</code></pre>
 ##            0.1739            0.1777            0.1859            0.2146 
 ##   RE.mean_no_trim    RE.mean_trim.1    RE.mean_trim.2         RE.median 
 ##            1.0000            1.0442            1.1425            1.5225</code></pre>
-<p>This scheme is then repeated for each row in the <code>Design</code> object until the entire simulation study is complete.</p>
-<p>Of course, <code>runSimulation()</code> does much more than this conceptual outline, which is why it exists. Namely, errors and warnings are controlled and tracked, data is re-drawn when needed, parallel processing is supported, debugging is easier with the <code>debug</code> input (or by inserting <code>browser()</code> directly), temporary and full results can be saved to external files, the simulation state can be saved/restored, build-in safety features are included, and more. The point, however, is that you as the user <em>should not be bogged down with the nitty-gritty details of setting up the simulation work-flow/features</em>; instead, you need only focus your time on the important generate-analyse-summarise steps, organized in the body of these function, required to obtain your interesting simulation results.</p>
+<p>This process is then repeated for each row in the <code>Design</code> object until the entire simulation study is complete.</p>
+<p>Of course, <code>runSimulation()</code> does much more than this conceptual outline, which is why it exists. Namely, errors and warnings are controlled and tracked, data is re-drawn when needed, parallel processing is supported, debugging is easier with the <code>debug</code> input (or by inserting <code>browser()</code> directly), temporary and full results can be saved to external files, the simulation state can be saved/restored, build-in safety features are included, and more. The point, however, is that you as the user <em>should not be bogged down with the nitty-gritty details of setting up the simulation work-flow/features</em>; instead, you should be focusing your time on the important generate-analyse-summarise steps, organized in the body of the above functions, that are required to obtain your interesting simulation results. After all, the point designing a computer simulation experiment is to understand the resulting output, not to become a master of all aspects of your select computing language pertaining to object storage, parallel processing, RAM storage, defensive coding, progress reporting, reproducibility, post-processing, …, ad nauseam.</p>
 <p>To access further examples and instructions feel free to visit the <a href="https://github.com/philchalmers/SimDesign/wiki">package wiki on Github</a></p>
 </div>
 

@@ -125,7 +125,7 @@ PBA <- function(f, interval, ..., p = .6,
 
     bool.f <- function(f.root, median, ...){
         val <- valp <- f.root(median, ...)
-        if(integer && !is.null(.SIMDENV$FromSimSolve)){
+        if(integer && !is.null(.SIMDENV$FromSimSolve) && .SIMDENV$FromSimSolve$bolster){
             if(!all(is.na(.SIMDENV$stored_medhistory))){
                 whc <- which(median == .SIMDENV$stored_medhistory)
                 whc <- whc[-1L]
@@ -146,6 +146,7 @@ PBA <- function(f, interval, ..., p = .6,
     logq <- log(1-p)
 
     dots <- list(...)
+    bolster <- FALSE
     FromSimSolve <- .SIMDENV$FromSimSolve
     if(!is.null(FromSimSolve)){
         family <- FromSimSolve$family
@@ -158,6 +159,8 @@ PBA <- function(f, interval, ..., p = .6,
         # robust <- FromSimSolve$robust
         interpolate.burnin <- FromSimSolve$interpolate.burnin
         glmpred.last <- glmpred <- c(NA, NA)
+        k.success <- FromSimSolve$k.success
+        k.successes <- 0L
     } else interpolate <- FALSE
     x <- if(integer) interval[1L]:interval[2L]
         else seq(interval[1L], interval[2L], length.out=resolution[1L])
@@ -188,6 +191,9 @@ PBA <- function(f, interval, ..., p = .6,
 
     for(iter in 1L:maxiter){
         med <- getMedian(fx, x)
+        if(!is.null(FromSimSolve) && integer && iter >= FromSimSolve$single_step.iter)
+            med <- ifelse(abs(med - medhistory[iter-1L]) == 1,
+                          med, medhistory[iter-1L] + sign(med - medhistory[iter-1L]))
         medhistory[iter] <- med
         feval <- if(!is.null(FromSimSolve))
             bool.f(f.root=f, med, replications=replications[iter], ...)
@@ -214,21 +220,22 @@ PBA <- function(f, interval, ..., p = .6,
                 c(NA, NA)
             } else {
                 suppressWarnings(SimSolveUniroot(SimMod=SimMod,
-                                                 b=dots$b, interval=interval,
+                                                 b=dots$b,
+                                                 interval=quantile(medhistory[medhistory != 0],
+                                                                   probs = c(.05, .95)),
+                                                 max.interval=interval,
                                                  median=med))
             }
 
-            # Should termination occur early when this changes very little and
-            # roughly agrees with the median (latter rejects degenerate candidates)?
+            # Should termination occur early when this changes very little?
             if(!any(is.na(c(glmpred[1L], glmpred.last[1L])))){
                 abs_diff <- abs(glmpred.last[1L] - glmpred[1L])
                 rel_diff <- abs_diff / abs(glmpred.last[1L])
                 if(abs_diff <= tol || rel_diff <= rel.tol){
-                    close2med <- abs(glmpred[1L] - med) / abs(glmpred[1L]) < .1
-                    if(close2med) break
-                    else glmpred <- c(NA, NA)
-                }
-            }
+                    k.successes <- k.successes + 1L
+                    if(k.successes == k.success) break
+                } else k.successes <- 0L
+            } else k.successes <- 0L
             glmpred.last <- glmpred
         }
         if(!interpolate && abs(e.froot) < tol && iter > mean_window) break

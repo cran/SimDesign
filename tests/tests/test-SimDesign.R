@@ -97,7 +97,7 @@ test_that('SimDesign', {
                            replications = 2, parallel=FALSE, save=FALSE, verbose = FALSE,
                            store_results = TRUE)
     out <- SimExtract(Final, what = 'results')
-    expect_equal(nrow(out[[1L]]), 2L)
+    expect_equal(nrow(out), nrow(Design) * 2)
 
     Final <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
                            replications = parallel::detectCores(),
@@ -126,15 +126,30 @@ test_that('SimDesign', {
     Final2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, seed = 1:8,
                             replications = parallel::detectCores(), parallel=FALSE, save=FALSE, verbose = FALSE)
 
-    # aggregate test
+    # aggregate tests
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, filename='file',
-                           replications = 2, parallel=FALSE, save=TRUE, verbose = FALSE)
+                         replications = 2, parallel=FALSE, store_results = TRUE, verbose = FALSE)
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                           replications = 2, parallel=FALSE, save=TRUE, filename = 'newfile', verbose = FALSE)
+                         replications = 2, parallel=FALSE, store_results = TRUE,
+                         filename = 'newfile', verbose = FALSE)
     Final <- aggregate_simulations(files = c('file.rds', 'newfile.rds'))
     expect_is(Final, 'data.frame')
     expect_true(all(Final$REPLICATIONS == 4L))
+    expect_equal(nrow(SimExtract(Final, 'results')), 4 * nrow(Design))
     SimClean(dir()[grepl('\\.rds', dir())])
+
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                         replications = 2, parallel=FALSE, save_results = TRUE, verbose = FALSE)
+    tmp2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+                         replications = 2, parallel=FALSE, save_results = TRUE,
+                         verbose = FALSE)
+
+    dirs <- c(SimExtract(tmp, 'save_results_dirname'),
+              SimExtract(tmp2, 'save_results_dirname'))
+    aggregate_simulations(dirs = dirs)
+    row1 <- readRDS('SimDesign_aggregate_results/results-row-1.rds')
+    expect_equal(nrow(row1$results), 4L)
+    SimClean(dirs = c(dirs, "SimDesign_aggregate_results"))
 
     # seeds
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
@@ -216,7 +231,7 @@ test_that('SimDesign', {
 
     tmp <- runSimulation(Design, generate=mysim, analyse=mycomputeGood, summarise=mycollect, verbose=FALSE,
                          replications = 10, boot_method = 'basic')
-    expect_true(all(dim(tmp) == c(8,13)))
+    expect_true(all(dim(tmp) == c(8,14)))
 
     tmp <- runSimulation(rbind(Design, Design), generate=mysim, analyse=mycomputeGood, summarise=mycollect, verbose=FALSE,
                          replications = 10, parallel=FALSE, save_results = TRUE)
@@ -241,9 +256,9 @@ test_that('SimDesign', {
         return(ret)
     }
 
-    expect_message(tmp <- runSimulation(Design, generate=mysim, analyse=mycompute3, verbose=FALSE,
-                         replications = 2, parallel=FALSE, save_results = TRUE))
-    expect_true(all(sapply(tmp, function(x) nrow(x)) == 2L))
+    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute3,
+                         verbose=FALSE, replications = 2, parallel=FALSE)
+    expect_true(nrow(tmp) == nrow(Design)*2 && ncol(tmp) == 5)
 
     tmp <- runSimulation(Design, generate=mysim, analyse=mycompute3, summarise=NA,
                          verbose=FALSE, replications = 2, parallel=FALSE, save_results = TRUE)
@@ -473,12 +488,12 @@ test_that('SimDesign', {
     results <- runSimulation(replications = 10, generate = Generate,
                              analyse=Analyse, verbose=FALSE)
     expect_is(results, 'data.frame')
-    expect_equal(ncol(results), 2L)
+    expect_equal(ncol(results), 3L)
 
     results <- runSimulation(replications = 10, generate = Generate,
                              analyse=Analyse2, summarise = Summarise, verbose=FALSE)
     expect_is(results, 'data.frame')
-    expect_equal(ncol(results), 5L)
+    expect_equal(ncol(results), 6L)
 
     # dummy run with no design and returning lists
     Generate <- function(condition, fixed_objects = NULL)
@@ -558,7 +573,7 @@ test_that('SimDesign', {
     }
     result <- runSimulation(replications = 100, seed=1234, verbose=FALSE,
                             generate=mygenerate, analyse=mycompute, summarise=mycollect)
-    expect_equal(ncol(result), 7L)
+    expect_equal(ncol(result), 8L)
 
     expect_true(all(names(SimExtract(result, what = 'errors')) %in% c(
         'ERROR:  generate error in analyse\n', 'ERROR:  generate error\n')))
@@ -568,7 +583,7 @@ test_that('SimDesign', {
     result <- runSimulation(design=createDesign(N=c(100, 200)), replications = 100,
                                                 seed=c(1234, 4321), verbose=FALSE,
                             generate=mygenerate, analyse=mycompute, summarise=mycollect)
-    expect_equal(ncol(result), 8L)
+    expect_equal(ncol(result), 9L)
     expect_true(all(names(SimExtract(result, what = 'errors')) %in% c("N",
         'ERROR:  generate error in analyse\n', 'ERROR:  generate error\n')))
     expect_true(all(names(SimExtract(result, what = 'warnings')) %in% c("N",

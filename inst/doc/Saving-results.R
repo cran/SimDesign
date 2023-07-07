@@ -92,7 +92,8 @@ row1$condition
 head(row1$results)
 
 ## -----------------------------------------------------------------------------
-row1 <- SimResults(res, 1)
+# first row
+row1 <- SimResults(res, which = 1)
 str(row1)
 
 ## -----------------------------------------------------------------------------
@@ -105,6 +106,6 @@ SimClean(results = TRUE)
 ## -----------------------------------------------------------------------------
 res <- runSimulation(Design, replications = 3, store_results=TRUE,
               generate=Generate, analyse=Analyse, summarise=Summarise)
-list_results <- SimExtract(res, what = 'results')
-list_results
+results <- SimExtract(res, what = 'results')
+results
 

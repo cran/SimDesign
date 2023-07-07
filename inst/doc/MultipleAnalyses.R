@@ -507,6 +507,24 @@ Analyse.FIML <- function(condition, dat, fixed_objects = NULL) {
     ret
 }
 
+## ----eval=FALSE---------------------------------------------------------------
+#  Generate.G1 <- function(condition, fixed_objects = NULL) {
+#      GenerateIf(condition$indicators == 'discrete')
+#      ...
+#      dat
+#  }
+#  
+#  Generate.G2 <- function(condition, fixed_objects = NULL) {
+#      GenerateIf(condition$indicators == 'continuous')
+#      ...
+#      dat
+#  }
+#  
+#  res <- runSimulation(design=Design, replications=1000,
+#                       generate=list(G1=Generate.G1, G2=Generate.G2),
+#                       analyse=list(DWLS=Analyse.DWLS, FIML=Analyse.FIML),
+#                       summarise=Summarise)
+
 ## -----------------------------------------------------------------------------
 Design <- createDesign(sample_size = sample_sizes, 
                        nitems = nitems, 

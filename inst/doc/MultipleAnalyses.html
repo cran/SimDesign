@@ -11,9 +11,9 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-05-25" />
+<meta name="date" content="2023-07-07" />
 
-<title>Multiple Analysis Functions</title>
+<title>Multiple analysis functions</title>
 
 <script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
 // be compatible with the behavior of Pandoc < 2.8).
@@ -1516,9 +1516,9 @@ div.tocify {
 
 
 
-<h1 class="title toc-ignore">Multiple Analysis Functions</h1>
+<h1 class="title toc-ignore">Multiple analysis functions</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-05-25</h4>
+<h4 class="date">2023-07-07</h4>
 
 </div>
 
@@ -1736,7 +1736,7 @@ Design</code></pre>
 ## 10         250     20 continuous
 ## 11         500     20 continuous
 ## 12        1000     20 continuous</code></pre>
-<p>Provided that the <code>Generate()</code> step utilized this <code>indicators</code> factor, this would imply that the <code>dat</code> object returned from <code>Generate()</code> could consist of discrete or continuous data. In the case of continuous indicator variables, <code>lavaan</code> could be used as it supports such indicator types; however, <code>mirt</code> cannot. So, to ensure that only the analysis function pertaining to <code>lavaan</code> is used one could include the following replacement definition that used <code>mirt</code>, but now includes an <code>AnalyseIf()</code> logical given the <code>indicators</code> variable’s state.</p>
+<p>Provided that the <code>Generate()</code> step utilized this <code>indicators</code> character vector, this would imply that the <code>dat</code> object returned from <code>Generate()</code> could consist of discrete or continuous data. In the case of continuous indicator variables, <code>lavaan</code> could be used as it supports such indicator types; however, <code>mirt</code> cannot. So, to ensure that only the analysis function pertaining to <code>lavaan</code> is used one could include the following replacement definition that used <code>mirt</code>, but now includes an <code>AnalyseIf()</code> logical given the <code>indicators</code> variable’s state.</p>
 <pre class="r"><code>Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
     AnalyseIf(condition$indicators == &#39;discrete&#39;)
     # equivalently: 
@@ -1751,6 +1751,23 @@ Design</code></pre>
     ret
 }</code></pre>
 <p>Using this definition the final object returned by <code>runSimulation()</code> will provide suitable <code>NA</code> placeholders (where appropriate). For continuous indicators the results will be presented as though <code>mirt</code> was never used for the continuous indicator conditions controlled by the <code>Design</code> object.</p>
+<p>Note that a similar logic can be made for multiple <code>Generate()</code> functions, templated via <code>SimDesign::SimFunctions(nGenerate = 2)</code>, and requiring specific <code>GenerateIf()</code> tests to indicate which generation function should be used. For those interested in this type of structure, the following could be used to separate the discrete/continuous data generation per <code>Design</code> row:</p>
+<pre class="r"><code>Generate.G1 &lt;- function(condition, fixed_objects = NULL) {
+    GenerateIf(condition$indicators == &#39;discrete&#39;)
+    ...
+    dat
+}
+
+Generate.G2 &lt;- function(condition, fixed_objects = NULL) {
+    GenerateIf(condition$indicators == &#39;continuous&#39;)
+    ...
+    dat
+}
+
+res &lt;- runSimulation(design=Design, replications=1000,
+                     generate=list(G1=Generate.G1, G2=Generate.G2), 
+                     analyse=list(DWLS=Analyse.DWLS, FIML=Analyse.FIML), 
+                     summarise=Summarise)</code></pre>
 <div id="applying-one-analyse-function-per-condition" class="section level2" number="2.1">
 <h2 number="2.1"><span class="header-section-number">2.1</span> Applying one analyse function per-condition</h2>
 <p>Interestingly, <code>AnalyseIf()</code> could also be used to select only one analysis function at a time given the components in the <code>Design</code> object. For instance, if the <code>Design</code> definition were constructed using</p>
