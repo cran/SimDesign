@@ -9,10 +9,15 @@ parent_env_fun <- function(){
 }
 
 load_packages <- function(packages){
-    if(!is.null(packages))
-        for(pack in packages)
-            suppressWarnings(require(substitute(pack), character.only=TRUE,
+    if(!is.null(packages)){
+        for(pack in packages){
+            available <- suppressWarnings(require(substitute(pack), character.only=TRUE,
                     quietly=TRUE, warn.conflicts=FALSE))
+            if(!available)
+                stop(sprintf("Package \'%s\' is not available. Please install.", pack),
+                     call.=FALSE)
+        }
+    }
     invisible(NULL)
 }
 
@@ -394,11 +399,11 @@ combined_Generate <- function(condition, fixed_objects = NULL){
 
 toTabledResults <- function(results){
     tabled_results <- if(is.data.frame(results[[1]]) && nrow(results[[1L]]) == 1L){
-        dplyr::bind_rows(results)
+        as.matrix(dplyr::bind_rows(results))
     } else if((is.data.frame(results[[1]]) && nrow(results[[1]]) > 1L) || is.list(results[[1L]])){
         results
     } else {
-        dplyr::bind_rows(as.data.frame(do.call(rbind, results)))
+        as.matrix(dplyr::bind_rows(as.data.frame(do.call(rbind, results))))
     }
     tabled_results
 }
@@ -423,7 +428,7 @@ SimSolveData <- function(burnin, full = TRUE){
         DV <- do.call(c, .SIMDENV$stored_results[pick])
         IV <- rep(.SIMDENV$stored_medhistory[pick],
                   times=sapply(.SIMDENV$stored_results[pick], length))
-        ret <- data.frame(y=DV, x=IV)
+        ret <- data.frame(y=DV, x=IV, weights=1)
     } else {
         ret <- do.call(rbind, .SIMDENV$stored_history[pick])
         ret$weights <- 1/sqrt(ret$reps)
@@ -480,4 +485,9 @@ RAM_used <- function(){
     bytes <- sum(gc()[, 1] * c(val, 8))
     size <- structure(bytes, class="object_size")
     format(size, 'MB')
+}
+
+clip_names <- function(vec, maxchar = 150L){
+    names(vec) <- strtrim(names(vec), width=maxchar)
+    vec
 }

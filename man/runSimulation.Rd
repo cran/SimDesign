@@ -33,7 +33,7 @@ runSimulation(
   max_errors = 50L,
   save_seeds = FALSE,
   save_details = list(),
-  extra_options = list(),
+  control = list(),
   progress = TRUE,
   verbose = TRUE
 )
@@ -342,6 +342,17 @@ errors are thrown in any
       \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
       in the string}
 
+    \item{\code{save_results_filename}}{a string indicating the name file to store, where the
+      \code{Design} row ID will be appended to ensure uniqueness across rows. Specifying
+      this input will disable any checking for the uniqueness of the file folder, thereby
+      allowing independent \code{runSimulation} calls to write to the same
+      \code{save_results_dirname}. Useful when the files should all be stored in the same
+      working directory, however the rows of \code{Design} are evaluated in isolation (e.g.,
+      for HPC structures that allow asynchronous file storage).
+      WARNING: the uniqueness of the file names are not checked using
+      this approach, therefore please ensure that each generated name will be unique a priori,
+      such as naming the file based on the supplied row condition information}
+
     \item{\code{save_seeds_dirname}}{a string indicating the name of the folder to save
       \code{.Random.seed} objects to when \code{save_seeds = TRUE}. If a directory/folder
       does not exist
@@ -352,7 +363,8 @@ errors are thrown in any
 
   }}
 
-\item{extra_options}{a list for extra information flags no commonly used. These can be
+\item{control}{a list for extra information flags for controlling less
+  commonly used features. These include
 
   \describe{
 
@@ -385,7 +397,8 @@ errors are thrown in any
       that too many warnings messages raised during the simulation implementation could cause
       RAM related issues.}
 
-     \item{\code{include_replication_index}}{logical (default is \code{FALSE});
+     \item{\code{include_replication_index} or
+       \code{include_reps}}{logical (default is \code{FALSE});
        should a REPLICATION element be added to
        the \code{condition} object when performing the simulation to track which specific
        replication experiment is being evaluated? This is useful when, for instance, attempting

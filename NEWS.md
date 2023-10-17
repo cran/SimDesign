@@ -1,5 +1,20 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.13
+
+- Fix Github issue #26 related to extremely long warning/error messages 
+
+- `save_results_filename` added to `runSimulation()` saving details to allow
+  asynchronous (though unchecked) file storage to the same results 
+  directory (suggested by Jan Göttmann)
+
+- `ECR()` gain a `complement` logical to indicate whether parameter was 
+  outside advertised interval (complement of coverage). Useful when CIs are
+  used as formal hypothesis tests (e.g., bootstrap CI tests for power)
+
+- `runSimulation(..., extra_options)` changed to `control` instead to
+  control less commonly used flags
+
 ## Changes in SimDesign 2.12
 
 - `createDesign()` gains a `fractional` argument to support design 

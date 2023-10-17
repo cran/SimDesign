@@ -314,7 +314,8 @@
 #'   avoid accidentally overwriting
 #'   existing files. Default is \code{NULL}, indicating no file will be saved by default
 #'
-#' @param extra_options a list for extra information flags no commonly used. These can be
+#' @param control a list for extra information flags for controlling less
+#'   commonly used features. These include
 #'
 #'   \describe{
 #'
@@ -347,7 +348,8 @@
 #'       that too many warnings messages raised during the simulation implementation could cause
 #'       RAM related issues.}
 #'
-#'      \item{\code{include_replication_index}}{logical (default is \code{FALSE});
+#'      \item{\code{include_replication_index} or
+#'        \code{include_reps}}{logical (default is \code{FALSE});
 #'        should a REPLICATION element be added to
 #'        the \code{condition} object when performing the simulation to track which specific
 #'        replication experiment is being evaluated? This is useful when, for instance, attempting
@@ -411,6 +413,17 @@
 #'       \code{'SimDesign-results_'} with the associated \code{compname} appended if no
 #'       \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
 #'       in the string}
+#'
+#'     \item{\code{save_results_filename}}{a string indicating the name file to store, where the
+#'       \code{Design} row ID will be appended to ensure uniqueness across rows. Specifying
+#'       this input will disable any checking for the uniqueness of the file folder, thereby
+#'       allowing independent \code{runSimulation} calls to write to the same
+#'       \code{save_results_dirname}. Useful when the files should all be stored in the same
+#'       working directory, however the rows of \code{Design} are evaluated in isolation (e.g.,
+#'       for HPC structures that allow asynchronous file storage).
+#'       WARNING: the uniqueness of the file names are not checked using
+#'       this approach, therefore please ensure that each generated name will be unique a priori,
+#'       such as naming the file based on the supplied row condition information}
 #'
 #'     \item{\code{save_seeds_dirname}}{a string indicating the name of the folder to save
 #'       \code{.Random.seed} objects to when \code{save_seeds = TRUE}. If a directory/folder
@@ -900,7 +913,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           CI = .95, seed = NULL,
                           boot_method='none', boot_draws = 1000L, max_errors = 50L,
                           save_seeds = FALSE,
-                          save_details = list(), extra_options = list(),
+                          save_details = list(), control = list(),
                           progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
@@ -958,8 +971,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 analyse[[i]] <- compiler::cmpfun(analyse[[i]])
             .SIMDENV$ANALYSE_FUNCTIONS <- ANALYSE_FUNCTIONS <- analyse
             .SIMDENV$TRY_ALL_ANALYSE <- TRY_ALL_ANALYSE  <-
-                ifelse(is.null(extra_options$try_all_analyse),
-                       TRUE, extra_options$try_all_analyse)
+                ifelse(is.null(control$try_all_analyse),
+                       TRUE, control$try_all_analyse)
             analyse <- combined_Analyses
             for(i in 1L:length(ANALYSE_FUNCTIONS)){
                 char_functions <- deparse(substitute(ANALYSE_FUNCTIONS[[i]]))
@@ -977,25 +990,30 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         if(!("RPushbullet" %in% (.packages())))
             stop('Please use library(RPushbullet) to load the default ~/.rpushbullet.json file',
                  call. = FALSE)
-    store_warning_seeds <- ifelse(is.null(extra_options$store_warning_seeds),
-                                  FALSE, extra_options$store_warning_seeds)
-    warnings_as_errors <- ifelse(is.null(extra_options$warnings_as_errors),
-                                 FALSE, extra_options$warnings_as_errors)
-    allow_na <- ifelse(is.null(extra_options$allow_na),
-                       FALSE, extra_options$allow_na)
-    allow_nan <- ifelse(is.null(extra_options$allow_nan),
-                        FALSE, extra_options$allow_nan)
-    stop_on_fatal <- ifelse(is.null(extra_options$stop_on_fatal),
-                            FALSE, extra_options$stop_on_fatal)
-    MPI <- ifelse(is.null(extra_options$MPI),
-                  FALSE, extra_options$MPI)
-    .options.mpi <- ifelse(is.null(extra_options$.options.mpi),
-                           list(), extra_options$.options.mpi)
-    type <- if(is.null(extra_options$type))
+    store_warning_seeds <- ifelse(is.null(control$store_warning_seeds),
+                                  FALSE, control$store_warning_seeds)
+    warnings_as_errors <- ifelse(is.null(control$warnings_as_errors),
+                                 FALSE, control$warnings_as_errors)
+    allow_na <- ifelse(is.null(control$allow_na),
+                       FALSE, control$allow_na)
+    allow_nan <- ifelse(is.null(control$allow_nan),
+                        FALSE, control$allow_nan)
+    stop_on_fatal <- ifelse(is.null(control$stop_on_fatal),
+                            FALSE, control$stop_on_fatal)
+    MPI <- ifelse(is.null(control$MPI),
+                  FALSE, control$MPI)
+    .options.mpi <- ifelse(is.null(control$.options.mpi),
+                           list(), control$.options.mpi)
+    type <- if(is.null(control$type))
         ifelse(.Platform$OS.type == 'windows', 'PSOCK', 'FORK')
-        else extra_options$type
-    include_replication_index <- ifelse(is.null(extra_options$include_replication_index),
-                                        FALSE, extra_options$include_replication_index)
+        else control$type
+    if(!is.null(control$include_replication_index) &&
+       !is.null(control$include_reps))
+        stop('Please only use one replication index flag', call.=FALSE)
+    if(!is.null(control$include_reps))
+        control$include_replication_index <- control$include_reps
+    include_replication_index <- ifelse(is.null(control$include_replication_index),
+                                        FALSE, control$include_replication_index)
     if(verbose){
         if(replications >= 200)
             if(!save_results && !store_results)
@@ -1023,6 +1041,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     out_rootdir <- save_details$out_rootdir
     tmpfilename <- save_details$tmpfilename
     save_results_dirname <- save_details$save_results_dirname
+    save_results_filename <- save_details$save_results_filename
     save_seeds_dirname <- save_details$save_seeds_dirname
 
     if(!verbose) progress <- FALSE
@@ -1069,6 +1088,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         verbose <- FALSE
         store_results <- TRUE
     }
+    if(save_results) store_results <- FALSE
     SimSolveRun <- !is.null(attr(design, 'SimSolve'))
     stopifnot(!missing(replications))
     replications <- as.integer(replications)
@@ -1196,21 +1216,22 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(save_results){
         save <- TRUE
         if(!file.exists(file.path(out_rootdir, tmpfilename))) {
-            if(safe){
+            if(safe && is.null(save_results_filename)){
                 tmp <- save_results_dirname
                 count <- 1L
                 while(dir.exists(file.path(out_rootdir, save_results_dirname))) {
                     save_results_dirname <- paste0(tmp, '_', count)
                     count <- count + 1L
                 }
-                if(tmp != save_results_dirname && verbose)
+                if(tmp != save_results_dirname && is.null(save_results_filename) && verbose)
                     message(sprintf('%s already exists; using %s directory instead',
                                     file.path(out_rootdir, tmp),
                                     file.path(out_rootdir, save_results_dirname)))
             }
-            dir.create(file.path(out_rootdir, save_results_dirname))
+            dir.create(file.path(out_rootdir, save_results_dirname), showWarnings=FALSE)
         }
-        if(!(length(dir(file.path(out_rootdir, save_results_dirname))) %in% c(start - 1L, start)))
+        if(!!is.null(save_results_filename) &&
+           !(length(dir(file.path(out_rootdir, save_results_dirname))) %in% c(start - 1L, start)))
             stop('save_results_dirname not starting from correct location according to tempfile',
                  call.=FALSE)
     }
@@ -1288,6 +1309,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          store_warning_seeds=store_warning_seeds,
                                          save_results_out_rootdir=out_rootdir,
                                          save_results_dirname=save_results_dirname,
+                                         save_results_filename=save_results_filename,
+                                         multirow=nrow(design) > 1L,
                                          save_seeds=save_seeds, summarise_asis=summarise_asis,
                                          save_seeds_dirname=save_seeds_dirname,
                                          max_errors=max_errors, packages=packages,
@@ -1295,7 +1318,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          load_seed=load_seed, export_funs=export_funs,
                                          warnings_as_errors=warnings_as_errors,
                                          progress=progress, store_results=FALSE, use_try=use_try,
-                                         stop_on_fatal=stop_on_fatal)
+                                         stop_on_fatal=stop_on_fatal,
+                                         allow_gen_errors=!SimSolveRun)
             time1 <- proc.time()[3L]
             stored_time <- stored_time + (time1 - time0)
             if(notification == 'condition')
@@ -1323,14 +1347,17 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             store_warning_seeds=store_warning_seeds,
                             save_results_out_rootdir = out_rootdir,
                             save_results_dirname=save_results_dirname,
+                            save_results_filename=save_results_filename,
                             save_seeds=save_seeds, summarise_asis=summarise_asis,
                             save_seeds_dirname=save_seeds_dirname,
+                            multirow=nrow(design) > 1L,
                             max_errors=max_errors, packages=packages,
                             include_replication_index=include_replication_index,
                             load_seed=load_seed, export_funs=export_funs,
                             warnings_as_errors=warnings_as_errors,
                             progress=progress, store_results=store_results, use_try=use_try,
-                            stop_on_fatal=stop_on_fatal)
+                            stop_on_fatal=stop_on_fatal,
+                            allow_gen_errors=!SimSolveRun)
             if(SimSolveRun){
                 full_results <- attr(tmp, 'full_results')
                 condition <- if(was_tibble) dplyr::as_tibble(design[i,]) else design[i,]
@@ -1389,9 +1416,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         if(is(Result_list[[1L]], 'data.frame') || is(Result_list[[1L]], 'matrix')){
             nms <- c(colnames(design), colnames(Result_list[[1L]]))
             for(i in seq_len(length(Result_list)))
-                Result_list[[i]] <- cbind(design[i,], Result_list[[i]], row.names = NULL)
-            ret <- dplyr::bind_rows(Result_list)
+                Result_list[[i]] <- as.data.frame(cbind(design[i,], Result_list[[i]],
+                                                        row.names = NULL))
+            ret <- quiet(dplyr::bind_rows(Result_list))
             colnames(ret) <- nms
+            if(any(nms == "dummy_run"))
+                ret <- ret[ ,nms != "dummy_run", drop=FALSE]
             ret <- dplyr::as_tibble(ret)
             return(ret)
         } else {

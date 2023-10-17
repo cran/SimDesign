@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-07-07" />
+<meta name="date" content="2023-10-17" />
 
 <title>Catching errors</title>
 
@@ -1518,7 +1518,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Catching errors</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-07-07</h4>
+<h4 class="date">2023-10-17</h4>
 
 </div>
 
@@ -1569,24 +1569,24 @@ Summarise &lt;- function(condition, results, fixed_objects = NULL) {
                        generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/3;   RAM used: 50.6 Mb;   Total elapsed time: 0.00s 
+Design row: 1/3;   RAM used: 50.7 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: N=10
 ## 
 ## 
-Design row: 2/3;   RAM used: 51.6 Mb;   Total elapsed time: 0.07s 
+Design row: 2/3;   RAM used: 51.7 Mb;   Total elapsed time: 0.07s 
 ##  Conditions: N=20
 ## 
 ## 
-Design row: 3/3;   RAM used: 51.7 Mb;   Total elapsed time: 0.15s 
+Design row: 3/3;   RAM used: 51.8 Mb;   Total elapsed time: 0.15s 
 ##  Conditions: N=30
 ## </code></pre>
 <pre class="r"><code>print(result)</code></pre>
 <pre><code>## # A tibble: 3 × 9
 ##       N     bias REPLICATIONS SIM_TIME RAM_USED      SEED COMPL…¹ ERRORS WARNI…²
 ##   &lt;dbl&gt;    &lt;dbl&gt;        &lt;int&gt; &lt;chr&gt;    &lt;chr&gt;        &lt;int&gt; &lt;chr&gt;    &lt;int&gt;   &lt;int&gt;
-## 1    10 0.061138          100 0.07s    51.6 Mb   1.1404e9 Fri Ju…     53      59
-## 2    20 0.014295          100 0.08s    51.7 Mb   3.1293e8 Fri Ju…     52      60
-## 3    30 0.017927          100 1.03s    51.8 Mb   8.6625e8 Fri Ju…     42      56
+## 1    10 0.061138          100 0.07s    51.7 Mb   1.1404e9 Tue Oc…     53      59
+## 2    20 0.014295          100 0.08s    51.8 Mb   3.1293e8 Tue Oc…     52      60
+## 3    30 0.017927          100 1.20s    51.9 Mb   8.6625e8 Tue Oc…     42      56
 ## # … with abbreviated variable names ¹​COMPLETED, ²​WARNINGS</code></pre>
 <p>What you’ll immediately notice from this output object is that counts of the error and warning messages have been appended to the <code>result</code> object. This is useful to determine just how problematic the errors and warnings are based on their frequency alone. Furthermore, the specific frequency in which the errors/warnings occurred are also included for each design condition (here the <code>t.test.default()</code> error, where no inputs were supplied, occurred more often than the manually thrown error as well as the invalid-input error) after extracting and inspecting <code>SimExtract(results, what = &#39;errors&#39;)</code> and <code>SimExtract(results, what = &#39;warnings&#39;)</code>.</p>
 <pre class="r"><code>SimExtract(result, what = &#39;errors&#39;)</code></pre>

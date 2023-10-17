@@ -25,12 +25,23 @@
 #'
 #' @param b a single constant used to solve the root equation \code{f(x) - b = 0}
 #'
-#' @param replications a vector or scalar indicating the number of replication to
-#'   use for each design condition per PBA iteration. Early on this should relatively
-#'   low for initial searches to avoid unnecessary computations
+#' @param replications a named list or vector indicating the number of replication to
+#'   use for each design condition per PBA iteration. By default the input is a
+#'   \code{list} with the arguments \code{burnin = 15L}, specifying the number
+#'   of burn-in iterations to used, \code{burnin.reps = 100L} to indicate how many
+#'   replications to use in each burn-in iteration, \code{max.reps = 500L} to
+#'   prevent the replications from increasing higher than this number, and
+#'   \code{increase.by = 10L} to indicate how many replications to increase
+#'   after the burn-in stage. Unless otherwise specified these defaults will
+#'   be used, but can be overwritten by explicit definition (e.g.,
+#'   \code{replications = list(increase.by = 25L)})
+#'
+#'   Vector inputs can specify the exact replications
+#'   for each iterations. As a general rule, early iterations
+#'   should be relatively low for initial searches to avoid unnecessary computations
 #'   for locating the approximate root, though the number of replications should
 #'   gradually increase to reduce the sampling variability as the PBA approaches
-#'   the root
+#'   the root.
 #'
 #' @param generate generate function. See \code{\link{runSimulation}}
 #'
@@ -53,6 +64,10 @@
 #'   made in the \code{pba} function based on the collected sampling history
 #'   throughout the search
 #'
+#' @param save logical; store temporary file in case of crashes. If detected
+#'   in the working directory will automatically be loaded to resume (see
+#'   \code{\link{runSimulation}} for similar behavior)
+#'
 #' @param verbose logical; print information to the console?
 #'
 #' @param control a \code{list} of the algorithm control parameters. If not specified,
@@ -60,26 +75,35 @@
 #'
 #' \describe{
 #'    \item{\code{tol}}{tolerance criteria for early termination (.1 for
-#'      \code{integer = TRUE} searches; .001 for non-integer searches}
-#'    \item{\code{rel.tol}}{relative tolerance criteria for early termination (default .00001)}
+#'      \code{integer = TRUE} searches; .00025 for non-integer searches}
+#'    \item{\code{rel.tol}}{relative tolerance criteria for early termination (default .0001)}
 #'    \item{\code{k.success}}{number of consecutive tolerance success given \code{rel.tol} and
-#'      \code{tol} criteria (default is 3)}
+#'      \code{tol} criteria. Consecutive failures add -1 to the counter (default is 3)}
 #'    \item{\code{bolster}}{logical; should the PBA evaluations use bolstering based on previous
 #'      evaluations? Default is \code{TRUE}, though only applicable when \code{integer = TRUE} }
 #'    \item{\code{single_step.iter}}{when \code{integer = TRUE}, do not take steps larger than
-#'      size 1 after this iteration number (default is 40). This prevents wide oscillations
-#'      around the probable root}
+#'      size 1% the current value after this iteration number
+#'      (default is 40). This prevents wide oscillations
+#'      around the probable root for uncertain solutions}
 #'    \item{\code{interpolate.R}}{number of replications to collect prior to performing
 #'      the interpolation step (default is 3000 after accounting for data exclusion
-#'      from \code{interpolate.burnin}). Setting this to 0 will disable any
+#'      from \code{burnin}). Setting this to 0 will disable any
 #'      interpolation computations}
+#'    \item{\code{include_reps}}{logical; include a column in the \code{condition}
+#'      elements to indicate how many replications are currently being evaluated? Mainly
+#'      useful when further precision tuning within each ProBABLI iteration is
+#'      desirable (e.g., for bootstrapping). Default is \code{FALSE}}
+#'    \item{\code{summarise.reg_data}}{logical; should the aggregate results from \code{Summarise}
+#'      (along with its associated weights) be used for the interpolation steps, or the
+#'      raw data from the \code{Analyse} step? Set this to \code{TRUE} when the individual
+#'      results from \code{Analyse} give less meaningful information}
 #'    }
 #'
-#' @param interpolate.burnin integer indicating the number of initial iterations
-#'      to discard from the interpolation computations. This is included to further
-#'      remove the effect of early estimates that are far away from the solution
-#'
-#' @param maxiter the maximum number of iterations (default 150)
+# @param interpolate.burnin integer indicating the number of initial iterations
+#      to discard from the interpolation computations. This is included to further
+#      remove the effect of early estimates that are far away from the solution
+#
+#' @param maxiter the maximum number of iterations (default 100)
 #'
 #' @param parallel for parallel computing for slower simulation experiments
 #'   (see \code{\link{runSimulation}} for details)
@@ -88,7 +112,11 @@
 #'
 #' @param ncores see \code{\link{runSimulation}}
 #'
-#' @param type type of cluster object to define
+#' @param type type of cluster object to define. If \code{type} used in \code{plot}
+#'   then can be \code{'density'} to plot the density of the iteration history
+#'   after the burn-in stage, \code{'iterations'} for a bubble plot with inverse
+#'   replication weights. If not specified then the default PBA
+#'   plots are provided (see \code{\link{PBA}})
 #'
 #' @param formula regression formula to use when \code{interpolate = TRUE}. Default
 #'   fits an orthogonal polynomial of degree 2
@@ -98,7 +126,12 @@
 #'   analysis setups where isolated results passed to \code{summarise} will
 #'   return 0/1s, however other families should be used had \code{summarise}
 #'   returned something else (e.g., if solving for a particular standard error
-#'   then a \code{'gaussian'} family would be more appropriate)
+#'   then a \code{'gaussian'} family would be more appropriate).
+#'
+#'   Note that if individual  results from the \code{analyse} steps should
+#'   not be used (i.e., only the aggregate from \code{summarise} is meaningful)
+#'   then set \code{control = list(summarise.reg_data = TRUE)} to override the default
+#'   behaviour, thereby using only the aggregate information and weights
 #'
 #' @param ... additional arguments to be pasted to \code{\link{PBA}}
 #'
@@ -182,6 +215,7 @@
 #' # also can plot median history and estimate precision
 #' plot(solved, 1, type = 'history')
 #' plot(solved, 1, type = 'density')
+#' plot(solved, 1, type = 'iterations')
 #'
 #' # verify with true power from pwr package
 #' library(pwr)
@@ -238,6 +272,11 @@
 #' plot(solved, 2)
 #' plot(solved, 3)
 #'
+#' # plot median history and estimate precision
+#' plot(solved, 1, type = 'history')
+#' plot(solved, 1, type = 'density')
+#' plot(solved, 1, type = 'iterations')
+#'
 #' # verify with true power from pwr package
 #' library(pwr)
 #' pwr.t.test(n=100, power = .8, sig.level = .05)
@@ -258,30 +297,60 @@
 #'
 #' }
 SimSolve <- function(design, interval, b, generate, analyse, summarise,
-                     replications = c(rep(100L, interpolate.burnin),
-                                      seq(200L, by=10L, length.out=maxiter-interpolate.burnin)),
+                     replications = list(burnin = 15L, burnin.reps = 100L,
+                                         max.reps = 500L, increase.by = 10L),
                      integer = TRUE, formula = y ~ poly(x, 2), family = 'binomial',
-                     parallel = FALSE, cl = NULL,
+                     parallel = FALSE, cl = NULL, save = TRUE,
                      ncores = parallel::detectCores() - 1L,
                      type = ifelse(.Platform$OS.type == 'windows', 'PSOCK', 'FORK'),
-                     maxiter = 150L, interpolate.burnin = 15L,
-                     verbose = TRUE, control = list(), ...){
+                     maxiter = 100L, verbose = TRUE, control = list(), ...){
 
     # robust <- FALSE
-    if(is.null(control$tol)) control$tol <- if(integer) .1 else .001
+    burnin <- 15L
+    if(is.list(replications)){
+        if(is.null(replications$burnin)) replications$burnin <- burnin else
+            burnin <- replications$burnin
+        if(is.null(replications$burnin.reps)) replications$burnin.reps <- 100L
+        if(is.null(replications$max.reps)) replications$max.reps <- 500L
+        if(is.null(replications$increase.by)) replications$increase.by <- 10L
+        replications <- with(replications,
+                             pmin(max.reps, c(rep(burnin.reps, burnin),
+                                              seq(burnin.reps, by=increase.by,
+                                                  length.out=maxiter-burnin))))
+    }
+    ANALYSE_FUNCTIONS <- GENERATE_FUNCTIONS <- NULL
+    .SIMDENV$ANALYSE_FUNCTIONS <- ANALYSE_FUNCTIONS <- analyse
+    if(is.character(parallel)){
+        useFuture <- tolower(parallel) == 'future'
+        parallel <- TRUE
+    } else useFuture <- FALSE
+    if(is.null(control$tol)) control$tol <- if(integer) .1 else .00025
+    if(is.null(control$summarise.reg_data))
+        control$summarise.reg_data <- FALSE
     if(is.null(control$rel.tol)) control$rel.tol <- .0001
     if(is.null(control$k.sucess)) control$k.success <- 3L
     if(is.null(control$interpolate.R)) control$interpolate.R <- 3000L
     if(is.null(control$bolster)) control$bolster <- TRUE
     if(is.null(control$single_step.iter)) control$single_step.iter <- 40L
-
+    if(is.null(control$include_reps)) control$include_reps <- FALSE
     on.exit(.SIMDENV$stored_results <- .SIMDENV$stored_medhistory <-
-                .SIMDENV$stored_history <- NULL,
+                .SIMDENV$stored_history <- .SIMDENV$include_reps <- NULL,
             add = TRUE)
     on.exit(.SIMDENV$FromSimSolve <- NULL, add = TRUE)
+    solve_name <- apply(design, 1L, function(x) colnames(design)[is.na(x)])
 
     if(missing(generate) && !missing(analyse))
         generate <- function(condition, dat, fixed_objects = NULL){}
+    GENERATE_FUNCTIONS <- generate
+    char_functions <- c(deparse(substitute(ANALYSE_FUNCTIONS)),
+                             deparse(substitute(GENERATE_FUNCTIONS)))
+    if(any(grepl('browser\\(', char_functions))){
+        if(verbose && parallel)
+            message(paste0('A browser() call was detected. Parallel processing ',
+                           'will be disabled while browser() is visible'))
+        parallel <- useFuture <- FALSE
+    }
+
     stopifnot(!missing(b))
     stopifnot(length(b) == 1L)
     stopifnot(!missing(interval))
@@ -296,6 +365,7 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
 
     root.fun <- function(x, b, design.row, replications, store = TRUE, ...){
         design.row[1L, which(is.na(design.row))] <- x
+        if(.SIMDENV$include_reps) design.row$REPLICATIONS <- replications
         attr(design.row, 'SimSolve') <- TRUE
         ret <- runSimulation(design=design.row, replications=replications,
                              generate=generate, analyse=analyse,
@@ -341,7 +411,29 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
             on.exit(parallel::stopCluster(cl), add = TRUE)
         }
     }
-    for(i in 1L:nrow(design)){
+    export_funs <- parent_env_fun()
+    if(parallel){
+        if(!useFuture && is.null(cl)){
+            cl <- parallel::makeCluster(ncores, type=type)
+            on.exit(parallel::stopCluster(cl), add = TRUE)
+        }
+        if(!useFuture){
+            parallel::clusterExport(cl=cl, export_funs, envir = parent.frame(1L))
+            parallel::clusterExport(cl=cl, "ANALYSE_FUNCTIONS", envir = environment())
+            if(verbose)
+                message(sprintf("\nNumber of parallel clusters in use: %i", length(cl)))
+        }
+    }
+    compname <- Sys.info()['nodename']
+    tmpfilename <- paste0('SIMSOLVE-TEMPFILE_', compname, '.rds')
+    start <- 1L
+    if(file.exists(tmpfilename)){
+        roots <- readRDS(tmpfilename)
+        start <- min(which(sapply(roots, is.null)))
+        if(verbose)
+            message(paste0('\nContinuing SimSolve() run at design row ', start))
+    }
+    for(i in start:nrow(design)){
         if(verbose){
             cat(sprintf('\n\n#############\nDesign row %s:\n\n', i))
             print(cbind(as.data.frame(design[i,]), b = b))
@@ -350,6 +442,7 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
         .SIMDENV$stored_results <- vector('list', maxiter)
         .SIMDENV$stored_medhistory <- rep(NA, maxiter)
         .SIMDENV$stored_history <- vector('list', maxiter)
+        .SIMDENV$include_reps <- control$include_reps
         .SIMDENV$FromSimSolve <- list(interpolate=interpolate,
                                       interpolate.after=interpolate.after,
                                       family=family,
@@ -361,8 +454,9 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
                                       bolster=control$bolster,
                                       k.success=control$k.success,
                                       single_step.iter=control$single_step.iter,
+                                      control=control,
                                       # robust = robust,
-                                      interpolate.burnin=interpolate.burnin)
+                                      interpolate.burnin=burnin)
         roots[[i]] <- try(PBA(root.fun, interval=interval[i, , drop=TRUE], b=b,
                           design.row=as.data.frame(design[i,]),
                           integer=integer, verbose=verbose, maxiter=maxiter, ...))
@@ -382,12 +476,15 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
             cat(sprintf("\nSolution for %s: %.3f",
                 colnames(design)[which(is.na(tmp))], roots[[i]]$root))
         }
+        if(save && i < nrow(design)) saveRDS(roots, tmpfilename)
     }
+    if(file.exists(tmpfilename)) file.remove(tmpfilename)
     ret <- design
     vals <- sapply(roots, function(x) x$root)
     ret[, which(is.na(ret[i,])), drop=TRUE] <- vals
     attr(ret, 'roots') <- roots
     attr(ret, 'summarise_fun') <- summarise
+    attr(ret, 'solve_name') <- solve_name
     class(ret) <- c('SimSolve', class(ret))
     ret
 }
@@ -423,12 +520,24 @@ plot.SimSolve <- function(x, y, ...)
 {
     if(missing(y)) y <- 1L
     roots <- attr(x, 'roots')[[y]]
+    solve_name <- attr(x, 'solve_name')[y]
     dots <- list(...)
-    if(!is.null(dots$type) && dots$type == 'density'){
+    if(!is.null(dots$type) && dots$type %in% c('density', 'iterations')){
         so <- summary(x, ...)
         tab <- so[[y]]$tab
-        with(tab, plot(density(x, weights=reps/sum(reps)),
-                       main = 'Density Using Replication Weights', las=1))
+        if(is.null(tab)) {
+            tab <- attr(roots, 'stored_tab')
+            tab <- do.call(rbind, tab)
+            tab <- tab[-c(1:so[[y]]$burnin), ]
+        }
+        if(dots$type == 'density')
+            with(tab, plot(density(x, weights=reps/sum(reps)),
+                           main = 'Density Using Replication Weights', las=1))
+        else
+            with(tab, symbols(x, y, circles=sqrt(1 /reps/sum(reps)),
+                              inches=0.2, fg="white", bg="black", las=1,
+                              ylab = 'Summarise', xlab = solve_name,
+                              main = 'Inverse replication weights'))
     } else plot(roots, las=1, ...)
     return(invisible(NULL))
 }

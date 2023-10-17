@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-07-07" />
+<meta name="date" content="2023-10-17" />
 
 <title>Introduction to the SimDesign package</title>
 
@@ -1518,11 +1518,14 @@ div.tocify {
 
 <h1 class="title toc-ignore">Introduction to the SimDesign package</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-07-07</h4>
+<h4 class="date">2023-10-17</h4>
 
 </div>
 
 
+<blockquote>
+<p>Seek computer programs that allow you to do the thinking. – George E. P. Box</p>
+</blockquote>
 <p>Whether you are interested in evaluating the performance of a new optimizer or estimation criteria, re-evaluating previous research claims (e.g., ANOVA is ‘robust’ to violations of normality), determine power rates for an upcoming research proposal, or simply to appease a strange thought in your head about a new statistical idea you heard about, designing Monte Carlo simulations can be incredibly rewarding and are extremely important to those who are statistically oriented. However, organizing simulations can be a challenge, particularly to those new to the topic, where all too often coders resort to the inefficient and error prone strategies (e.g., the dreaded “for-loop” strategy, <em>for</em>-ever resulting in confusing, error prone, and simulation specific code). The package <code>SimDesign</code> is one attempt to fix these and other issues that often arise when designing Monte Carlo simulation experiments, while also providing a templated setup that is designed to support many useful features that can be useful when evaluating simulation research.</p>
 <p>Generally speaking, Monte Carlo simulations can be broken into three major components:</p>
 <ul>
@@ -1637,35 +1640,35 @@ Design</code></pre>
                          analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## 
-Design row: 1/8;   RAM used: 57.4 Mb;   Total elapsed time: 0.00s 
+Design row: 1/8;   RAM used: 57.5 Mb;   Total elapsed time: 0.00s 
 ##  Conditions: sample_size=30, distribution=norm
 ## 
 ## 
-Design row: 2/8;   RAM used: 57.5 Mb;   Total elapsed time: 0.32s 
+Design row: 2/8;   RAM used: 57.6 Mb;   Total elapsed time: 0.30s 
 ##  Conditions: sample_size=60, distribution=norm
 ## 
 ## 
-Design row: 3/8;   RAM used: 57.5 Mb;   Total elapsed time: 0.65s 
+Design row: 3/8;   RAM used: 57.6 Mb;   Total elapsed time: 0.62s 
 ##  Conditions: sample_size=120, distribution=norm
 ## 
 ## 
-Design row: 4/8;   RAM used: 57.5 Mb;   Total elapsed time: 0.98s 
+Design row: 4/8;   RAM used: 57.6 Mb;   Total elapsed time: 0.93s 
 ##  Conditions: sample_size=240, distribution=norm
 ## 
 ## 
-Design row: 5/8;   RAM used: 57.5 Mb;   Total elapsed time: 1.37s 
+Design row: 5/8;   RAM used: 57.6 Mb;   Total elapsed time: 1.27s 
 ##  Conditions: sample_size=30, distribution=chi
 ## 
 ## 
-Design row: 6/8;   RAM used: 57.5 Mb;   Total elapsed time: 1.70s 
+Design row: 6/8;   RAM used: 57.6 Mb;   Total elapsed time: 1.58s 
 ##  Conditions: sample_size=60, distribution=chi
 ## 
 ## 
-Design row: 7/8;   RAM used: 57.5 Mb;   Total elapsed time: 2.19s 
+Design row: 7/8;   RAM used: 57.6 Mb;   Total elapsed time: 1.90s 
 ##  Conditions: sample_size=120, distribution=chi
 ## 
 ## 
-Design row: 8/8;   RAM used: 57.5 Mb;   Total elapsed time: 3.19s 
+Design row: 8/8;   RAM used: 57.6 Mb;   Total elapsed time: 2.23s 
 ##  Conditions: sample_size=240, distribution=chi
 ## </code></pre>
 <pre class="r"><code>res</code></pre>

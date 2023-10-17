@@ -79,9 +79,14 @@
 #' # find x that solves f(x) - b = 0 for the following
 #' f.root <- function(x, b = .6) 1 / (1 + exp(-x)) - b
 #' f.root(.3)
+#'
+#' xs <- seq(-3,3, length.out=1000)
+#' plot(xs, f.root(xs), type = 'l', ylab = "f(x)", xlab='x')
+#' abline(h=0, col='red')
+#'
 #' retuni <- uniroot(f.root, c(0,1))
 #' retuni
-#' retuni$root
+#' abline(v=retuni$root, col='blue', lty=2)
 #'
 #' # PBA without noisy root
 #' retpba <- PBA(f.root, c(0,1))
@@ -90,7 +95,7 @@
 #' plot(retpba)
 #' plot(retpba, type = 'history')
 #'
-#' # Same problem, however root function is noisy. Hence, need to solve
+#' # Same problem, however root function is now noisy. Hence, need to solve
 #' #  fhat(x) - b + e = 0, where E(e) = 0
 #' f.root_noisy <- function(x) 1 / (1 + exp(-x)) - .6 + rnorm(1, sd=.02)
 #' sapply(rep(.3, 10), f.root_noisy)
@@ -156,12 +161,16 @@ PBA <- function(f, interval, ..., p = .6,
         replications <- FromSimSolve$replications
         tol <- FromSimSolve$tol
         rel.tol <- FromSimSolve$rel.tol
+        control <- FromSimSolve$control
         # robust <- FromSimSolve$robust
         interpolate.burnin <- FromSimSolve$interpolate.burnin
         glmpred.last <- glmpred <- c(NA, NA)
         k.success <- FromSimSolve$k.success
         k.successes <- 0L
-    } else interpolate <- FALSE
+    } else{
+        interpolate <- FALSE
+        interpolate.burnin <- NULL
+    }
     x <- if(integer) interval[1L]:interval[2L]
         else seq(interval[1L], interval[2L], length.out=resolution[1L])
     fx <- if(is.null(f.prior)) rep(1, length(x)) else f.prior(x, ...)
@@ -191,9 +200,11 @@ PBA <- function(f, interval, ..., p = .6,
 
     for(iter in 1L:maxiter){
         med <- getMedian(fx, x)
-        if(!is.null(FromSimSolve) && integer && iter >= FromSimSolve$single_step.iter)
-            med <- ifelse(abs(med - medhistory[iter-1L]) == 1,
-                          med, medhistory[iter-1L] + sign(med - medhistory[iter-1L]))
+        if(!is.null(FromSimSolve) && integer && iter >= FromSimSolve$single_step.iter){
+            med <- ifelse(abs(med - medhistory[iter-1L]) > med * .01,
+                          medhistory[iter-1L] + sign(med - medhistory[iter-1L])*.01*med, med)
+            if(integer) med <- round(med)
+        }
         medhistory[iter] <- med
         feval <- if(!is.null(FromSimSolve))
             bool.f(f.root=f, med, replications=replications[iter], ...)
@@ -209,13 +220,15 @@ PBA <- function(f, interval, ..., p = .6,
         e.froot <- sum(roothistory[iter:1L] * w[iter:1] / sum(w[iter:1]))
 
         if(interpolate && iter > interpolate.after){
-            SimSolveData <- SimSolveData(burnin=interpolate.burnin)
+            SimSolveData <- SimSolveData(burnin=interpolate.burnin,
+                                         full=!control$summarise.reg_data)
             # SimMod <- if(robust)
             #     suppressWarnings(robustbase::glmrob(formula = formula,
             #                          data=SimSolveData, family=family))
             #     else
             SimMod <- try(suppressWarnings(glm(formula = formula,
-                                          data=SimSolveData, family=family)), silent=TRUE)
+                                               data=SimSolveData, family=family,
+                                               weights=weights)), silent=TRUE)
             glmpred <- if(is(SimMod, 'try-error')){
                 c(NA, NA)
             } else {
@@ -234,7 +247,9 @@ PBA <- function(f, interval, ..., p = .6,
                 if(abs_diff <= tol || rel_diff <= rel.tol){
                     k.successes <- k.successes + 1L
                     if(k.successes == k.success) break
-                } else k.successes <- 0L
+                } else {
+                    k.successes <- max(c(k.successes - 1L, 0L))
+                }
             } else k.successes <- 0L
             glmpred.last <- glmpred
         }
@@ -242,14 +257,14 @@ PBA <- function(f, interval, ..., p = .6,
 
         if(verbose){
             if(integer)
-                cat(sprintf("\rIteration: %i; Median: %i; E(f(x)) = %.3f",
+                cat(sprintf("\rIter: %i; Median: %i; E(f(x)) = %.3f",
                             iter, med, e.froot))
-            else cat(sprintf("\rIteration: %i; Median: %.3f; E(f(x)) = %.3f",
+            else cat(sprintf("\rIter: %i; Median: %.3f; E(f(x)) = %.3f",
                              iter, med, e.froot))
             if(!is.null(FromSimSolve))
                 cat('; Reps =', replications[iter])
             if(interpolate && iter > interpolate.after && !is.na(glmpred[1L]))
-                cat(sprintf('; Pred = %.3f', glmpred[1L]))
+                cat(sprintf('; tol.success = %i; Pred = %.3f', k.successes, glmpred[1L]))
         }
     }
     converged <- iter < maxiter
@@ -261,9 +276,10 @@ PBA <- function(f, interval, ..., p = .6,
     root <- if(!interpolate) mean(medhistory[length(medhistory):
                                                  (length(medhistory)-mean_window+1L)])
         else glmpred[1L]
-    ret <- list(iter=iter, root=root, converged=converged, integer=integer,
+    ret <- list(iter=iter, root=root, terminated_early=converged, integer=integer,
                 e.froot=e.froot, x=x, fx=fx, medhistory=medhistory,
-                time=as.numeric(proc.time()[3L]-start_time))
+                time=as.numeric(proc.time()[3L]-start_time),
+                burnin=interpolate.burnin)
     if(!is.null(FromSimSolve)) ret$total.replications <- sum(replications[1L:iter])
     class(ret) <- 'PBA'
     ret
@@ -276,7 +292,7 @@ print.PBA <- function(x, ...)
 {
     out <- with(x,
          list(root = root,
-              converged=converged,
+              terminated_early=terminated_early,
               time=noquote(timeFormater(time)),
               iterations = iter))
     if(!is.null(x$total.replications))

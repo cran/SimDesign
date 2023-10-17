@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2023-07-07" />
+<meta name="date" content="2023-10-17" />
 
 <title>Parallel computing information</title>
 
@@ -1518,7 +1518,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Parallel computing information</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2023-07-07</h4>
+<h4 class="date">2023-10-17</h4>
 
 </div>
 
@@ -1547,7 +1547,7 @@ primary &lt;- &#39;192.168.2.1&#39;
 IPs &lt;- list(list(host=primary, user=&#39;myname&#39;, ncore=8), list(host=&#39;192.168.2.2&#39;, user=&#39;myname&#39;, ncore=6))
 spec &lt;- lapply(IPs, function(IP) rep(list(list(host=IP$host, user=IP$user)), IP$ncore))
 spec &lt;- unlist(spec, recursive=FALSE)
-cl &lt;- makeCluster(master=primary, spec=spec)
+cl &lt;- makeCluster(master=primary, spec=spec, type = &#39;PSOCK&#39;)
 Final &lt;- runSimulation(..., cl=cl)
 stopCluster(cl)</code></pre>
 <p>The object <code>cl</code> is passed to <code>runSimulation</code> on the master node and the computations are distributed across the respective IP addresses. Finally, it’s usually good practice to use <code>stopCluster(cl)</code> when all the simulations are said and done to release the communication between the computers, which is what the above code shows.</p>
@@ -1557,14 +1557,7 @@ primary &lt;- &#39;master&#39;
 IPs &lt;- list(list(host=primary, ncore=8), list(host=&#39;slave&#39;, ncore=6))
 spec &lt;- lapply(IPs, function(IP) rep(list(list(host=IP$host)), IP$ncore))
 spec &lt;- unlist(spec, recursive=FALSE)
-cl &lt;- makeCluster(master=primary, spec=spec)
-Final &lt;- runSimulation(..., cl=cl)
-stopCluster(cl)</code></pre>
-<p>Or, even more succinctly if all communication elements required are identical to the master node,</p>
-<pre class="r"><code>library(parallel)
-primary &lt;- &#39;master&#39;
-spec &lt;- c(rep(primary, 8), rep(&#39;slave&#39;, 6))
-cl &lt;- makeCluster(master=primary, spec=spec)
+cl &lt;- makeCluster(master=primary, spec=spec, type = &#39;PSOCK&#39;)
 Final &lt;- runSimulation(..., cl=cl)
 stopCluster(cl)</code></pre>
 <p>A similar setup can also be used via the recently supported <code>future</code> interface (see below).</p>
