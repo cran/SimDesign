@@ -14,7 +14,8 @@ PBA(
   integer = FALSE,
   tol = if (integer) 0.01 else 1e-04,
   maxiter = 300L,
-  mean_window = 100L,
+  miniter = 100L,
+  wait.time = NULL,
   f.prior = NULL,
   resolution = 10000L,
   check.interval = TRUE,
@@ -43,11 +44,16 @@ latter currently creates a grid with \code{resolution} points}
 \item{tol}{tolerance criteria for convergence based on average of the
 \code{f(x)} evaluations}
 
-\item{maxiter}{the maximum number of iterations}
+\item{maxiter}{the maximum number of iterations (default 300)}
 
-\item{mean_window}{last n iterations used to compute the final estimate of the root.
-This is used to avoid the influence of the early bisection steps in the
-final root estimate}
+\item{miniter}{minimum number of iterations (default 100)}
+
+\item{wait.time}{(optional) instead of terminating after specific estimate criteria
+are satisfied (e.g., \code{tol}), terminate after a specific
+wait time. Input must be a numeric vector indicating the number of minutes to
+wait. Not that users should increase the number of \code{maxiter} as well
+so that termination can occur if either the maximum iterations are satisfied
+or the specified wait time has elapsed (whichever occurs first)}
 
 \item{f.prior}{density function indicating the likely location of the prior
 (e.g., if root is within [0,1] then \code{\link{dunif}} works, otherwise custom
@@ -83,7 +89,8 @@ However, this function differs from deterministic cousins such as
 \code{\link{uniroot}} in that \code{f} may contain stochastic error
 components, and instead provides a Bayesian interval where the root
 is likely to lie. Note that it is assumed that \code{E[f(x)]} is non-decreasing
-in \code{x} and that the root is between the search interval.
+in \code{x} and that the root is between the search interval (evaluated
+approximately when \code{check.interval=TRUE}).
 See Waeber, Frazier, and Henderson (2013) for details.
 }
 \examples{
@@ -93,7 +100,7 @@ f.root <- function(x, b = .6) 1 / (1 + exp(-x)) - b
 f.root(.3)
 
 xs <- seq(-3,3, length.out=1000)
-plot(xs, f.root(xs), type = 'l', ylab = "f(x)", xlab='x')
+plot(xs, f.root(xs), type = 'l', ylab = "f(x)", xlab='x', las=1)
 abline(h=0, col='red')
 
 retuni <- uniroot(f.root, c(0,1))
@@ -124,15 +131,22 @@ retpba.noise
 plot(retpba.noise)
 plot(retpba.noise, type = 'history')
 
+\dontrun{
+# ignore termination criteria and instead run for 1/2 minutes or 30000 iterations
+retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = 1/2, maxiter=30000)
+retpba.noise_30sec
+
+}
+
 }
 \references{
 Horstein, M. (1963). Sequential transmission using noiseless feedback.
 IEEE Trans. Inform. Theory, 9(3):136-143.
 
-Waeber, R.; Frazier, P. I. & Henderson, S. G. (2013). Bisection Search
+Waeber, R., Frazier, P. I. & Henderson, S. G. (2013). Bisection Search
 with Noisy Responses. SIAM Journal on Control and Optimization,
 Society for Industrial & Applied Mathematics (SIAM), 51, 2261-2279.
 }
 \seealso{
-\code{\link{uniroot}}
+\code{\link{uniroot}}, \code{\link{RobbinsMonro}}
 }

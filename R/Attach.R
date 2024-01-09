@@ -9,8 +9,16 @@
 #' in \code{condition} directly rather than indexing with \code{condition$sample_size} or
 #' \code{with(condition, sample_size)}, for example.
 #'
-#' @param ... a comma separated list of \code{data.frame} or \code{tibble} objects
-#'   containing elements that should be placed in the current working environment
+#' Note that if you are using RStudio with the \emph{"Warn if variable used has no definition in scope"}
+#' diagnostic flag then using \code{Attach()} will raise suspensions. To suppress such issues,
+#' you can either disable such flags (the atomic solution) or evaluate the following output
+#' in the R console and place the output in your working simulation file.
+#'
+#' \code{Attach(Design, RStudio_flags = TRUE)}
+#'
+#' @param ... a comma separated list of \code{data.frame}, \code{tibble}, \code{list},
+#'   or \code{matrix} objects containing (column) elements that should be placed in the
+#'   current working environment
 #'
 #' @param omit an optional character vector containing the names of objects that should not
 #'   be attached to the current environment. For instance, if the objects named 'a' and 'b' should
@@ -24,6 +32,10 @@
 #' @param attach_listone logical; if the element to be assign is a list of length one
 #'   then assign the first element of this list with the associated name. This generally avoids
 #'   adding an often unnecessary list 1 index, such as \code{name <- list[[1L]]}
+#'
+#' @param RStudio_flags logical; print R script output comments that disable flagged
+#'   missing variables in RStudio? Requires the form \code{Attach(Design, RStudio_flags=TRUE)} or
+#'   in an interactive debugging session \code{Attach(condition, RStudio_flags=TRUE)}
 #'
 #' @seealso \code{\link{runSimulation}}, \code{\link{Generate}}
 #' @references
@@ -41,13 +53,18 @@
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #'
 #' @examples
-#' \dontrun{
+#'
+#' Design <- createDesign(N1=c(10,20),
+#'                        N2=c(10,20),
+#'                        sd=c(1,2))
+#' Design
 #'
 #' # does not use Attach()
 #' Generate <- function(condition, fixed_objects = NULL) {
-#'     N1 <- condition$sample_sizes_group1
-#'     N2 <- condition$sample_sizes_group2
-#'     sd <- condition$standard_deviations
+#'     # condition = single row of Design input (e.g., condition <- Design[1,])
+#'     N1 <- condition$N1
+#'     N2 <- condition$N2
+#'     sd <- condition$sd
 #'
 #'     group1 <- rnorm(N1)
 #'     group2 <- rnorm(N2, sd=sd)
@@ -58,10 +75,7 @@
 #'
 #' # similar to above, but using the Attach() function instead of indexing
 #' Generate <- function(condition, fixed_objects = NULL) {
-#'     Attach(condition)
-#'     N1 <- sample_sizes_group1
-#'     N2 <- sample_sizes_group2
-#'     sd <- standard_deviations
+#'     Attach(condition) # N1, N2, and sd are now 'attached' and visible
 #'
 #'     group1 <- rnorm(N1)
 #'     group2 <- rnorm(N2, sd=sd)
@@ -70,27 +84,64 @@
 #'     dat
 #' }
 #'
+#' #####################
+#' # NOTE: if you're using RStudio with code diagnostics on then evaluate + add the
+#' # following output to your source file to manually support the flagged variables
+#'
+#' Attach(Design, RStudio_flags=TRUE)
+#'
+#' # Below is the same example, however with false positive missing variables suppressed
+#' # when # !diagnostics ... is added added to the source file(s)
+#'
+#' # !diagnostics suppress=N1,N2,sd
+#' Generate <- function(condition, fixed_objects = NULL) {
+#'     Attach(condition) # N1, N2, and sd are now 'attached' and visible
+#'
+#'     group1 <- rnorm(N1)
+#'     group2 <- rnorm(N2, sd=sd)
+#'     dat <- data.frame(group = c(rep('g1', N1), rep('g2', N2)),
+#'                       DV = c(group1, group2))
+#'     dat
 #' }
-Attach <- function(..., omit = NULL, check = TRUE, attach_listone = TRUE){
+#'
+#'
+Attach <- function(..., omit = NULL, check = TRUE, attach_listone = TRUE,
+                   RStudio_flags = FALSE){
     envir <- as.environment(-1L)
     dots <- list(...)
     if(!is.null(omit))
         for(i in length(dots):1L)
             if(omit %in% names(dots[[i]]))
                 dots[[i]][names(dots[[i]]) %in% omit] <- NULL
+    if(RStudio_flags){
+        collect_names <- c()
+        check <- FALSE
+    }
     for(i in 1L:length(dots)){
+        if(is.matrix(dots[[i]])){
+            if(is.null(colnames(dots[[i]])) && check)
+                warning(c('Consider fixing matrix objects with no column ',
+                          'names (defaulting to the variable names V1, V2, ...)'), call.=FALSE)
+            dots[[i]] <- as.data.frame(dots[[i]])
+        }
         if(check)
             if(any(ls(envir = envir) %in% names(dots[[i]])))
                 stop(sprintf('Using Attach() will mask the previously defined variable(s): %s',
                              paste(ls(envir = envir)[ls(envir = envir) %in% names(dots[[i]])],
                                    collapse=' ')), call. = FALSE)
-        for(n in names(dots[[i]])){
-            if(attach_listone && is.list(dots[[i]][[n]]) && length(dots[[i]][[n]]) == 1L){
-                assign(n, dots[[i]][[n]][[1L]], envir = envir)
-                next
+        if(RStudio_flags){
+            collect_names <- c(collect_names, names(dots[[i]]))
+        } else {
+            for(n in names(dots[[i]])){
+                if(attach_listone && is.list(dots[[i]][[n]]) && length(dots[[i]][[n]]) == 1L){
+                    assign(n, dots[[i]][[n]][[1L]], envir = envir)
+                    next
+                }
+                assign(n, dots[[i]][[n]], envir = envir)
             }
-            assign(n, dots[[i]][[n]], envir = envir)
         }
     }
+    if(RStudio_flags)
+        cat(sprintf("# !diagnostics suppress=%s", paste0(collect_names, collapse=',')))
     invisible(NULL)
 }

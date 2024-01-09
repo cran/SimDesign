@@ -6,7 +6,8 @@
 #' \code{\link{uniroot}} in that \code{f} may contain stochastic error
 #' components, and instead provides a Bayesian interval where the root
 #' is likely to lie. Note that it is assumed that \code{E[f(x)]} is non-decreasing
-#' in \code{x} and that the root is between the search interval.
+#' in \code{x} and that the root is between the search interval (evaluated
+#' approximately when \code{check.interval=TRUE}).
 #' See Waeber, Frazier, and Henderson (2013) for details.
 #'
 #' @param f noisy function for which the root is sought
@@ -29,12 +30,21 @@
 #   (default is 3). The idea is that if the same median estimates are appearing
 #   in several of the most recent estimates then the algorithm has likely reached
 #   the stationary location
+#'
+#' @param wait.time (optional) instead of terminating after specific estimate criteria
+#'   are satisfied (e.g., \code{tol}), terminate after a specific
+#'   wait time. Input must be a numeric vector indicating the number of minutes to
+#'   wait. Not that users should increase the number of \code{maxiter} as well
+#'   so that termination can occur if either the maximum iterations are satisfied
+#'   or the specified wait time has elapsed (whichever occurs first)
 #
 #' @param ... additional named arguments to be passed to \code{f}
 #'
 #' @param p assumed constant for probability of correct responses (must be > 0.5)
 #'
-#' @param maxiter the maximum number of iterations
+#' @param maxiter the maximum number of iterations (default 300)
+#'
+#' @param miniter minimum number of iterations (default 100)
 #'
 #' @param integer logical; should the values of the root be considered integer
 #'   or numeric? The former uses a discreet grid to track the updates, while the
@@ -52,10 +62,6 @@
 #' @param resolution constant indicating the
 #'   number of equally spaced grid points to track when \code{integer = FALSE}.
 #'
-#' @param mean_window last n iterations used to compute the final estimate of the root.
-#'   This is used to avoid the influence of the early bisection steps in the
-#'   final root estimate
-#'
 # @param CI advertised confidence level for Bayes interval
 #'
 #' @param verbose logical; should the iterations and estimate be printed to the
@@ -66,13 +72,13 @@
 #' Horstein, M. (1963). Sequential transmission using noiseless feedback.
 #' IEEE Trans. Inform. Theory, 9(3):136-143.
 #'
-#' Waeber, R.; Frazier, P. I. & Henderson, S. G. (2013). Bisection Search
+#' Waeber, R., Frazier, P. I. & Henderson, S. G. (2013). Bisection Search
 #' with Noisy Responses. SIAM Journal on Control and Optimization,
 #' Society for Industrial & Applied Mathematics (SIAM), 51, 2261-2279.
 #'
 #' @export
 #'
-#' @seealso \code{\link{uniroot}}
+#' @seealso \code{\link{uniroot}}, \code{\link{RobbinsMonro}}
 #'
 #' @examples
 #'
@@ -81,7 +87,7 @@
 #' f.root(.3)
 #'
 #' xs <- seq(-3,3, length.out=1000)
-#' plot(xs, f.root(xs), type = 'l', ylab = "f(x)", xlab='x')
+#' plot(xs, f.root(xs), type = 'l', ylab = "f(x)", xlab='x', las=1)
 #' abline(h=0, col='red')
 #'
 #' retuni <- uniroot(f.root, c(0,1))
@@ -112,13 +118,21 @@
 #' plot(retpba.noise)
 #' plot(retpba.noise, type = 'history')
 #'
+#' \dontrun{
+#' # ignore termination criteria and instead run for 1/2 minutes or 30000 iterations
+#' retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = 1/2, maxiter=30000)
+#' retpba.noise_30sec
+#'
+#' }
+#'
 PBA <- function(f, interval, ..., p = .6,
                 integer = FALSE, tol = if(integer) .01 else .0001,
-                maxiter = 300L, mean_window = 100L,
+                maxiter = 300L, miniter = 100L, wait.time = NULL,
                 f.prior = NULL, resolution = 10000L,
                 check.interval = TRUE, check.interval.only = FALSE,
                 verbose = TRUE){
 
+    if(maxiter < miniter) maxiter <- miniter
     stopifnot(length(p) == 1L)
     if(p <= 0.5)
         stop('Probability must be > 0.5')
@@ -151,7 +165,6 @@ PBA <- function(f, interval, ..., p = .6,
     logq <- log(1-p)
 
     dots <- list(...)
-    bolster <- FALSE
     FromSimSolve <- .SIMDENV$FromSimSolve
     if(!is.null(FromSimSolve)){
         family <- FromSimSolve$family
@@ -159,10 +172,12 @@ PBA <- function(f, interval, ..., p = .6,
         interpolate.after <- FromSimSolve$interpolate.after
         formula <- FromSimSolve$formula
         replications <- FromSimSolve$replications
+        min.total.reps <- FromSimSolve$min.total.reps
         tol <- FromSimSolve$tol
         rel.tol <- FromSimSolve$rel.tol
         control <- FromSimSolve$control
         # robust <- FromSimSolve$robust
+        predCI <- FromSimSolve$predCI
         interpolate.burnin <- FromSimSolve$interpolate.burnin
         glmpred.last <- glmpred <- c(NA, NA)
         k.success <- FromSimSolve$k.success
@@ -197,13 +212,24 @@ PBA <- function(f, interval, ..., p = .6,
         }
         if(check.interval.only) return(!no_root)
     }
+    glmpred.converged <- FALSE
+    iter <- 0L
 
-    for(iter in 1L:maxiter){
+    while(TRUE){
+        iter <- iter + 1L
         med <- getMedian(fx, x)
-        if(!is.null(FromSimSolve) && integer && iter >= FromSimSolve$single_step.iter){
-            med <- ifelse(abs(med - medhistory[iter-1L]) > med * .01,
-                          medhistory[iter-1L] + sign(med - medhistory[iter-1L])*.01*med, med)
-            if(integer) med <- round(med)
+        if(!is.null(FromSimSolve)){
+            if(integer && iter > 6L){
+                tmp <- if(replications[iter] == max(replications))
+                    medhistory[iter:(iter-3L)-1L] else medhistory[iter:(iter-5L)-1L]
+                if(length(unique(tmp)) == 2L && (max(tmp) - min(tmp)) == 2L)
+                    med <- max(tmp) - 1L
+            }
+            if(replications[iter] == max(replications) && integer && iter > 4L){
+                tmp <- medhistory[iter:(iter-3L)-1L]
+                if(length(unique(tmp)) == 2L && (max(tmp) - min(tmp)) == 2L)
+                    med <- max(tmp) - 1L
+            }
         }
         medhistory[iter] <- med
         feval <- if(!is.null(FromSimSolve))
@@ -219,7 +245,7 @@ PBA <- function(f, interval, ..., p = .6,
         w <- if(!is.null(FromSimSolve)) 1/sqrt(replications) else rep(1/iter, iter)
         e.froot <- sum(roothistory[iter:1L] * w[iter:1] / sum(w[iter:1]))
 
-        if(interpolate && iter > interpolate.after){
+        if(interpolate && iter > interpolate.after && iter > interpolate.burnin){
             SimSolveData <- SimSolveData(burnin=interpolate.burnin,
                                          full=!control$summarise.reg_data)
             # SimMod <- if(robust)
@@ -239,6 +265,10 @@ PBA <- function(f, interval, ..., p = .6,
                                                  max.interval=interval,
                                                  median=med))
             }
+            if(is.na(glmpred[1L])){
+                glmpred.converged <- FALSE
+                glmpred[1L] <- med
+            }
 
             # Should termination occur early when this changes very little?
             if(!any(is.na(c(glmpred[1L], glmpred.last[1L])))){
@@ -246,40 +276,53 @@ PBA <- function(f, interval, ..., p = .6,
                 rel_diff <- abs_diff / abs(glmpred.last[1L])
                 if(abs_diff <= tol || rel_diff <= rel.tol){
                     k.successes <- k.successes + 1L
-                    if(k.successes == k.success) break
+                    if(k.successes == k.success && is.null(wait.time)) break
                 } else {
                     k.successes <- max(c(k.successes - 1L, 0L))
                 }
             } else k.successes <- 0L
+            if(sum(replications[1L:iter]) < min.total.reps)
+                k.successes <- 0L
             glmpred.last <- glmpred
         }
-        if(!interpolate && abs(e.froot) < tol && iter > mean_window) break
+        if(is.null(wait.time))
+            if(!interpolate && abs(e.froot) < tol && iter > miniter) break
 
         if(verbose){
             if(integer)
-                cat(sprintf("\rIter: %i; Median: %i; E(f(x)) = %.3f",
-                            iter, med, e.froot))
-            else cat(sprintf("\rIter: %i; Median: %.3f; E(f(x)) = %.3f",
-                             iter, med, e.froot))
+                cat(sprintf("\rIter: %i; Median = %i", iter, med))
+            else cat(sprintf("\rIter: %i; Median = %.3f", iter, med))
+            cat(sprintf("; E(f(x)) = %.2f", abs(e.froot)))
             if(!is.null(FromSimSolve))
-                cat('; Reps =', replications[iter])
+                cat('; Total.reps =', sum(replications[1L:iter]))
             if(interpolate && iter > interpolate.after && !is.na(glmpred[1L]))
-                cat(sprintf('; tol.success = %i; Pred = %.3f', k.successes, glmpred[1L]))
+                cat(sprintf(paste0('; k.tol = %i; Pred = %',
+                                   if(integer) ".1f" else ".3f"),
+                            k.successes, glmpred[1L]))
         }
+
+        if(!is.null(wait.time))
+            if(proc.time()[3L] - start_time > wait.time*60) break
+
+        if(iter == maxiter) break
     }
     converged <- iter < maxiter
+    predCIs <- c(NA, NA, NA)
+    if(!is.null(FromSimSolve))
+        predCIs <- SimSolveUniroot(SimMod=SimMod, b=dots$b,
+                               interval=quantile(medhistory[medhistory != 0],
+                                                 probs = c(.05, .95)),
+                               max.interval=interval,median=med, CI=predCI)
     if(verbose)
         cat("\n")
     fx <- exp(fx) / sum(exp(fx)) # normalize final result
     medhistory <- medhistory[1L:(iter-1L)]
     # BI <- belief_interval(x, fx, CI=CI)
-    root <- if(!interpolate) mean(medhistory[length(medhistory):
-                                                 (length(medhistory)-mean_window+1L)])
-        else glmpred[1L]
+    root <- if(!interpolate) medhistory[length(medhistory)] else glmpred[1L]
     ret <- list(iter=iter, root=root, terminated_early=converged, integer=integer,
                 e.froot=e.froot, x=x, fx=fx, medhistory=medhistory,
                 time=as.numeric(proc.time()[3L]-start_time),
-                burnin=interpolate.burnin)
+                burnin=interpolate.burnin, predCIs=predCIs[-1L])
     if(!is.null(FromSimSolve)) ret$total.replications <- sum(replications[1L:iter])
     class(ret) <- 'PBA'
     ret
@@ -295,6 +338,8 @@ print.PBA <- function(x, ...)
               terminated_early=terminated_early,
               time=noquote(timeFormater(time)),
               iterations = iter))
+    if(!all(is.na(x$predCIs)))
+        out <- append(out, list(prediction_CI = x$predCIs), 2L)
     if(!is.null(x$total.replications))
         out$total.replications <- x$total.replications
     if(x$integer && !is.null(x$tab))
@@ -314,21 +359,20 @@ plot.PBA <- function(x, type = 'posterior',
     if(type == 'posterior'){
         with(x, plot(fx ~ x,
                      main = main, type = 'l',
-                     ylab = 'density', ...))
+                     ylab = 'density', las=1, ...))
     } else if(type == 'history'){
         with(x, plot(medhistory,
                      main = 'Median history', type = 'b',
                      ylab = 'Median Estimate',
-                     xlab = 'Iteration', pch = 16, ...))
+                     xlab = 'Iteration', pch = 16, las=1, ...))
     }
 
 }
 
 getMedian <- function(fx, x){
-    expfx <- exp(fx)  # on original pdf
-    alpha <- sum(expfx)/2
-
-    # ad-hoc sum approach is clunky, but seems to work okay for now
+    expfx <- exp(fx - max(fx))  # on original pdf
+    expfx <- expfx / sum(expfx)
+    alpha <- .5
     if(rint(1, min=0, max=1)){
         ret <- x[cumsum(expfx) <= alpha]
         if(!length(ret)) ret <- x[1L]

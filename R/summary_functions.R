@@ -124,7 +124,7 @@ bias <- function(estimate, parameter = NULL, type = 'bias', abs = FALSE,
     diff <- t(t(estimate) - parameter)
     ret <- if(type == 'relative') colMeans(diff / parameter)
         else if(type == 'abs_relative') colMeans(diff / abs(parameter))
-        else if(type == 'standardized') colMeans(diff) / apply(estimate, 2, sd)
+        else if(type == 'standardized') colMeans(diff) / colSDs(estimate)
         else colMeans(diff)
     if(abs) ret <- abs(ret)
     if(percent){
@@ -594,7 +594,7 @@ RE <- function(x, MSE = FALSE, percent = FALSE, unname = FALSE){
 #' par_ests <- cbind(rnorm(R), rnorm(R, sd=1/10),
 #'                   rnorm(R, sd=1/15))
 #' colnames(par_ests) <- paste0("par", 1:3)
-#' (SDs <- apply(par_ests, 2, sd))
+#' (SDs <- colSDs(par_ests))
 #'
 #' SEs <- cbind(1 + rnorm(R, sd=.01),
 #'              1/10 + + rnorm(R, sd=.01),
@@ -603,14 +603,14 @@ RE <- function(x, MSE = FALSE, percent = FALSE, unname = FALSE){
 #' RSE(SEs, par_ests)
 #'
 #' # equivalent to the form
-#' colMeans(SEs) / (SDs)
+#' colMeans(SEs) / SDs
 #'
 #'
 RSE <- function(SE, ests, unname = FALSE){
     if(!is.matrix(ests)) ests <- as.matrix(ests)
     if(!is.matrix(SE)) SE <- as.matrix(SE)
     SE <- colMeans(SE)
-    SD <- apply(ests, 2L, sd)
+    SD <- colSDs(ests)
     ret <- SE / SD
     if(unname) ret <- unname(ret)
     ret
@@ -836,22 +836,22 @@ RD <- function(est, pop, as.vector = TRUE, unname = FALSE){
 }
 
 
-#' Compute the empirical detection rate for Type I errors and Power
+#' Compute the empirical detection/rejection rate for Type I errors and Power
 #'
-#' Computes the detection rate for determining empirical Type I error and power rates
-#' using information from p-values.
+#' Computes the detection/rejection rate for determining empirical
+#' Type I error and power rates using information from p-values.
 #'
 #' @param p a \code{numeric} vector or \code{matrix}/\code{data.frame} of p-values from the
 #'   desired statistical estimator. If a \code{matrix}, each statistic must be organized by
 #'   column, where the number of rows is equal to the number of replications
 #'
-#' @param alpha the nominal detection rate to be studied (typical values are .10, .05, and .01).
+#' @param alpha the detection threshold (typical values are .10, .05, and .01).
 #'   Default is .05
 #'
 #' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
 #'   names?
 #'
-#' @aliases EDR
+#' @aliases EDR ERR
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #'
@@ -893,6 +893,9 @@ EDR <- function(p, alpha = .05, unname = FALSE){
     if(unname) ret <- unname(ret)
     ret
 }
+
+#' @export
+ERR <- EDR
 
 
 

@@ -75,7 +75,7 @@
 #' }
 #'
 #' Summarise <- function(condition, results, fixed_objects = NULL){
-#'     apply(results, 2, mean)
+#'     colMeans(results)
 #' }
 #'
 #' \dontrun{
@@ -90,8 +90,7 @@
 #' res
 #'
 #' Summarise2 <- function(condition, results, fixed_objects = NULL){
-#'     ret <- c(mean_ests=apply(results, 2, mean),
-#'              SE=apply(results, 2, sd))
+#'     ret <- c(mean_ests=colMeans(results), SE=colSDs(results))
 #'     ret
 #' }
 #'
@@ -120,7 +119,8 @@ reSummarise <- function(summarise, dir = NULL, files = NULL, results = NULL, Des
         read_files <- FALSE
         if(is(results, 'SimDesign')){
             obj <- results
-            Design <- SimExtract(obj, 'Design')
+            if(is.null(Design))
+                Design <- SimExtract(obj, 'Design')
             results <- SimExtract(obj, 'results')
         }
         if(is(results, 'tbl')){

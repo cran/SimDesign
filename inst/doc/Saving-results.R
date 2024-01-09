@@ -78,6 +78,13 @@ files[grepl('my-simp', files)]
 SimClean('my-simple-sim.rds')
 
 ## -----------------------------------------------------------------------------
+# store_results=TRUE by default
+res <- runSimulation(Design, replications = 3, 
+              generate=Generate, analyse=Analyse, summarise=Summarise)
+results <- SimExtract(res, what = 'results')
+results
+
+## -----------------------------------------------------------------------------
 res <- runSimulation(Design, replications = 1000, save_results=TRUE,
                      generate=Generate, analyse=Analyse, summarise=Summarise)
 dir <- dir()
@@ -102,10 +109,4 @@ str(input)
 
 ## -----------------------------------------------------------------------------
 SimClean(results = TRUE)
-
-## -----------------------------------------------------------------------------
-res <- runSimulation(Design, replications = 3, store_results=TRUE,
-              generate=Generate, analyse=Analyse, summarise=Summarise)
-results <- SimExtract(res, what = 'results')
-results
 

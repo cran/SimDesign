@@ -50,7 +50,8 @@ timeFormater <- function(time, decimals = TRUE){
     resTime
 }
 
-print_progress <- function(row, trow, stored_time, RAM, progress, condition){
+print_progress <- function(row, trow, stored_time, RAM, progress,
+                           condition, replications){
     if(progress) cat('\n')
     tmp <- as.list(subset(condition, select=colnames(condition) != "ID"))
     nms <- names(tmp)
@@ -65,8 +66,9 @@ print_progress <- function(row, trow, stored_time, RAM, progress, condition){
             condstring <- paste0(nms, '=', nms2, collapse=', ')
         }
     }
-    cat(sprintf('\rDesign row: %i/%i;   RAM used: %s;   Total elapsed time: %s ',
-                row, trow, RAM, timeFormater(sum(stored_time))))
+    if(RAM != "") RAM <- sprintf(';   RAM Used: %s', RAM)
+    cat(sprintf('\rDesign: %i/%i%s;   Replications: %i;   Total Time: %s ',
+                row, trow, RAM, replications, timeFormater(sum(stored_time))))
     cat(sprintf('\n Conditions: %s\n', condstring))
     if(progress) cat('\r')
     invisible(NULL)
@@ -424,6 +426,8 @@ stackResults <- function(results){
 SimSolveData <- function(burnin, full = TRUE){
     pick <- !sapply(.SIMDENV$stored_results, is.null)
     pick[1L:burnin] <- FALSE
+    if(!any(pick))
+        return(data.frame(y=numeric(0), IV=numeric(0), weights=numeric(0)))
     if(full){
         DV <- do.call(c, .SIMDENV$stored_results[pick])
         IV <- rep(.SIMDENV$stored_medhistory[pick],
@@ -436,11 +440,12 @@ SimSolveData <- function(burnin, full = TRUE){
     ret
 }
 
-SimSolveUniroot <- function(SimMod, b, interval, max.interval, median){
+SimSolveUniroot <- function(SimMod, b, interval, max.interval, median, CI=NULL){
     f.root <- function(x, b)
         predict(SimMod, newdata = data.frame(x=x), type = 'response') - b
     res <- try(uniroot(f.root, b=b, interval = interval), silent = TRUE)
-    if(is(res, 'try-error')){ # in case original interval is poor for interpolation
+    if(is(res, 'try-error')){
+        # in case original interval is poor for interpolation
         interval <- max.interval
         for(i in seq_len(20L)){
             if(grepl('end points not of opposite sign', res)){
@@ -451,11 +456,17 @@ SimSolveUniroot <- function(SimMod, b, interval, max.interval, median){
             }
         }
     }
-    if(is(res, 'try-error')) return(c(NA, NA))
+    if(is(res, 'try-error')) return(c(NA, NA, NA))
     root <- res$root
-    # se <- predict(SimMod, newdata = data.frame(x=root),
-    #               se = TRUE, type = 'response')$se.fit
-    root
+    abias <- bias(root, median, type = 'abs_relative')
+    if(abias > .5) root <- median
+    ci <- c(NA, NA)
+    if(!is.null(CI)){
+        preds <- predict(SimMod, newdata = data.frame(x=root),
+                      se.fit=TRUE, type = 'link')
+        ci <- SimMod$family$linkinv(preds$fit + qnorm(CI) * preds$se.fit)
+    }
+    c(root, ci)
 }
 
 collect_unique <- function(x){
@@ -474,6 +485,52 @@ collect_unique <- function(x){
     x
 }
 
+bisection <- function (f, interval, ..., tol = 0.001, maxiter = 100,
+                       f.lower = NULL, f.upper = NULL, check = FALSE)
+{
+    lower <- interval[1L]
+    upper <- interval[2L]
+    iter <- 0L
+    if(check){
+        if(is.null(f.lower)) f.lower <- f(lower, ...)
+        if(is.null(f.upper)) f.upper <- f(upper, ...)
+        stopifnot("No root in specified interval" = f.lower * f.upper < 0)
+    } else {
+        if(is.null(f.lower)) f.lower <- -Inf
+        if(is.null(f.upper)) f.upper <- Inf
+    }
+    if(f.lower > f.upper){
+        tmp <- lower
+        lower <- upper
+        upper <- tmp
+        tmp <- f.lower
+        f.lower <- f.upper
+        f.upper <- tmp
+    }
+    false_converge <- FALSE
+    for(i in 1L:maxiter){
+        iter <- iter + 1L
+        mid <- (lower + upper)/2
+        f.mid <- f(mid, ...)
+        if(f.mid < f.lower || f.mid > f.upper){
+            false_converge <- TRUE
+            break
+        }
+        if (isTRUE(f.lower * f.mid > 0)){
+            lower <- mid
+            f.lower <- f.mid
+        } else {
+            upper <- mid
+            f.upper <- f.mid
+        }
+        if(abs(lower - upper) < tol) break
+    }
+    root <- (lower + upper)/2
+    list(root=root, f.root=f(root, ...), iter=i,
+         terminated_early=i < maxiter,
+         false_converge=false_converge)
+}
+
 RAM_used <- function(){
     # borrowed and modified from pryr::node_size(), 13-06-2023
     bit <- 8L * .Machine$sizeof.pointer
@@ -490,4 +547,53 @@ RAM_used <- function(){
 clip_names <- function(vec, maxchar = 150L){
     names(vec) <- strtrim(names(vec), width=maxchar)
     vec
+}
+
+#' Form Column Standard Deviation and Variances
+#'
+#' Form column standard deviation and variances for numeric arrays (or data frames).
+#'
+#' @param x an array of two dimensions containing numeric, complex, integer or logical values,
+#'   or a numeric data frame
+#'
+#' @param na.rm logical; remove missing values in each respective column?
+#'
+#' @param unname logical; apply \code{\link{unname}} to the results to remove any variable
+#'   names?
+#'
+#' @seealso \code{\link{colMeans}}
+#'
+#' @export
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
+#'
+#' @examples
+#'
+#' results <- matrix(rnorm(100), ncol=4)
+#' colnames(results) <- paste0('stat', 1:4)
+#'
+#' colVars(results)
+#' colSDs(results)
+#'
+#' results[1,1] <- NA
+#' colSDs(results)
+#' colSDs(results, na.rm=TRUE)
+#' colSDs(results, na.rm=TRUE, unname=TRUE)
+#'
+colVars <- function(x, na.rm=FALSE, unname=FALSE){
+    ret <- apply(x, 2L, FUN = var, na.rm=na.rm)
+    if(unname) ret <- unname(ret)
+    ret
+}
+
+#' @export
+#' @rdname colVars
+colSDs <- function(x, na.rm=FALSE, unname=FALSE){
+    sqrt(colVars(x=x, na.rm=na.rm, unname=unname))
+}
+
+pickReps <- function(replications, iter){
+    ret <- if(iter > length(replications))
+        max(replications) else replications[iter]
+    ret
 }

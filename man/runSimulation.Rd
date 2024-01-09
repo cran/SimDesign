@@ -18,8 +18,8 @@ runSimulation(
   debug = "none",
   load_seed = NULL,
   save = replications > 10,
+  store_results = TRUE,
   save_results = FALSE,
-  store_results = FALSE,
   parallel = FALSE,
   ncores = parallel::detectCores() - 1L,
   cl = NULL,
@@ -32,6 +32,7 @@ runSimulation(
   boot_draws = 1000L,
   max_errors = 50L,
   save_seeds = FALSE,
+  resume = TRUE,
   save_details = list(),
   control = list(),
   progress = TRUE,
@@ -188,6 +189,18 @@ primarily useful for debugging purposes.
   initially define the simulation and the external file will automatically be detected and read-in.
   Default is \code{TRUE} when \code{replications > 10} and \code{FALSE} otherwise}
 
+\item{store_results}{logical; store the complete tables of simulation results
+  in the returned object? This is \code{TRUE} default, though if RAM anticipated to
+  be an issue see \code{save_results} instead. Note that if the \code{Design}
+  object is omitted from the call to \code{runSimulation()}, or the number of rows in \code{Design}
+  is exactly 1, then this argument is automatically set to \code{TRUE} as RAM storage is no
+  longer an issue.
+
+  To extract these results
+  pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
+  of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
+  \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is}
+
 \item{save_results}{logical; save the results returned from \code{\link{Analyse}} to external
   \code{.rds} files located in the defined \code{save_results_dirname} directory/folder?
   Use this if you would like to keep track of the individual parameters returned from
@@ -204,18 +217,6 @@ primarily useful for debugging purposes.
   Carlo simulation is performed.
   See also \code{\link{reSummarise}} for applying summarise functions from saved
   simulation results}
-
-\item{store_results}{logical; store the complete tables of simulation results
-  in the returned object? This is \code{FALSE} by default to help avoid RAM
-  issues (see \code{save_results} as a more suitable alternative). However, if the \code{Design}
-  object is omitted from the call to \code{runSimulation()}, or the number of rows in \code{Design}
-  is exactly 1, then this argument is automatically set to \code{TRUE} as RAM storage will no
-  longer be an issue.
-
-  To extract these results
-  pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
-  of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
-  \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is}
 
 \item{parallel}{logical; use parallel processing from the \code{parallel}
   package over each unique condition?
@@ -317,6 +318,15 @@ errors are thrown in any
   interest when \emph{all} of the replications must be reproducible (which occurs very rarely),
   otherwise the defaults to \code{runSimulation} should be sufficient}
 
+\item{resume}{logical; if a temporary \code{SimDesign} file is detected should
+the simulation resume from this location? Keeping this \code{TRUE} is generally recommended,
+however this should be disabled if using \code{runSimulation} within \code{runSimulation} to avoid
+reading improper save states. Alternatively, if an integer is supplied then the simulation
+will continue at the associated row location in \code{design} (e.g., \code{resume=10}).
+This is useful to overwrite a previously evaluate element in the temporary files that was detected
+to contain fatal errors that require re-evaluation without discarding the originally valid rows
+in the simulation}
+
 \item{save_details}{a list pertaining to information regarding how and where files should be saved
   when the \code{save} or \code{save_results} flags are triggered.
 
@@ -380,7 +390,12 @@ errors are thrown in any
      treat warning messages as error messages during the simulation? Default is FALSE,
      therefore warnings are only collected and not used to restart the data generation step,
      and the seeds associated with
-     the warning message conditions are not stored within the final simulation object}
+     the warning message conditions are not stored within the final simulation object.
+
+     Note that this argument is generally intended for debugging/early planning
+     stages when designing a simulation experiment. If specific warnings are known to
+     be problematic and should be treated as errors then please use
+     \code{\link{convertWarnings}} instead}
 
      \item{\code{store_warning_seeds}}{logical (default is \code{FALSE});
       in addition to storing the \code{.Random.seed} states whenever error messages
@@ -430,6 +445,10 @@ errors are thrown in any
 
      \item{\code{MPI}}{logical (default is \code{FALSE}); use the \code{foreach} package in a
        form usable by MPI to run simulation in parallel on a cluster? }
+
+     \item{\code{print_RAM}}{logical (default is \code{TRUE}); print the amount of RAM
+       used throughout the simulation? Set to \code{FALSE} if unnecessary or if the call to
+       \code{\link{gc}} is unnecessarily time consuming}
 
      \item{\code{.options.mpi}}{list of arguments passed to \code{foreach()} to control the MPI execution
        properties. Only used when \code{MPI = TRUE}}
@@ -682,7 +701,7 @@ Final
 
 # To store the results from the analyse function either
 #   a) omit a definition of summarise() to return all results,
-#   b) use store_results = TRUE to store results internally and later
+#   b) use store_results = TRUE (default) to store results internally and later
 #      extract with SimExtract(..., what = 'results'), or
 #   c) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
 #
@@ -694,8 +713,8 @@ res <- runSimulation(design=Design, replications=5,
                      generate=Generate, analyse=Analyse)
 res
 
-# b) approach
-res <- runSimulation(design=Design, replications=5, store_results=TRUE,
+# b) approach (store_results = TRUE by default)
+res <- runSimulation(design=Design, replications=5,
                      generate=Generate, analyse=Analyse, summarise=Summarise)
 res
 SimExtract(res, 'results')
@@ -960,7 +979,7 @@ Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
   \code{\link{SimExtract}},
   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
-  \code{\link{SimShiny}}
+  \code{\link{SimShiny}}, \code{\link{convertWarnings}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

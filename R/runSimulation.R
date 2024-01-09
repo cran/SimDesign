@@ -331,7 +331,12 @@
 #'      treat warning messages as error messages during the simulation? Default is FALSE,
 #'      therefore warnings are only collected and not used to restart the data generation step,
 #'      and the seeds associated with
-#'      the warning message conditions are not stored within the final simulation object}
+#'      the warning message conditions are not stored within the final simulation object.
+#'
+#'      Note that this argument is generally intended for debugging/early planning
+#'      stages when designing a simulation experiment. If specific warnings are known to
+#'      be problematic and should be treated as errors then please use
+#'      \code{\link{convertWarnings}} instead}
 #'
 #'      \item{\code{store_warning_seeds}}{logical (default is \code{FALSE});
 #'       in addition to storing the \code{.Random.seed} states whenever error messages
@@ -381,6 +386,10 @@
 #'
 #'      \item{\code{MPI}}{logical (default is \code{FALSE}); use the \code{foreach} package in a
 #'        form usable by MPI to run simulation in parallel on a cluster? }
+#'
+#'      \item{\code{print_RAM}}{logical (default is \code{TRUE}); print the amount of RAM
+#'        used throughout the simulation? Set to \code{FALSE} if unnecessary or if the call to
+#'        \code{\link{gc}} is unnecessarily time consuming}
 #'
 #'      \item{\code{.options.mpi}}{list of arguments passed to \code{foreach()} to control the MPI execution
 #'        properties. Only used when \code{MPI = TRUE}}
@@ -461,6 +470,15 @@
 #'   initially define the simulation and the external file will automatically be detected and read-in.
 #'   Default is \code{TRUE} when \code{replications > 10} and \code{FALSE} otherwise
 #'
+#' @param resume logical; if a temporary \code{SimDesign} file is detected should
+#'   the simulation resume from this location? Keeping this \code{TRUE} is generally recommended,
+#'   however this should be disabled if using \code{runSimulation} within \code{runSimulation} to avoid
+#'   reading improper save states. Alternatively, if an integer is supplied then the simulation
+#'   will continue at the associated row location in \code{design} (e.g., \code{resume=10}).
+#'   This is useful to overwrite a previously evaluate element in the temporary files that was detected
+#'   to contain fatal errors that require re-evaluation without discarding the originally valid rows
+#'   in the simulation
+#'
 #' @param debug a string indicating where to initiate a \code{browser()} call for editing
 #'   and debugging, and pairs particularly well with the \code{load_seed} argument for precise debugging.
 #'   General options are \code{'none'} (default; no debugging), \code{'error'}, which
@@ -519,11 +537,11 @@
 #' @param CI bootstrap confidence interval level (default is 95\%)
 #'
 #' @param store_results logical; store the complete tables of simulation results
-#'   in the returned object? This is \code{FALSE} by default to help avoid RAM
-#'   issues (see \code{save_results} as a more suitable alternative). However, if the \code{Design}
+#'   in the returned object? This is \code{TRUE} default, though if RAM anticipated to
+#'   be an issue see \code{save_results} instead. Note that if the \code{Design}
 #'   object is omitted from the call to \code{runSimulation()}, or the number of rows in \code{Design}
-#'   is exactly 1, then this argument is automatically set to \code{TRUE} as RAM storage will no
-#'   longer be an issue.
+#'   is exactly 1, then this argument is automatically set to \code{TRUE} as RAM storage is no
+#'   longer an issue.
 #'
 #'   To extract these results
 #'   pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
@@ -560,7 +578,7 @@
 #'   \code{\link{SimExtract}},
 #'   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
 #'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
-#'   \code{\link{SimShiny}}
+#'   \code{\link{SimShiny}}, \code{\link{convertWarnings}}
 #'
 #' @export runSimulation
 #'
@@ -642,7 +660,7 @@
 #'
 #' # To store the results from the analyse function either
 #' #   a) omit a definition of summarise() to return all results,
-#' #   b) use store_results = TRUE to store results internally and later
+#' #   b) use store_results = TRUE (default) to store results internally and later
 #' #      extract with SimExtract(..., what = 'results'), or
 #' #   c) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
 #' #
@@ -654,8 +672,8 @@
 #'                      generate=Generate, analyse=Analyse)
 #' res
 #'
-#' # b) approach
-#' res <- runSimulation(design=Design, replications=5, store_results=TRUE,
+#' # b) approach (store_results = TRUE by default)
+#' res <- runSimulation(design=Design, replications=5,
 #'                      generate=Generate, analyse=Analyse, summarise=Summarise)
 #' res
 #' SimExtract(res, 'results')
@@ -907,16 +925,22 @@
 runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL, filename = NULL,
                           debug = 'none', load_seed = NULL, save = replications > 10,
-                          save_results = FALSE, store_results = FALSE,
+                          store_results = TRUE, save_results = FALSE,
                           parallel = FALSE, ncores = parallel::detectCores() - 1L,
                           cl = NULL, notification = 'none', beep = FALSE, sound = 1,
                           CI = .95, seed = NULL,
                           boot_method='none', boot_draws = 1000L, max_errors = 50L,
-                          save_seeds = FALSE,
+                          save_seeds = FALSE, resume = TRUE,
                           save_details = list(), control = list(),
                           progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
+    resume.row <- NA
+    if(is.numeric(resume)){
+        resume.row <- resume
+        resume <- TRUE
+    }
+    if(!verbose) control$print_RAM <- FALSE
     ANALYSE_FUNCTIONS <- TRY_ALL_ANALYSE <- NULL
     if(is.character(parallel)){
         useFuture <- tolower(parallel) == 'future'
@@ -998,6 +1022,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                        FALSE, control$allow_na)
     allow_nan <- ifelse(is.null(control$allow_nan),
                         FALSE, control$allow_nan)
+    print_RAM <- ifelse(is.null(control$print_RAM),
+                                 TRUE, control$print_RAM)
     stop_on_fatal <- ifelse(is.null(control$stop_on_fatal),
                             FALSE, control$stop_on_fatal)
     MPI <- ifelse(is.null(control$MPI),
@@ -1017,8 +1043,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(verbose){
         if(replications >= 200)
             if(!save_results && !store_results)
-                message(c('NOTE: save_results = TRUE or store_results = TRUE ',
-                        'are recommended for higher replication simulations'))
+                message(c('NOTE: using save_results or store_results is ',
+                        'recommended for higher replication simulations'))
     }
     NA_summarise <- FALSE
     if(!missing(summarise)){
@@ -1187,8 +1213,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     names(Result_list) <- names(stored_Results_list) <- rownames(design)
     time0 <- time1 <- proc.time()[3L]
     files <- dir(out_rootdir)
-    if(!MPI && any(files == tmpfilename) && is.null(load_seed) && debug == 'none'){
-        if(verbose)
+    if(resume && !MPI && any(files == tmpfilename) && is.null(load_seed) && debug == 'none'){
+        if(verbose && is.na(resume.row))
             message(sprintf(c('Resuming simulation from %s file with %i replications. ',
                               '\nIf not intended, use SimClean() prior to calling runSimulation()'),
                             file.path(out_rootdir, tmpfilename), replications))
@@ -1205,7 +1231,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 Result_list <- tmp_new
             }
         }
-        start <- min(c(which(sapply(Result_list, is.null)), nrow(design)))
+        start <- ifelse(is.na(resume.row),
+                        min(c(which(sapply(Result_list, is.null)), nrow(design))),
+                        resume.row)
         time0 <- time1 - Result_list[[start-1L]]$SIM_TIME
     }
     if(file.exists(tmpfilename)){
@@ -1288,13 +1316,14 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
           save_seeds_dirname=file.path(out_rootdir, save_seeds_dirname))
     if(progress) verbose <- TRUE
     memory_used <- character(nrow(design)+1L)
-    memory_used[1L] <- RAM_used()
+    if(print_RAM)
+        memory_used[1L] <- RAM_used()
     for(i in start:end){
         time0 <- proc.time()[3L]
         if(summarise_asis){
             if(verbose)
                 print_progress(i, nrow(design), stored_time=stored_time,
-                               RAM=memory_used[i], progress=progress,
+                               RAM=memory_used[i], progress=progress, replications=replications,
                                condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                else design[i,])
             Result_list[[i]] <- Analysis(Functions=Functions,
@@ -1324,12 +1353,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             stored_time <- stored_time + (time1 - time0)
             if(notification == 'condition')
                 notification_condition(design[i,], Result_list[[i]], nrow(design))
-            memory_used[i+1L] <- RAM_used()
+            if(print_RAM)
+                memory_used[i+1L] <- RAM_used()
         } else {
             stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
             if(verbose)
                 print_progress(i, nrow(design), stored_time=stored_time,
-                               RAM=memory_used[i], progress=progress,
+                               RAM=memory_used[i], progress=progress, replications=replications,
                                condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                else design[i,])
             if(save_seeds)
@@ -1387,7 +1417,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             Result_list[[i]]$SIM_TIME <- time1 - time0
             if(notification == 'condition')
                 notification_condition(design[i,], Result_list[[i]], nrow(design))
-            memory_used[i+1L] <- RAM_used()
+            if(print_RAM)
+                memory_used[i+1L] <- RAM_used()
         }
     }
     memory_used <- memory_used[-1L]
@@ -1401,12 +1432,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(store_results){
         if(is(stored_Results_list[[1L]], 'data.frame') ||
            is(stored_Results_list[[1L]], 'matrix')){
-            nms <- c(colnames(design), colnames(stored_Results_list[[1L]]))
             for(i in seq_len(length(stored_Results_list)))
                 stored_Results_list[[i]] <- cbind(design[i,],
                                                  stored_Results_list[[i]], row.names=NULL)
             stored_Results_list <- dplyr::bind_rows(stored_Results_list)
-            colnames(stored_Results_list) <- nms
             stored_Results_list$ID <- NULL
             stored_Results_list <- dplyr::as_tibble(stored_Results_list)
         }
@@ -1513,6 +1542,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     sn <- colnames(Final)[!(colnames(Final) %in% c(dn, en, ten, wen, bsen))]
     Final <- data.frame(Final[ ,c(dn, sn, bsen, en)], ERRORS, WARNINGS,
                                          check.names = FALSE)
+    if(all(memory_used == "")) Final$RAM_USED <- NULL
     if(all(ERRORS == 0)) Final$ERRORS <- NULL
     if(all(WARNINGS == 0)) Final$WARNINGS <- NULL
     Final <- dplyr::as_tibble(Final)

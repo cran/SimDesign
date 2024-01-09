@@ -1,5 +1,40 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.14
+
+- `SimSolve()` function added to perform (stochastic) root-solving to estimate 
+  specific criteria from simulation studies. Currently supports uni-root type 
+  problems for continuous or discrete variables via the probabilistic 
+  bisection algorithm with bolstering and interpolations (ProBABLI), 
+  Brent's method, and the classical bisection approach, the latter two of which
+  can be problematic if the number of replications per iteration are too low
+  
+- `SFA()` function added for fitting surrogate functional forms to 
+  simulation results and subsequently solving specific roots. Supports single
+  root or multi-root applications, where by default the modelling is performed 
+  via generalized linear models
+
+- `runSimulation(..., store_results = TRUE)` is now the default to automatically
+  store the results from `Analyse()` in the returned simulation object. 
+  If RAM issues are suspected then `save_results = TRUE` is still 
+  the recommended approach
+
+- `convertWarnings()` wrapper/post-hoc function added to convert specific 
+  warning messages to errors during simulations. Useful when only a subset
+  of warnings are known to be problematic, while other warning messages
+  (whether known or not) are treated as provisionally innocuous
+
+- `control` gains a `print_RAM` logical argument to suppress printing the RAM
+  when `verbose = TRUE`. Disabling this can reduce execution time
+  as garbage collector (`gc()`) calls are avoided, which is required extract
+  the current RAM state. Setting `verbose = FALSE` will also automatically 
+  disable the RAM and `gc()` calls and their overhead
+  
+- `Attach()` now accepts `matrix` input objects, and gains a `RStudio_flags` 
+  argument to generate syntax that suppresses false positives about variables 
+  outside of the function's scope
+
+
 ## Changes in SimDesign 2.13
 
 - Fix Github issue #26 related to extremely long warning/error messages 

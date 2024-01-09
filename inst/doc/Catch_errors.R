@@ -75,3 +75,42 @@ head(seeds[,1:3])
 #  runSimulation(Design, replications = 100, load_seed=picked_seed, debug='analyse-1',
 #                generate=Generate, analyse=Analyse, summarise=Summarise)
 
+## ----include=FALSE------------------------------------------------------------
+knitr::opts_chunk$set(
+  warning = TRUE
+)
+
+## -----------------------------------------------------------------------------
+myfun <- function() {
+    if(sample(c(TRUE, FALSE), 1, prob = c(.1, .9)))
+    	warning('This warning is serious')
+    if(sample(c(TRUE, FALSE), 1, prob = c(.5, .5)))
+    	warning('This warning is no big deal')
+    return(1)
+}
+
+set.seed(1)
+out <- myfun()
+
+set.seed(2)
+out <- myfun()
+
+set.seed(7)
+out <- myfun()
+
+## ----error=TRUE---------------------------------------------------------------
+set.seed(1)
+out1 <- convertWarnings(myfun(), 
+                        'This warning is serious')
+out1
+
+set.seed(2)
+out2 <- convertWarnings(myfun(), 
+                        'This warning is serious')
+out2
+
+set.seed(7)
+out3 <- convertWarnings(myfun(), 
+                        'This warning is serious')
+out3
+
