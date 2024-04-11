@@ -1,15 +1,17 @@
 Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI, seed, save,
                      save_results, save_results_out_rootdir, save_results_dirname, max_errors,
-                     boot_method, boot_draws, CI, save_seeds, save_seeds_dirname, load_seed,
+                     boot_method, boot_draws, CI,
+                     save_seeds, save_seeds_dirname, load_seed,
                      export_funs, summarise_asis, warnings_as_errors, progress, store_results,
                      allow_na, allow_nan, use_try, stop_on_fatal, store_warning_seeds,
                      include_replication_index, packages, .options.mpi, useFuture, multirow,
-                     allow_gen_errors, save_results_filename = NULL)
+                     allow_gen_errors, max_time, max_RAM, store_Random.seeds,
+                     save_results_filename = NULL, arrayID = NULL)
 {
     # This defines the work-flow for the Monte Carlo simulation given the condition (row in Design)
     #  and number of replications desired
     if(useFuture){
-        if(!is.null(seed)) set.seed(seed[condition$ID])
+        if(!is.null(seed)) set_seed(seed[condition$ID])
         iters <- 1L:replications
         p <- progressr::progressor(along = iters)
         results <- try(future.apply::future_lapply(iters,
@@ -20,7 +22,9 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                                                    max_errors=max_errors, save=save,
                                                    store_warning_seeds=store_warning_seeds,
                                                    save_results_out_rootdir=save_results_out_rootdir,
-                                                   save_seeds=save_seeds, load_seed=load_seed,
+                                                   store_Random.seeds=store_Random.seeds,
+                                                   save_seeds=save_seeds,
+                                                   load_seed=load_seed,
                                                    save_seeds_dirname=save_seeds_dirname,
                                                    warnings_as_errors=warnings_as_errors,
                                                    include_replication_index=include_replication_index,
@@ -28,13 +32,14 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                                                    p=p, future.seed=TRUE, allow_gen_errors=allow_gen_errors),
                        silent=TRUE)
     } else if(is.null(cl)){
-        if(!is.null(seed)) set.seed(seed[condition$ID])
+        if(!is.null(seed)) set_seed(seed[condition$ID])
         results <- if(progress){
             try(pbapply::pblapply(1L:replications, mainsim, condition=condition,
                    generate=Functions$generate,
                    analyse=Functions$analyse,
                    fixed_objects=fixed_objects,
                    max_errors=max_errors, save=save,
+                   store_Random.seeds=store_Random.seeds,
                    store_warning_seeds=store_warning_seeds,
                    save_results_out_rootdir=save_results_out_rootdir,
                    save_seeds=save_seeds, load_seed=load_seed,
@@ -44,19 +49,22 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                    allow_na=allow_na, allow_nan=allow_nan, use_try=use_try,
                    allow_gen_errors=allow_gen_errors), TRUE)
         } else {
-            try(lapply(1L:replications, mainsim, condition=condition,
-                   generate=Functions$generate,
-                   analyse=Functions$analyse,
-                   fixed_objects=fixed_objects,
-                   max_errors=max_errors, save=save,
-                   save_results_out_rootdir=save_results_out_rootdir,
-                   save_seeds=save_seeds, load_seed=load_seed,
-                   store_warning_seeds=store_warning_seeds,
-                   save_seeds_dirname=save_seeds_dirname,
-                   warnings_as_errors=warnings_as_errors,
-                   include_replication_index=include_replication_index,
-                   allow_na=allow_na, allow_nan=allow_nan, use_try=use_try,
-                   allow_gen_errors=allow_gen_errors), TRUE)
+            try(lapply_timer(1L:replications, mainsim,
+                           max_time=max_time, max_RAM=max_RAM,
+                           condition=condition,
+                           generate=Functions$generate,
+                           analyse=Functions$analyse,
+                           fixed_objects=fixed_objects,
+                           max_errors=max_errors, save=save,
+                           store_Random.seeds=store_Random.seeds,
+                           save_results_out_rootdir=save_results_out_rootdir,
+                           save_seeds=save_seeds, load_seed=load_seed,
+                           store_warning_seeds=store_warning_seeds,
+                           save_seeds_dirname=save_seeds_dirname,
+                           warnings_as_errors=warnings_as_errors,
+                           include_replication_index=include_replication_index,
+                           allow_na=allow_na, allow_nan=allow_nan, use_try=use_try,
+                           allow_gen_errors=allow_gen_errors), TRUE)
         }
     } else {
         if(MPI){
@@ -66,6 +74,7 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                 mainsim(i, condition=condition, generate=Functions$generate,
                      analyse=Functions$analyse, fixed_objects=fixed_objects, load_seed=load_seed,
                      max_errors=max_errors, save=save,
+                     store_Random.seeds=store_Random.seeds,
                      save_seeds=save_seeds, save_seeds_dirname=save_seeds_dirname,
                      save_results_out_rootdir=save_results_out_rootdir,
                      store_warning_seeds=store_warning_seeds,
@@ -79,6 +88,7 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                                     condition=condition, generate=Functions$generate,
                                     analyse=Functions$analyse, load_seed=load_seed,
                                     fixed_objects=fixed_objects, save=save,
+                                    store_Random.seeds=store_Random.seeds,
                                     save_results_out_rootdir=save_results_out_rootdir,
                                     max_errors=max_errors, store_warning_seeds=store_warning_seeds,
                                     save_seeds=save_seeds, save_seeds_dirname=save_seeds_dirname,
@@ -90,6 +100,7 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
                 try(parallel::parLapply(cl, 1L:replications, mainsim,
                                     condition=condition, generate=Functions$generate,
                                     analyse=Functions$analyse, load_seed=load_seed,
+                                    store_Random.seeds=store_Random.seeds,
                                     fixed_objects=fixed_objects, save=save,
                                     save_results_out_rootdir=save_results_out_rootdir,
                                     max_errors=max_errors, store_warning_seeds=store_warning_seeds,
@@ -107,7 +118,10 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
             stop(as.character(results))
         } else {
             out <- gsub('\\n', '', as.character(results))
-            ret <- c(FATAL_TERMINATION=strsplit(out, "Last error message was:   ")[[1L]][2L])
+            splt <- strsplit(out, "Last error message was:   ")[[1L]]
+            if(splt[1L] == "Error : Invalid object returned from Analyse()")
+                stop("Analyse() must return a numeric vector, list, or data.frame", call.=FALSE)
+            ret <- c(FATAL_TERMINATION=splt[2L])
             if(progress)
                 message(c('\nWARNING: Condition terminated because of consecutive errors;',
                           ' using NA placeholders. \n\t Last error message was: '),
@@ -128,6 +142,10 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
         if(summarise_asis) return(tabled_results)
     }
 
+    if(store_Random.seeds){
+        stored_Random.seeds <- do.call(rbind,
+                                       lapply(results, function(x) attr(x, 'current_Random.seed')))
+    }
     try_errors <- do.call(c, lapply(results, function(x) attr(x, 'try_errors')))
     try_error_seeds <- do.call(rbind, lapply(results, function(x) attr(x, 'try_error_seeds')))
     try_errors <- if(length(try_errors)){
@@ -146,6 +164,7 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
         attr(results[[i]], 'try_error_seeds') <- attr(results[[i]], 'warning_message_seeds') <- NULL
 
     #collect meta simulation statistics (bias, RMSE, type I errors, etc)
+    obs_reps <- length(results)
     results <- stackResults(results)
     if(save_results){
         tmp <- ifelse(is.null(save_results_filename), 'results-row', save_results_filename)
@@ -171,7 +190,7 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
     }
     sim_results <- sim_results_check(sim_results)
     summarise_list <- attr(sim_results, 'summarise_list')
-    ret <- c(sim_results, 'REPLICATIONS'=replications,
+    ret <- c(sim_results, 'REPLICATIONS'=obs_reps,
              'ERROR: '=clip_names(try_errors),
              'WARNING: '=clip_names(warnings))
     if(boot_method != 'none'){
@@ -188,5 +207,7 @@ Analysis <- function(Functions, condition, replications, fixed_objects, cl, MPI,
     attr(ret, 'summarise_list') <- summarise_list
     if(store_results)
         attr(ret, 'full_results') <- tabled_results
+    if(store_Random.seeds)
+        attr(ret, 'stored_Random.seeds') <- stored_Random.seeds
     ret
 }

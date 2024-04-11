@@ -1,5 +1,48 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.15
+
+- `runSimulation(..., control = list(store_Random.seeds))` logical added to 
+  store all `.Random.seed` replication states. Generally not recommended due 
+  to the size of these stored elements in larger simulations, however can be
+  useful for debugging purposes where errors or warnings are not thrown
+
+- `runArraySimulation()` added to better support distributing array's of jobs
+  on HPC clusters. Works best when combined with new `expandDesign()` 
+  function (see next point) and the improved `aggregate_simulations()` behaviour 
+  for more evenly distribution replication budgets across independent jobs. 
+  An associated vignette file has been added to the package to provide 
+  context and tutorial information for Slurm clusters
+  
+- `expandDesign()` added to repeat the row conditions a number of 
+  times instead of just once. This is useful when
+  exporting each condition independently to computing clusters, where each cluster
+  contains only a fraction of the target `replications` (see issue #33)
+  
+- `getArrayID()` added to detect the array job ID (used 
+  with `runArraySimulation(..., arrayID)`)
+
+- `aggregate_simulations()` now requires explicit `filename` 
+  argument to save the collapsed simulation information
+  
+- `aggregate_simulations()` generalized to detect whether the `Design` conditions
+  have repeated row definitions and therefore should be conditionally averaged
+  over (see new `expandDesign()` function)
+  
+- `runArraySimulation()`'s `control` list contain new `max_time` and 
+  `max_RAM` arguments to evaluate simulation replications up until this time 
+  or RAM storage constraint is reached. In the event that the target 
+  replications are not reached the simulations up to this point, or the max 
+  RAM storage has been reached, then on the partial results will be returned 
+  (with a warning). This is mainly useful for single core processing
+  jobs on HPC clusters that require time and RAM constraints (e.g., 4 days 
+  per job; 4GB of RAM), where some jobs may be more time/RAM consuming than 
+  others (requested by Mikko Rönkkö)
+  
+- Expose seed generation control per simulation condition via the 
+  function `gen_seeds()`, which also automatically constructs proper 
+  L'Ecuyer-CMRG seeds to be distributed across the `runArraySimulation()` jobs 
+
 ## Changes in SimDesign 2.14
 
 - `SimSolve()` function added to perform (stochastic) root-solving to estimate 

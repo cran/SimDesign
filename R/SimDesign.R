@@ -6,7 +6,10 @@
 #' simulation issues such as re-simulating non-convergent results, support parallel
 #' back-end and MPI distributed computations, save and restore temporary files,
 #' aggregate results across independent nodes, and provide native support for debugging.
-#' The primary function for organizing the simulations is \code{\link{runSimulation}}.
+#' The primary function for organizing the simulations is \code{\link{runSimulation}}, while
+#' for array jobs submitting to HPC clusters (e.g., SLURM) see \code{\link{runArraySimulation}}
+#' and the associated package vignettes.
+#'
 #' For an in-depth tutorial of the package please refer to
 #' Chalmers and Adkins (2020; \doi{10.20982/tqmp.16.4.p248}).
 #' For an earlier didactic presentation of the package users can refer to Sigal and Chalmers
@@ -15,7 +18,6 @@
 #' for other tutorial material, examples, and applications of \code{SimDesign} to real-world simulations.
 #'
 #' @name SimDesign
-#' @docType package
 #' @aliases SimDesign-package
 #' @title Structure for Organizing Monte Carlo Simulation Designs
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
@@ -23,13 +25,14 @@
 #' @importFrom sessioninfo session_info
 #' @importFrom RPushbullet pbPost
 #' @importFrom graphics abline
+#' @importFrom R.utils withTimeout
 #' @importFrom pbapply pblapply pboptions
-#' @importFrom dplyr as_tibble bind_rows
+#' @importFrom dplyr as_tibble bind_rows select mutate
 #' @importFrom future.apply future_lapply
 #' @importFrom progressr progressor
 #' @importFrom beepr beep
 # @importFrom robustbase glmrob
-#' @importFrom utils recover packageVersion head tail capture.output
+#' @importFrom utils recover packageVersion head tail capture.output object.size
 #' @keywords package
 #' @references
 #'

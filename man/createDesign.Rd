@@ -3,7 +3,7 @@
 \name{createDesign}
 \alias{createDesign}
 \alias{print.Design}
-\title{Create the simulation Design object}
+\title{Create the simulation design object}
 \usage{
 createDesign(
   ...,
@@ -82,6 +82,8 @@ Design <- createDesign(N = c(10, 20),
 Design
 print(Design, list2char = FALSE)   # standard tibble output
 
+##########
+
 ## fractional factorial example
 
 library(FrF2)
@@ -115,6 +117,9 @@ with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4
 Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
 Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 \doi{10.1080/10691898.2016.1246953}
+}
+\seealso{
+\code{\link{expandDesign}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

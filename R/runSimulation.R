@@ -1,10 +1,11 @@
-#' Run a Monte Carlo simulation given a data.frame of conditions and simulation functions
+#' Run a Monte Carlo simulation given conditions and simulation functions
 #'
 #' This function runs a Monte Carlo simulation study given a set of predefined simulation functions,
 #' design conditions, and number of replications. Results can be saved as temporary files in case of
 #' interruptions and may be restored by re-running \code{runSimulation}, provided that the respective temp
 #' file can be found in the working directory. \code{runSimulation} supports parallel
-#' and cluster computing (with the \code{parallel} and \code{future} packages),
+#' and cluster computing (with the \code{parallel} and \code{future} packages; see also
+#' \code{\link{runArraySimulation}} for submitting array jobs to HPC clusters),
 #' global and local debugging, error handling (including fail-safe
 #' stopping when functions fail too often, even across nodes), provides bootstrap estimates of the
 #' sampling variability (optional), and automatic tracking of error and warning messages
@@ -12,13 +13,14 @@
 #' For convenience, all functions available in the R work-space are exported across all nodes
 #' so that they are more easily accessible (however, other R objects are not, and therefore
 #' must be passed to the \code{fixed_objects} input to become available across nodes).
+#'
 #' For an in-depth tutorial of the package please refer to Chalmers and Adkins (2020;
 #' \doi{10.20982/tqmp.16.4.p248}).
 #' For an earlier didactic presentation of the package refer to Sigal and Chalmers
 #' (2016; \doi{10.1080/10691898.2016.1246953}). Finally, see the associated
 #' wiki on Github (\url{https://github.com/philchalmers/SimDesign/wiki})
 #' for tutorial material, examples, and applications of \code{SimDesign} to real-world
-#' simulation experiments.
+#' simulation experiments, as well as the various vignette files associated with the package.
 #'
 #' The strategy for organizing the Monte Carlo simulation work-flow is to
 #'
@@ -85,11 +87,12 @@
 #' For longer simulations it is recommended to use the \code{save_results} flag to write the
 #' analysis results to the hard-drive.
 #'
-#' The use of the \code{save_seeds} option can be evoked to save R's \code{.Random.seed}
+#' The use of the \code{store_seeds} or the \code{save_seeds} options
+#' can be evoked to save R's \code{.Random.seed}
 #' state to allow for complete reproducibility of each replication within each condition. These
 #' individual \code{.Random.seed} terms can then be read in with the
 #' \code{load_seed} input to reproduce the exact simulation state at any given replication.
-#' Most often though, \code{save_seeds} is less useful since problematic seeds are
+#' Most often though, saving the complete list of seeds is unnecessary as problematic seeds are
 #' automatically stored in the final simulation object to allow for easier replicability
 #' of potentially problematic errors (which incidentally can be extracted
 #' using \code{SimExtract(res, 'error_seeds')} and passed to the \code{load_seed} argument). Finally,
@@ -176,8 +179,9 @@
 #'   definition.
 #'
 #' @param replications number of independent replications to perform per
-#'   condition (i.e., each row in \code{design}).
-#'   Must be greater than 0
+#'   condition (i.e., each row in \code{design}). Can be a single number, which
+#'   will be used for each design condition, or an integer vector with length
+#'   equal to \code{nrow(design)}. All inputs must be greater than 0
 #'
 #' @param fixed_objects (optional) an object (usually a named \code{list})
 #'   containing additional user-defined objects
@@ -188,7 +192,9 @@
 #'   constant global elements (e.g., a constant for sample size)
 #'
 #' @param parallel logical; use parallel processing from the \code{parallel}
-#'   package over each unique condition?
+#'   package over each unique condition? This distributes the independent \code{replications}
+#'   across the defined nodes, and is repeated for each row condition in the \code{design}
+#'   input.
 #'
 #'   Alternatively, if the \code{\link[future]{future}} package approach is desired then passing
 #'   \code{parallel = 'future'} to \code{runSimulation()} will use the defined
@@ -260,35 +266,14 @@
 #'   See also \code{\link{reSummarise}} for applying summarise functions from saved
 #'   simulation results
 #'
-#' @param save_seeds logical; save the \code{.Random.seed} states prior to performing
-#'   each replication into
-#'   plain text files located in the defined \code{save_seeds_dirname} directory/folder?
-#'   Use this if you would like to keep track of every simulation state within each
-#'   replication and design
-#'   condition. This can be used to completely replicate any cell in the simulation if need be.
-#'   As well, see the \code{load_seed} input
-#'   to load a given \code{.Random.seed} to exactly replicate the generated data and
-#'   analysis state (mostly useful
-#'   for debugging). When \code{TRUE}, temporary files will also be saved
-#'   to the working directory (in the same way as when \code{save = TRUE}).
-#'   Default is \code{FALSE}
-#'
-#'   Note, however, that this option is not typically necessary or recommended since
-#'   the \code{.Random.seed} states for simulation
-#'   replications that throw errors during the execution are automatically stored
-#'   within the final simulation
-#'   object, and can be extracted and investigated using \code{\link{SimExtract}}.
-#'   Hence, this option is only of
-#'   interest when \emph{all} of the replications must be reproducible (which occurs very rarely),
-#'   otherwise the defaults to \code{runSimulation} should be sufficient
-#'
 #' @param load_seed used to replicate an exact simulation state, which is
 #' primarily useful for debugging purposes.
 #'   Input can be a character object indicating which file to load from when the
 #'   \code{.Random.seed}s have
 #'   be saved (after a call with \code{save_seeds = TRUE}), or an integer vector
 #'   indicating the actual
-#'   \code{.Random.seed} values. E.g., \code{load_seed = 'design-row-2/seed-1'}
+#'   \code{.Random.seed} values (e.g., extracted after using \code{store_seeds}).
+#'   E.g., \code{load_seed = 'design-row-2/seed-1'}
 #'   will load the first seed in the second row of the \code{design} input, or
 #'   explicitly passing the
 #'   elements from \code{.Random.seed} (see \code{\link{SimExtract}} to extract
@@ -337,6 +322,37 @@
 #'      stages when designing a simulation experiment. If specific warnings are known to
 #'      be problematic and should be treated as errors then please use
 #'      \code{\link{convertWarnings}} instead}
+#'
+#'      \item{\code{save_seeds}}{
+#'      logical; save the \code{.Random.seed} states prior to performing
+#'      each replication into
+#'      plain text files located in the defined \code{save_seeds_dirname} directory/folder?
+#'      Use this if you would like to keep track of every simulation state within each
+#'      replication and design
+#'      condition. This can be used to completely replicate any cell in the simulation if need be.
+#'      As well, see the \code{load_seed} input
+#'      to load a given \code{.Random.seed} to exactly replicate the generated data and
+#'      analysis state (mostly useful
+#'      for debugging). When \code{TRUE}, temporary files will also be saved
+#'      to the working directory (in the same way as when \code{save = TRUE}).
+#'      Default is \code{FALSE}
+#'
+#'      Note, however, that this option is not typically necessary or recommended since
+#'      the \code{.Random.seed} states for simulation
+#'      replications that throw errors during the execution are automatically stored
+#'      within the final simulation
+#'      object, and can be extracted and investigated using \code{\link{SimExtract}}.
+#'      Hence, this option is only of
+#'      interest when \emph{all} of the replications must be reproducible (which occurs very rarely),
+#'      otherwise the defaults to \code{runSimulation} should be sufficient}
+#'
+#'      \item{\code{store_Random.seeds}}{logical; store the
+#'       complete \code{.Random.seed} states
+#'       for each simulation replicate? Default is \code{FALSE} as this can
+#'       take up a great deal of unnecessary RAM (see related \code{save_seeds}),
+#'       however this may be useful
+#'       when used with \code{\link{runArraySimulation}}. To extract use
+#'       \code{SimExtract(..., what = 'stored_Random.seeds')}}
 #'
 #'      \item{\code{store_warning_seeds}}{logical (default is \code{FALSE});
 #'       in addition to storing the \code{.Random.seed} states whenever error messages
@@ -510,12 +526,17 @@
 #'    argument other than
 #'   \code{'none'} is supplied
 #'
-#' @param seed a vector of integers to be used for reproducibility.
+#' @param seed a vector or list of integers to be used for reproducibility.
 #'   The length of the vector must be equal the number of rows in \code{design}.
-#'   This argument calls \code{\link{set.seed}} or
-#'   \code{\link{clusterSetRNGStream}} for each condition, respectively,
-#'   but will not be run when \code{MPI = TRUE}.
-#'   Default randomly generates seeds within the range 1 to 2147483647 for each condition.
+#'   If the input is a vector then \code{\link{set.seed}} or
+#'   \code{\link{clusterSetRNGStream}} for each condition will be called, respectively,
+#'   but will not be run when \code{MPI = TRUE}. If a list is provided then these
+#'   numbers must have been generated from \code{\link{gen_seeds}} with the argument
+#'   \code{CMRG.seed} used to specify the initial. The list approach ensures random number
+#'   generation independence across conditions and replications, while the vector input
+#'   ensures independence within the replications per conditions but not necessarily
+#'   across conditions. Default randomly generates seeds within the
+#'   range 1 to 2147483647 for each condition via \code{link{gen_seeds}}
 #'
 #' @param progress logical; display a progress bar (using the \code{pbapply} package)
 #'   for each simulation condition?
@@ -544,7 +565,8 @@
 #'   longer an issue.
 #'
 #'   To extract these results
-#'   pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
+#'   pass the returned object to either \code{\link{SimResults}} or \code{\link{SimExtract}} with
+#'   \code{what = 'results'}, which will return a named list
 #'   of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
 #'   \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is
 #'
@@ -561,7 +583,8 @@
 #' \code{RAM_USED} amount of RAM that was in use at the time of completing
 #'   each simulation condition,
 #' \code{COMPLETED} to indicate the date in which the given simulation condition completed,
-#' \code{SEED} for the integer values in the \code{seed} argument, and, if applicable,
+#' \code{SEED} for the integer values in the \code{seed} argument (if applicable; not
+#' relevant when L'Ecuyer-CMRG method used), and, if applicable,
 #' \code{ERRORS} and \code{WARNINGS} which contain counts for the number of error or warning
 #' messages that were caught (if no errors/warnings were observed these columns will be omitted).
 #' Note that to extract the specific error and warnings messages see
@@ -578,7 +601,7 @@
 #'   \code{\link{SimExtract}},
 #'   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
 #'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
-#'   \code{\link{SimShiny}}, \code{\link{convertWarnings}}
+#'   \code{\link{SimShiny}}, \code{\link{convertWarnings}}, \code{\link{runArraySimulation}}
 #'
 #' @export runSimulation
 #'
@@ -641,6 +664,7 @@
 #' Final <- runSimulation(design=Design, replications=10,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' Final
+#' SimResults(Final)
 #'
 #' \dontrun{
 #' # reproduce exact simulation
@@ -661,7 +685,7 @@
 #' # To store the results from the analyse function either
 #' #   a) omit a definition of summarise() to return all results,
 #' #   b) use store_results = TRUE (default) to store results internally and later
-#' #      extract with SimExtract(..., what = 'results'), or
+#' #      extract with SimResults(), or
 #' #   c) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
 #' #
 #' #   Note that method c) should be adopted for larger simulations, particularly
@@ -676,7 +700,7 @@
 #' res <- runSimulation(design=Design, replications=5,
 #'                      generate=Generate, analyse=Analyse, summarise=Summarise)
 #' res
-#' SimExtract(res, 'results')
+#' SimResults(res)
 #'
 #' # c) approach
 #' Final <- runSimulation(design=Design, replications=5, save_results=TRUE,
@@ -924,13 +948,13 @@
 #'
 runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL, filename = NULL,
-                          debug = 'none', load_seed = NULL, save = replications > 10,
+                          debug = 'none', load_seed = NULL, save = any(replications > 10),
                           store_results = TRUE, save_results = FALSE,
                           parallel = FALSE, ncores = parallel::detectCores() - 1L,
                           cl = NULL, notification = 'none', beep = FALSE, sound = 1,
                           CI = .95, seed = NULL,
                           boot_method='none', boot_draws = 1000L, max_errors = 50L,
-                          save_seeds = FALSE, resume = TRUE,
+                          resume = TRUE,
                           save_details = list(), control = list(),
                           progress = TRUE, verbose = TRUE)
 {
@@ -946,11 +970,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         useFuture <- tolower(parallel) == 'future'
         parallel <- TRUE
     } else useFuture <- FALSE
-    if(is.null(seed)){
-        seed <- if(missing(design))
-            rint(1L, min=1L, max = 2147483647L)
-        else rint(nrow(design), min=1L, max = 2147483647L)
-    }
+    if(is.null(seed))
+        seed <- gen_seeds(design)
     if(debug != 'none'){
         if(grepl('-', debug)){
             tmp <- strsplit(debug, '-')[[1]]
@@ -1014,20 +1035,25 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         if(!("RPushbullet" %in% (.packages())))
             stop('Please use library(RPushbullet) to load the default ~/.rpushbullet.json file',
                  call. = FALSE)
+    save_seeds <- ifelse(is.null(control$save_seeds),
+                      FALSE, control$save_seeds)
+    store_Random.seeds <- ifelse(is.null(control$store_Random.seeds),
+                                  FALSE, control$store_Random.seeds)
     store_warning_seeds <- ifelse(is.null(control$store_warning_seeds),
                                   FALSE, control$store_warning_seeds)
     warnings_as_errors <- ifelse(is.null(control$warnings_as_errors),
                                  FALSE, control$warnings_as_errors)
-    allow_na <- ifelse(is.null(control$allow_na),
-                       FALSE, control$allow_na)
-    allow_nan <- ifelse(is.null(control$allow_nan),
-                        FALSE, control$allow_nan)
-    print_RAM <- ifelse(is.null(control$print_RAM),
-                                 TRUE, control$print_RAM)
+    allow_na <- ifelse(is.null(control$allow_na), FALSE, control$allow_na)
+    allow_nan <- ifelse(is.null(control$allow_nan), FALSE, control$allow_nan)
+    print_RAM <- ifelse(is.null(control$print_RAM), TRUE, control$print_RAM)
     stop_on_fatal <- ifelse(is.null(control$stop_on_fatal),
                             FALSE, control$stop_on_fatal)
-    MPI <- ifelse(is.null(control$MPI),
-                  FALSE, control$MPI)
+    max_time <- ifelse(is.null(control$max_time), Inf, control$max_time)
+    max_RAM <- ifelse(is.null(control$max_RAM), Inf, control$max_RAM)
+    max_time <- sbatch_time2sec(max_time)
+    max_RAM <- sbatch_RAM2bytes(max_RAM)
+    MPI <- ifelse(is.null(control$MPI), FALSE, control$MPI)
+
     .options.mpi <- ifelse(is.null(control$.options.mpi),
                            list(), control$.options.mpi)
     type <- if(is.null(control$type))
@@ -1041,7 +1067,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     include_replication_index <- ifelse(is.null(control$include_replication_index),
                                         FALSE, control$include_replication_index)
     if(verbose){
-        if(replications >= 200)
+        if(any(replications >= 200))
             if(!save_results && !store_results)
                 message(c('NOTE: using save_results or store_results is ',
                         'recommended for higher replication simulations'))
@@ -1118,6 +1144,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     SimSolveRun <- !is.null(attr(design, 'SimSolve'))
     stopifnot(!missing(replications))
     replications <- as.integer(replications)
+    if(length(replications) == 1L)
+        replications <- rep(replications, nrow(design))
+    stopifnot("length of replications not equal to nrow(design)"=
+                  nrow(design) == length(replications))
     if(!is.null(seed))
         stopifnot(nrow(design) == length(seed))
     debug <- tolower(debug)
@@ -1132,8 +1162,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     start <- 1L; end <- nrow(design)
     if(!is.null(load_seed)){
+        if(length(load_seed) == 7L){
+            rngkind <- RNGkind()
+            RNGkind("L'Ecuyer-CMRG")
+            on.exit(RNGkind(rngkind[1L]), add = TRUE)
+        }
         save <- save_seeds <- parallel <- MPI <- useFuture <- FALSE
-        replications <- 1L
+        replications <- rep(1L, nrow(design))
         if(is.character(load_seed)){
             load_seed2 <- gsub('design-row-', '', load_seed)
             start <- end <- as.numeric(gsub('/.*', '', load_seed2))
@@ -1165,7 +1200,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     if(!is(design, 'data.frame'))
         stop('design must be a data.frame or tibble object', call. = FALSE)
-    if(replications < 1L)
+    if(any(replications < 1L))
         stop('number of replications must be greater than or equal to 1', call. = FALSE)
     if(!(debug %in% c('none', 'analyse', 'generate', 'summarise', 'all', 'error')))
         stop('debug input is not valid', call. = FALSE)
@@ -1215,19 +1250,18 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     files <- dir(out_rootdir)
     if(resume && !MPI && any(files == tmpfilename) && is.null(load_seed) && debug == 'none'){
         if(verbose && is.na(resume.row))
-            message(sprintf(c('Resuming simulation from %s file with %i replications. ',
+            message(sprintf(c('Resuming simulation from %s file. ',
                               '\nIf not intended, use SimClean() prior to calling runSimulation()'),
-                            file.path(out_rootdir, tmpfilename), replications))
+                            file.path(out_rootdir, tmpfilename)))
+
         Result_list <- readRDS(file.path(out_rootdir, tmpfilename))
-        if(!is.null(Result_list[[1L]]$REPLICATIONS))
-            replications <- Result_list[[1L]]$REPLICATIONS
         if(nrow(design) != length(Result_list)){
             if(nrow(design) < length(Result_list))
-                Result_list <- Result_list[1:nrow(design)]
+                Result_list <- Result_list[1L:nrow(design)]
             else if(nrow(design) > length(Result_list)){
                 tmp_new <- vector('list', nrow(design))
                 names(tmp_new) <- 1L:nrow(design)
-                tmp_new[1:length(Result_list)] <- Result_list
+                tmp_new[1L:length(Result_list)] <- Result_list
                 Result_list <- tmp_new
             }
         }
@@ -1318,27 +1352,36 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     memory_used <- character(nrow(design)+1L)
     if(print_RAM)
         memory_used[1L] <- RAM_used()
+    if(is.finite(max_RAM)){
+        tmp <- RAM_used(format = FALSE)
+        max_RAM <- max_RAM - tmp
+        if(max_RAM < 0)
+            stop(sprintf('max_RAM must be higher than %s. Please increase', RAM_used()), call.=FALSE)
+    }
     for(i in start:end){
         time0 <- proc.time()[3L]
         if(summarise_asis){
             if(verbose)
                 print_progress(i, nrow(design), stored_time=stored_time,
-                               RAM=memory_used[i], progress=progress, replications=replications,
+                               replications=replications[i],
+                               RAM=memory_used[i], progress=progress,
                                condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                else design[i,])
             Result_list[[i]] <- Analysis(Functions=Functions,
                                          condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                            else design[i,],
-                                         replications=replications,
+                                         replications=replications[i],
                                          fixed_objects=fixed_objects,
                                          cl=cl, MPI=MPI, .options.mpi=.options.mpi, seed=seed,
                                          boot_draws=boot_draws, boot_method=boot_method, CI=CI,
                                          save=save, allow_na=allow_na, allow_nan=allow_nan,
                                          save_results=save_results, useFuture=useFuture,
+                                         store_Random.seeds=store_Random.seeds,
                                          store_warning_seeds=store_warning_seeds,
                                          save_results_out_rootdir=out_rootdir,
                                          save_results_dirname=save_results_dirname,
                                          save_results_filename=save_results_filename,
+                                         arrayID=save_details$arrayID,
                                          multirow=nrow(design) > 1L,
                                          save_seeds=save_seeds, summarise_asis=summarise_asis,
                                          save_seeds_dirname=save_seeds_dirname,
@@ -1347,7 +1390,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          load_seed=load_seed, export_funs=export_funs,
                                          warnings_as_errors=warnings_as_errors,
                                          progress=progress, store_results=FALSE, use_try=use_try,
-                                         stop_on_fatal=stop_on_fatal,
+                                         stop_on_fatal=stop_on_fatal, max_time=max_time, max_RAM=max_RAM,
                                          allow_gen_errors=!SimSolveRun)
             time1 <- proc.time()[3L]
             stored_time <- stored_time + (time1 - time0)
@@ -1359,7 +1402,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
             if(verbose)
                 print_progress(i, nrow(design), stored_time=stored_time,
-                               RAM=memory_used[i], progress=progress, replications=replications,
+                               replications=replications[i],
+                               RAM=memory_used[i], progress=progress,
                                condition=if(was_tibble) dplyr::as_tibble(design[i,])
                                else design[i,])
             if(save_seeds)
@@ -1368,9 +1412,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                            showWarnings = FALSE)
             tmp <- Analysis(Functions=Functions,
                             condition=if(was_tibble) dplyr::as_tibble(design[i,]) else design[i,],
-                            replications=replications,
+                            replications=replications[i],
                             fixed_objects=fixed_objects,
                             cl=cl, MPI=MPI, .options.mpi=.options.mpi, seed=seed,
+                            store_Random.seeds=store_Random.seeds,
                             boot_method=boot_method, boot_draws=boot_draws, CI=CI,
                             save=save, allow_na=allow_na, allow_nan=allow_nan,
                             save_results=save_results, useFuture=useFuture,
@@ -1380,18 +1425,19 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             save_results_filename=save_results_filename,
                             save_seeds=save_seeds, summarise_asis=summarise_asis,
                             save_seeds_dirname=save_seeds_dirname,
+                            arrayID=save_details$arrayID,
                             multirow=nrow(design) > 1L,
                             max_errors=max_errors, packages=packages,
                             include_replication_index=include_replication_index,
                             load_seed=load_seed, export_funs=export_funs,
                             warnings_as_errors=warnings_as_errors,
                             progress=progress, store_results=store_results, use_try=use_try,
-                            stop_on_fatal=stop_on_fatal,
+                            stop_on_fatal=stop_on_fatal, max_time=max_time, max_RAM=max_RAM,
                             allow_gen_errors=!SimSolveRun)
             if(SimSolveRun){
                 full_results <- attr(tmp, 'full_results')
                 condition <- if(was_tibble) dplyr::as_tibble(design[i,]) else design[i,]
-                summary_results <- sapply(1L:replications, function(i){
+                summary_results <- sapply(1L:replications[i], function(i){
                     summarise(condition=condition,
                               results=if(!is.data.frame(full_results) &&
                                          is.list(full_results)) full_results[i]
@@ -1406,6 +1452,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             }
             Result_list[[i]] <- data.frame(design[i, ], as.list(tmp),
                                            check.names=FALSE)
+            attr(Result_list[[i]], 'Random.seeds') <- attr(tmp, 'stored_Random.seeds')
             attr(Result_list[[i]], 'error_seeds') <- attr(tmp, 'error_seeds')
             attr(Result_list[[i]], 'warning_seeds') <- attr(tmp, 'warning_seeds')
             attr(Result_list[[i]], 'summarise_list') <- attr(tmp, 'summarise_list')
@@ -1462,6 +1509,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             names(Result_list) <- nms2
             if(is.list(Result_list[[1L]][[1L]]))
                 for(i in seq_len(length(Result_list)))
+                    attr(Result_list[[i]][[1L]], 'stored_Random.seeds') <-
                     attr(Result_list[[i]][[1L]], 'try_errors') <-
                     attr(Result_list[[i]][[1L]], 'try_error_seeds') <-
                     attr(Result_list[[i]][[1L]], 'warning_seeds') <-
@@ -1475,6 +1523,12 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         message('\nSimulation complete. Total execution time: ',
                 timeFormater(sum(stored_time)), "\n")
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
+    if(store_Random.seeds){
+        stored_Random.seeds_list <- lapply(1L:length(Result_list),
+                        function(x)
+            attr(Result_list[[x]], "Random.seeds"))
+
+    } else stored_Random.seeds_list <- NULL
     error_seeds <- data.frame(do.call(cbind, lapply(1L:length(Result_list), function(x){
         ret <- attr(Result_list[[x]], "error_seeds")
         if(length(ret) == 0L || nrow(ret) == 0L) return(NULL)
@@ -1501,6 +1555,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     }
     SIM_TIME <- Final$SIM_TIME
     COMPLETED <- Final$COMPLETED
+    if(!is.null(Final$REPLICATIONS)) replications <- Final$REPLICATIONS
     Final$SIM_TIME <- Final$ID <- Final$COMPLETED <-
         Final$REPLICATIONS <- Final$REPLICATION <- Final$FATAL_TERMINATION <- NULL
     Final <- data.frame(Final, FATAL_TERMINATION,
@@ -1542,6 +1597,10 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     sn <- colnames(Final)[!(colnames(Final) %in% c(dn, en, ten, wen, bsen))]
     Final <- data.frame(Final[ ,c(dn, sn, bsen, en)], ERRORS, WARNINGS,
                                          check.names = FALSE)
+    if(is.list(seed)){
+        Final$SEED <- NULL
+        en <- en[-4L]
+    }
     if(all(memory_used == "")) Final$RAM_USED <- NULL
     if(all(ERRORS == 0)) Final$ERRORS <- NULL
     if(all(WARNINGS == 0)) Final$WARNINGS <- NULL
@@ -1563,6 +1622,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                       save_info = c(filename=filename,
                                                     save_results_dirname=save_results_dirname,
                                                     save_seeds_dirname=save_seeds_dirname)[pick],
+                                      seeds=seed, stored_Random.seeds_list=stored_Random.seeds_list,
                                       ncores = if(parallel) length(cl) else if(MPI) NA else 1L,
                                       number_of_conditions = nrow(design),
                                       date_completed = noquote(date()), total_elapsed_time = sum(SIM_TIME),

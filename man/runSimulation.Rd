@@ -4,7 +4,7 @@
 \alias{runSimulation}
 \alias{summary.SimDesign}
 \alias{print.SimDesign}
-\title{Run a Monte Carlo simulation given a data.frame of conditions and simulation functions}
+\title{Run a Monte Carlo simulation given conditions and simulation functions}
 \usage{
 runSimulation(
   design,
@@ -17,7 +17,7 @@ runSimulation(
   filename = NULL,
   debug = "none",
   load_seed = NULL,
-  save = replications > 10,
+  save = any(replications > 10),
   store_results = TRUE,
   save_results = FALSE,
   parallel = FALSE,
@@ -31,7 +31,6 @@ runSimulation(
   boot_method = "none",
   boot_draws = 1000L,
   max_errors = 50L,
-  save_seeds = FALSE,
   resume = TRUE,
   save_details = list(),
   control = list(),
@@ -50,8 +49,9 @@ to be varied. See \code{\link{createDesign}} for the standard approach
 to create this simulation design object}
 
 \item{replications}{number of independent replications to perform per
-condition (i.e., each row in \code{design}).
-Must be greater than 0}
+condition (i.e., each row in \code{design}). Can be a single number, which
+will be used for each design condition, or an integer vector with length
+equal to \code{nrow(design)}. All inputs must be greater than 0}
 
 \item{generate}{user-defined data and parameter generating function (or named list of functions).
 See \code{\link{Generate}} for details. Note that this argument may be omitted by the
@@ -160,7 +160,8 @@ primarily useful for debugging purposes.
   \code{.Random.seed}s have
   be saved (after a call with \code{save_seeds = TRUE}), or an integer vector
   indicating the actual
-  \code{.Random.seed} values. E.g., \code{load_seed = 'design-row-2/seed-1'}
+  \code{.Random.seed} values (e.g., extracted after using \code{store_seeds}).
+  E.g., \code{load_seed = 'design-row-2/seed-1'}
   will load the first seed in the second row of the \code{design} input, or
   explicitly passing the
   elements from \code{.Random.seed} (see \code{\link{SimExtract}} to extract
@@ -197,7 +198,8 @@ primarily useful for debugging purposes.
   longer an issue.
 
   To extract these results
-  pass the returned object to \code{SimExtract(..., what = 'results')}, which will return a named list
+  pass the returned object to either \code{\link{SimResults}} or \code{\link{SimExtract}} with
+  \code{what = 'results'}, which will return a named list
   of all the simulation results for each condition if \code{nrow(Design) > 1}; otherwise, if
   \code{nrow(Design) == 1} or \code{Design} was missing the \code{results} object will be stored as-is}
 
@@ -219,7 +221,9 @@ primarily useful for debugging purposes.
   simulation results}
 
 \item{parallel}{logical; use parallel processing from the \code{parallel}
-  package over each unique condition?
+  package over each unique condition? This distributes the independent \code{replications}
+  across the defined nodes, and is repeated for each row condition in the \code{design}
+  input.
 
   Alternatively, if the \code{\link[future]{future}} package approach is desired then passing
   \code{parallel = 'future'} to \code{runSimulation()} will use the defined
@@ -270,12 +274,17 @@ primarily useful for debugging purposes.
 
 \item{CI}{bootstrap confidence interval level (default is 95\%)}
 
-\item{seed}{a vector of integers to be used for reproducibility.
+\item{seed}{a vector or list of integers to be used for reproducibility.
 The length of the vector must be equal the number of rows in \code{design}.
-This argument calls \code{\link{set.seed}} or
-\code{\link{clusterSetRNGStream}} for each condition, respectively,
-but will not be run when \code{MPI = TRUE}.
-Default randomly generates seeds within the range 1 to 2147483647 for each condition.}
+If the input is a vector then \code{\link{set.seed}} or
+\code{\link{clusterSetRNGStream}} for each condition will be called, respectively,
+but will not be run when \code{MPI = TRUE}. If a list is provided then these
+numbers must have been generated from \code{\link{gen_seeds}} with the argument
+\code{CMRG.seed} used to specify the initial. The list approach ensures random number
+generation independence across conditions and replications, while the vector input
+ensures independence within the replications per conditions but not necessarily
+across conditions. Default randomly generates seeds within the
+range 1 to 2147483647 for each condition via \code{link{gen_seeds}}}
 
 \item{boot_method}{method for performing non-parametric bootstrap confidence intervals
 for the respective meta-statistics computed by the \code{Summarise} function.
@@ -295,28 +304,6 @@ errors are thrown in any
   This is included to avoid getting stuck in infinite re-draws, and to indicate that
   something fatally problematic
   is going wrong in the generate-analyse phases. Default is 50}
-
-\item{save_seeds}{logical; save the \code{.Random.seed} states prior to performing
-  each replication into
-  plain text files located in the defined \code{save_seeds_dirname} directory/folder?
-  Use this if you would like to keep track of every simulation state within each
-  replication and design
-  condition. This can be used to completely replicate any cell in the simulation if need be.
-  As well, see the \code{load_seed} input
-  to load a given \code{.Random.seed} to exactly replicate the generated data and
-  analysis state (mostly useful
-  for debugging). When \code{TRUE}, temporary files will also be saved
-  to the working directory (in the same way as when \code{save = TRUE}).
-  Default is \code{FALSE}
-
-  Note, however, that this option is not typically necessary or recommended since
-  the \code{.Random.seed} states for simulation
-  replications that throw errors during the execution are automatically stored
-  within the final simulation
-  object, and can be extracted and investigated using \code{\link{SimExtract}}.
-  Hence, this option is only of
-  interest when \emph{all} of the replications must be reproducible (which occurs very rarely),
-  otherwise the defaults to \code{runSimulation} should be sufficient}
 
 \item{resume}{logical; if a temporary \code{SimDesign} file is detected should
 the simulation resume from this location? Keeping this \code{TRUE} is generally recommended,
@@ -396,6 +383,37 @@ in the simulation}
      stages when designing a simulation experiment. If specific warnings are known to
      be problematic and should be treated as errors then please use
      \code{\link{convertWarnings}} instead}
+
+     \item{\code{save_seeds}}{
+     logical; save the \code{.Random.seed} states prior to performing
+     each replication into
+     plain text files located in the defined \code{save_seeds_dirname} directory/folder?
+     Use this if you would like to keep track of every simulation state within each
+     replication and design
+     condition. This can be used to completely replicate any cell in the simulation if need be.
+     As well, see the \code{load_seed} input
+     to load a given \code{.Random.seed} to exactly replicate the generated data and
+     analysis state (mostly useful
+     for debugging). When \code{TRUE}, temporary files will also be saved
+     to the working directory (in the same way as when \code{save = TRUE}).
+     Default is \code{FALSE}
+
+     Note, however, that this option is not typically necessary or recommended since
+     the \code{.Random.seed} states for simulation
+     replications that throw errors during the execution are automatically stored
+     within the final simulation
+     object, and can be extracted and investigated using \code{\link{SimExtract}}.
+     Hence, this option is only of
+     interest when \emph{all} of the replications must be reproducible (which occurs very rarely),
+     otherwise the defaults to \code{runSimulation} should be sufficient}
+
+     \item{\code{store_Random.seeds}}{logical; store the
+      complete \code{.Random.seed} states
+      for each simulation replicate? Default is \code{FALSE} as this can
+      take up a great deal of unnecessary RAM (see related \code{save_seeds}),
+      however this may be useful
+      when used with \code{\link{runArraySimulation}}. To extract use
+      \code{SimExtract(..., what = 'stored_Random.seeds')}}
 
      \item{\code{store_warning_seeds}}{logical (default is \code{FALSE});
       in addition to storing the \code{.Random.seed} states whenever error messages
@@ -487,7 +505,8 @@ all the Monte Carlo replications for each respective design condition,
 \code{RAM_USED} amount of RAM that was in use at the time of completing
   each simulation condition,
 \code{COMPLETED} to indicate the date in which the given simulation condition completed,
-\code{SEED} for the integer values in the \code{seed} argument, and, if applicable,
+\code{SEED} for the integer values in the \code{seed} argument (if applicable; not
+relevant when L'Ecuyer-CMRG method used), and, if applicable,
 \code{ERRORS} and \code{WARNINGS} which contain counts for the number of error or warning
 messages that were caught (if no errors/warnings were observed these columns will be omitted).
 Note that to extract the specific error and warnings messages see
@@ -502,7 +521,8 @@ This function runs a Monte Carlo simulation study given a set of predefined simu
 design conditions, and number of replications. Results can be saved as temporary files in case of
 interruptions and may be restored by re-running \code{runSimulation}, provided that the respective temp
 file can be found in the working directory. \code{runSimulation} supports parallel
-and cluster computing (with the \code{parallel} and \code{future} packages),
+and cluster computing (with the \code{parallel} and \code{future} packages; see also
+\code{\link{runArraySimulation}} for submitting array jobs to HPC clusters),
 global and local debugging, error handling (including fail-safe
 stopping when functions fail too often, even across nodes), provides bootstrap estimates of the
 sampling variability (optional), and automatic tracking of error and warning messages
@@ -510,15 +530,16 @@ with their associated \code{.Random.seed} states.
 For convenience, all functions available in the R work-space are exported across all nodes
 so that they are more easily accessible (however, other R objects are not, and therefore
 must be passed to the \code{fixed_objects} input to become available across nodes).
+}
+\details{
 For an in-depth tutorial of the package please refer to Chalmers and Adkins (2020;
 \doi{10.20982/tqmp.16.4.p248}).
 For an earlier didactic presentation of the package refer to Sigal and Chalmers
 (2016; \doi{10.1080/10691898.2016.1246953}). Finally, see the associated
 wiki on Github (\url{https://github.com/philchalmers/SimDesign/wiki})
 for tutorial material, examples, and applications of \code{SimDesign} to real-world
-simulation experiments.
-}
-\details{
+simulation experiments, as well as the various vignette files associated with the package.
+
 The strategy for organizing the Monte Carlo simulation work-flow is to
 
 \describe{
@@ -585,11 +606,12 @@ are discarded; however, these can be saved to the hard-disk by passing the appro
 For longer simulations it is recommended to use the \code{save_results} flag to write the
 analysis results to the hard-drive.
 
-The use of the \code{save_seeds} option can be evoked to save R's \code{.Random.seed}
+The use of the \code{store_seeds} or the \code{save_seeds} options
+can be evoked to save R's \code{.Random.seed}
 state to allow for complete reproducibility of each replication within each condition. These
 individual \code{.Random.seed} terms can then be read in with the
 \code{load_seed} input to reproduce the exact simulation state at any given replication.
-Most often though, \code{save_seeds} is less useful since problematic seeds are
+Most often though, saving the complete list of seeds is unnecessary as problematic seeds are
 automatically stored in the final simulation object to allow for easier replicability
 of potentially problematic errors (which incidentally can be extracted
 using \code{SimExtract(res, 'error_seeds')} and passed to the \code{load_seed} argument). Finally,
@@ -682,6 +704,7 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
 Final <- runSimulation(design=Design, replications=10,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 Final
+SimResults(Final)
 
 \dontrun{
 # reproduce exact simulation
@@ -702,7 +725,7 @@ Final
 # To store the results from the analyse function either
 #   a) omit a definition of summarise() to return all results,
 #   b) use store_results = TRUE (default) to store results internally and later
-#      extract with SimExtract(..., what = 'results'), or
+#      extract with SimResults(), or
 #   c) pass save_results = TRUE to runSimulation() and read the results in with SimResults()
 #
 #   Note that method c) should be adopted for larger simulations, particularly
@@ -717,7 +740,7 @@ res
 res <- runSimulation(design=Design, replications=5,
                      generate=Generate, analyse=Analyse, summarise=Summarise)
 res
-SimExtract(res, 'results')
+SimResults(res)
 
 # c) approach
 Final <- runSimulation(design=Design, replications=5, save_results=TRUE,
@@ -979,7 +1002,7 @@ Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
   \code{\link{SimExtract}},
   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
-  \code{\link{SimShiny}}, \code{\link{convertWarnings}}
+  \code{\link{SimShiny}}, \code{\link{convertWarnings}}, \code{\link{runArraySimulation}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

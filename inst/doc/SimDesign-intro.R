@@ -63,13 +63,20 @@ set.seed(1234)
 ## -----------------------------------------------------------------------------
 res <- runSimulation(Design, replications = 1000, generate=Generate, 
                          analyse=Analyse, summarise=Summarise)
+
+# Final simulation object
 res
+
+## -----------------------------------------------------------------------------
+# Extract complete set of stored results
+results <- SimResults(res)
+results
 
 ## -----------------------------------------------------------------------------
 REs <- res[,grepl('RE\\.', colnames(res))]
 data.frame(Design, REs)
 
-## ---- include=FALSE-----------------------------------------------------------
+## ----include=FALSE------------------------------------------------------------
 set.seed(1)
 
 ## -----------------------------------------------------------------------------

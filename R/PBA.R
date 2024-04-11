@@ -208,7 +208,10 @@ PBA <- function(f, interval, ..., p = .6,
         if(no_root){
             msg <- sprintf('interval range supplied appears to be %s the probable root.',
                            ifelse(upper[1L] == 0, '*above*', '*below*'))
-            stop(msg, call.=FALSE)
+            old.opts <- options()
+            options(warn=1)
+            warning(msg, call.=FALSE)
+            options(old.opts)
         }
         if(check.interval.only) return(!no_root)
     }
@@ -308,11 +311,21 @@ PBA <- function(f, interval, ..., p = .6,
     }
     converged <- iter < maxiter
     predCIs <- c(NA, NA, NA)
-    if(!is.null(FromSimSolve))
+    predCIs_root <- c(NA, NA)
+    if(!is.null(FromSimSolve)){
         predCIs <- SimSolveUniroot(SimMod=SimMod, b=dots$b,
                                interval=quantile(medhistory[medhistory != 0],
                                                  probs = c(.05, .95)),
                                max.interval=interval,median=med, CI=predCI)
+        predCIs_root[1L] <- SimSolveUniroot(SimMod=SimMod, b=predCIs[2L],
+                                            interval=quantile(medhistory[medhistory != 0],
+                                                              probs = c(.05, .95)),
+                                            max.interval=interval,median=med, CI=predCI)[1L]
+        predCIs_root[2L] <- SimSolveUniroot(SimMod=SimMod, b=predCIs[3L],
+                                            interval=quantile(medhistory[medhistory != 0],
+                                                              probs = c(.05, .95)),
+                                            max.interval=interval,median=med, CI=predCI)[1L]
+    }
     if(verbose)
         cat("\n")
     fx <- exp(fx) / sum(exp(fx)) # normalize final result
@@ -322,7 +335,8 @@ PBA <- function(f, interval, ..., p = .6,
     ret <- list(iter=iter, root=root, terminated_early=converged, integer=integer,
                 e.froot=e.froot, x=x, fx=fx, medhistory=medhistory,
                 time=as.numeric(proc.time()[3L]-start_time),
-                burnin=interpolate.burnin, predCIs=predCIs[-1L])
+                burnin=interpolate.burnin, b=dots$b,
+                predCIs=predCIs[-1L], predCIs_root=predCIs_root)
     if(!is.null(FromSimSolve)) ret$total.replications <- sum(replications[1L:iter])
     class(ret) <- 'PBA'
     ret
@@ -339,7 +353,9 @@ print.PBA <- function(x, ...)
               time=noquote(timeFormater(time)),
               iterations = iter))
     if(!all(is.na(x$predCIs)))
-        out <- append(out, list(prediction_CI = x$predCIs), 2L)
+        out <- append(out, list(pred_CI.root = x$predCIs_root,
+                                b = x$b,
+                                pred_CI.b = x$predCIs), 1L)
     if(!is.null(x$total.replications))
         out$total.replications <- x$total.replications
     if(x$integer && !is.null(x$tab))

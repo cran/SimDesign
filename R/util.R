@@ -340,6 +340,49 @@ unwind_apply_wind.list <- function(lst, mat, fun, ...){
     ret
 }
 
+lapply_timer <- function(X, FUN, max_time, max_RAM, ...){
+    if(is.finite(max_time)){
+        ret <- vector('list', length(X))
+        total <- max_time
+        elapsed <- 0
+        time_left <- total
+        for(i in 1L:length(ret)){
+            st <- proc.time()['elapsed']
+            val <- R.utils::withTimeout(FUN(...),
+                                        timeout = time_left,
+                                        onTimeout = 'warning')
+            elapsed <- elapsed + proc.time()['elapsed'] - st
+            time_left <- total - elapsed
+            ret[[i]] <- val
+            if(time_left <= 0){
+                message(sprintf(c("Simulation terminated due to max_time constraint",
+                                " (%i/%i replications evaluated)."), i, length(ret)))
+                ret <- ret[1L:i]
+                break
+            }
+            if(is.finite(max_RAM) && object.size(ret) > max_RAM){
+                message(sprintf(c("Simulation terminated due to max_RAM constraint",
+                                  " (%i/%i replications evaluated)."), i, length(ret)))
+                ret <- ret[1L:i]
+                break
+            }
+        }
+    } else {
+        ret <- vector('list', length(X))
+        for(i in 1L:length(ret)){
+            val <- FUN(...)
+            ret[[i]] <- val
+            if(is.finite(max_RAM) && object.size(ret) > max_RAM){
+                message(sprintf(c("Simulation terminated due to max_RAM constraint",
+                                  " (%i/%i replications evaluated)."), i, length(ret)))
+                ret <- ret[1L:i]
+                break
+            }
+        }
+    }
+    ret
+}
+
 combined_Analyses <- function(condition, dat, fixed_objects = NULL){
     if(!is.null(.SIMDENV$ANALYSE_FUNCTIONS)){
         ANALYSE_FUNCTIONS <- .SIMDENV$ANALYSE_FUNCTIONS
@@ -531,7 +574,7 @@ bisection <- function (f, interval, ..., tol = 0.001, maxiter = 100,
          false_converge=false_converge)
 }
 
-RAM_used <- function(){
+RAM_used <- function(format=TRUE){
     # borrowed and modified from pryr::node_size(), 13-06-2023
     bit <- 8L * .Machine$sizeof.pointer
     if (!(bit == 32L || bit == 64L)) {
@@ -541,6 +584,7 @@ RAM_used <- function(){
     # end borrowed portion
     bytes <- sum(gc()[, 1] * c(val, 8))
     size <- structure(bytes, class="object_size")
+    if(!format) return(size)
     format(size, 'MB')
 }
 
@@ -595,5 +639,172 @@ colSDs <- function(x, na.rm=FALSE, unname=FALSE){
 pickReps <- function(replications, iter){
     ret <- if(iter > length(replications))
         max(replications) else replications[iter]
+    ret
+}
+
+set_seed <- function(seed){
+    if(is.list(seed)) .Random.seed <- seed[[1L]]
+    else set.seed(seed)
+    invisible(NULL)
+}
+
+valid_results <- function(x)
+    is(x, 'numeric') || is(x, 'data.frame') || is(x, 'list') || is(x, 'try-error')
+
+#' Generate random seeds
+#'
+#' Generate seeds to be passed to \code{runSimulation}'s \code{seed} input. Values
+#' are sampled from 1 to 2147483647, or are generated using L'Ecuyer-CMRG's (2002)
+#' method (returning either a list if \code{arrayID} is omitted, or the specific
+#' row value from this list if \code{arrayID} is included).
+#'
+#' @param design design matrix that requires a unique seed per condition, or
+#'   a number indicating the number of seeds to generate. Default generates one
+#'   number
+#'
+#' @param iseed the initial \code{set.seed} number used to generate a sequence
+#'   of independent seeds according to the L'Ecuyer-CMRG (2002) method. This
+#'   is recommended whenever quality random number generation is required
+#'   across similar (if not identical) simulation jobs
+#'   (e.g., see \code{\link{runArraySimulation}}). If \code{arrayID} is not
+#'   specified then this will return a list of the associated seed for the
+#'   full \code{design}
+#'
+#' @param arrayID (optional) single integer input corresponding to the specific
+#'   row in the \code{design} object when using the \code{iseed} input.
+#'   This is used in functions such as \code{\link{runArraySimulation}}
+#'   to pull out the specific seed rather than manage a complete list, and
+#'   is therefore more memory efficient
+#'
+#' @export
+#'
+#' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
+#'
+#' @examples
+#'
+#' # generate 1 seed (default)
+#' gen_seeds()
+#'
+#' # generate 5 unique seeds
+#' gen_seeds(5)
+#'
+#' # generate from nrow(design)
+#' design <- createDesign(factorA=c(1,2,3),
+#'                        factorB=letters[1:3])
+#' seeds <- gen_seeds(design)
+#' seeds
+#'
+#' # generate seeds for runArraySimulation()
+#' (iseed <- gen_seeds())  # initial seed
+#' seed_list <- gen_seeds(design, iseed=iseed)
+#' seed_list
+#'
+#' # expand number of unique seeds given iseed (e.g., in case more replications
+#' # are required at a later date)
+#' seed_list_tmp <- gen_seeds(nrow(design)*2, iseed=iseed)
+#' str(seed_list_tmp) # first 9 seeds identical to seed_list
+#'
+#' # more usefully for HPC, extract only the seed associated with an arrayID
+#' arraySeed.15 <- gen_seeds(nrow(design)*2, iseed=iseed, arrayID=15)
+#' arraySeed.15
+#'
+gen_seeds <- function(design = 1L, iseed = NULL, arrayID = NULL){
+    if(missing(design)) design <- 1L
+    if(is.numeric(design))
+        design <- matrix(NA, nrow=design)
+    if(is.null(iseed)){
+        seed <- rint(nrow(design), min=1L, max = 2147483647L)
+    } else {
+        rngkind <- RNGkind()
+        RNGkind("L'Ecuyer-CMRG")
+        on.exit({RNGkind(rngkind[1L]); set.seed(NULL)})
+        seed <- if(!is.null(arrayID)) vector('list', 1L)
+            else vector('list', nrow(design))
+        set.seed(iseed)
+        seed[[1L]] <- .Random.seed
+        if(!is.null(arrayID)){
+            stopifnot(is.numeric(arrayID) && length(arrayID) == 1L)
+            if(arrayID < 1L || arrayID > nrow(design))
+                stop('arrayID not associated with valid row in design')
+            seed.i <- seed[[1L]]
+            if(arrayID > 1L){
+                for (i in 2L:arrayID)
+                    seed.i <- nextRNGStream(seed.i)
+            }
+            seed[[1L]] <- seed.i
+            attr(seed, 'arrayID') <- arrayID
+        } else {
+            if(length(seed) > 1L){
+                for (i in 2L:length(seed))
+                    seed[[i]] <- nextRNGStream(seed[[i - 1L]])
+            }
+        }
+        attr(seed, 'iseed') <- iseed
+    }
+    seed
+}
+
+# Test cases:
+#
+# sbatch_time2sec("4-12")        # day-hours
+# sbatch_time2sec("4-12:15")     # day-hours:minutes
+# sbatch_time2sec("4-12:15:30")  # day-hours:minutes:seconds
+#
+# sbatch_time2sec("30")          # minutes
+# sbatch_time2sec("30:30")       # minutes:seconds
+# sbatch_time2sec("4:30:30")     # hours:minutes:seconds
+sbatch_time2sec <- function(time){
+    ret <- if(is.character(time)){
+        time <- gsub(pattern = " ", "", time)
+        time_vec <- c(days=0, hours=0, mins=0, secs=0)
+        if(grepl("-", time)){ # day format
+            splt <- strsplit(time, "-")[[1L]]
+            time_vec['days'] <- as.numeric(splt[1L])
+            time <- splt[2L]
+            splt <- as.numeric(strsplit(time, ":")[[1L]])
+            time <- if(length(splt) == 1L){
+                sprintf("%f:00:00", splt[1L])
+            } else if(length(splt) == 2L){
+                sprintf("%f:%f:00", splt[1L], splt[2L])
+            } else if(length(splt) == 3L)
+                sprintf("%f:%f:%f", splt[1L], splt[2L], splt[3])
+        }
+        splt <- as.numeric(strsplit(time, ":")[[1L]])
+        time <- if(length(splt) == 1L){
+            sprintf("00:%f:00", splt[1L])
+        } else if(length(splt) == 2L){
+            sprintf("00:%f:%f", splt[1L], splt[2L])
+        } else if(length(splt) == 3L){
+            time
+        } else stop('max_time not correctly specified. Please fix!',
+                    call.=FALSE)
+        splt <- as.numeric(strsplit(time, ":")[[1L]])
+        time_vec[2L:4L] <- splt
+        sum(c(86400, 3600, 60, 1) * time_vec)   # c(24*60*60, 60*60, 60, 1)
+    } else time
+    ret
+}
+
+# Test cases:
+#
+# sbatch_RAM2bytes("1024MB")
+# sbatch_RAM2bytes("4G")
+# sbatch_RAM2bytes("1.5TB")
+
+sbatch_RAM2bytes <- function(RAM){
+    ret <- if(is.character(RAM)){
+        RAM <- gsub(pattern = " ", "", RAM)
+        type <- logical(3L)
+        type[1L] <- grepl('M', RAM)
+        type[2L] <- grepl('G', RAM)
+        type[3L] <- grepl('T', RAM)
+        if(!any(type)) stop('RAM metric must be MB, GB, or TB', call.=FALSE)
+        RAM <- gsub('B', "", RAM)
+        RAM <- as.numeric(gsub('M|G|T', "", RAM))
+        C <- 1000000 # MB2bytes
+        if(type[2L]) C <- C * 1000
+        if(type[3L]) C <- C * 1000000
+        RAM * C
+    } else RAM
     ret
 }

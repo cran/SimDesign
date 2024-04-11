@@ -9,7 +9,11 @@
 #' @param what character indicating what information to extract. Possible inputs
 #'   include \code{'errors'} to return a \code{tibble} object containing counts of any
 #'   error messages, \code{'warnings'} to return a \code{data.frame} object containing
-#'   counts of any warning messages, \code{'error_seeds'} and \code{'warning_seeds'}
+#'   counts of any warning messages, \code{'seeds'}  for the specified random number
+#'   generation seeds,  \code{'Random.seeds'} for the complete list of
+#'   \code{.Random.seed} states across replications (only stored when
+#'   \code{runSimulation(..., control = list(store_Random.seeds=TRUE))}),
+#'   \code{'error_seeds'} and \code{'warning_seeds'}
 #'   to extract the associated \code{.Random.seed} values associated with the ERROR/WARNING messages,
 #'   \code{'results'} to extract the simulation results if the option \code{store_results} was passed to
 #'   \code{\link{runSimulation}}, \code{'filename'} and \code{'save_results_dirname'} for extracting
@@ -93,6 +97,10 @@ SimExtract <- function(object, what, fuzzy = TRUE){
         cbind(Design, extract_errors(object, fuzzy=fuzzy))
     } else if(what == 'summarise'){
         extract_summarise(object)
+    }  else if(what == 'seeds'){
+        extract_seeds(object)
+    } else if(what == 'random.seeds'){
+        extract_Random.seeds(object)
     } else if(what == 'error_seeds'){
         extract_error_seeds(object)
     } else if(what == 'warnings'){
@@ -141,6 +149,12 @@ extract_results <- function(object){
     ret
 }
 
+extract_Random.seeds <- function(object){
+    extra_info <- attr(object, 'extra_info')
+    ret <- extra_info$stored_Random.seeds_list
+    ret
+}
+
 extract_error_seeds <- function(object){
     extra_info <- attr(object, 'extra_info')
     ret <- extra_info$error_seeds
@@ -150,6 +164,12 @@ extract_error_seeds <- function(object){
 extract_warning_seeds <- function(object){
     extra_info <- attr(object, 'extra_info')
     ret <- extra_info$warning_seeds
+    ret
+}
+
+extract_seeds <- function(object){
+    extra_info <- attr(object, 'extra_info')
+    ret <- extra_info$seeds
     ret
 }
 

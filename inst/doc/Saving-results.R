@@ -41,7 +41,8 @@ set.seed(1)
 #  }
 #  
 #  res <- runSimulation(Design, replications = 1000, save=TRUE, filename='my-simple-sim',
-#                       generate=Generate, analyse=Analyse, summarise=Summarise)
+#                       generate=Generate, analyse=Analyse, summarise=Summarise,
+#                       control = list(stop_on_fatal = TRUE))
 
 ## ----echo=FALSE---------------------------------------------------------------
 Analyse <- function(condition, dat, fixed_objects = NULL) {
@@ -52,7 +53,8 @@ Analyse <- function(condition, dat, fixed_objects = NULL) {
 
 # Default to runSimulation() has save = TRUE
 res <- try(runSimulation(Design, replications = 1000, filename='my-simple-sim',
-                         generate=Generate, analyse=Analyse, summarise=Summarise), silent = TRUE)
+                         generate=Generate, analyse=Analyse, summarise=Summarise,
+                         control = list(stop_on_fatal = TRUE)), silent = TRUE)
 message('Row 3 in design was terminated because it had 50 consecutive errors. \n
 Last error message was: \n\nManual Error : Danger Will Robinson!')
 
@@ -81,7 +83,7 @@ SimClean('my-simple-sim.rds')
 # store_results=TRUE by default
 res <- runSimulation(Design, replications = 3, 
               generate=Generate, analyse=Analyse, summarise=Summarise)
-results <- SimExtract(res, what = 'results')
+results <- SimResults(res)
 results
 
 ## -----------------------------------------------------------------------------
