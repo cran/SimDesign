@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2024-04-11" />
+<meta name="date" content="2024-04-24" />
 
 <title>Parallel computing information</title>
 
@@ -1505,7 +1505,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Parallel computing information</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2024-04-11</h4>
+<h4 class="date">2024-04-24</h4>
 
 </div>
 
@@ -1521,7 +1521,7 @@ div.tocify {
 </div>
 <div id="network-computing" class="section level2" number="1.2">
 <h2 number="1.2"><span class="header-section-number">1.2</span> Network computing</h2>
-<p>If you access have to a set of computers which can be linked via secure-shell (<code>ssh</code>) on the same LAN network then Network computing (a.k.a., a Beowulf cluster) may be a viable and useful option. This approach is similar to MPI computing approach described below, except that it offers more localized control. The setup generally requires that the master node has <code>SimDesign</code> installed, and the slave/master nodes have all the required R packages pre-installed (Unix utilities such as <code>dsh</code> are very useful for this purpose). Finally, the master node must have <code>ssh</code> access to the slave nodes, each slave node must have <code>ssh</code> access with the master node, and a cluster object (<code>cl</code>) from the <code>parallel</code> package must be manually defined on the master node.</p>
+<p>If you access have to a set of computers which can be linked via secure-shell (<code>ssh</code>) on the same LAN network then Network computing (a.k.a., a Beowulf cluster) may be a viable and useful option. The setup generally requires that the master node has <code>SimDesign</code> installed, and the slave/master nodes have all the required R packages pre-installed (Unix utilities such as <code>dsh</code> are very useful for this purpose). Finally, the master node must have <code>ssh</code> access to the slave nodes, each slave node must have <code>ssh</code> access with the master node, and a cluster object (<code>cl</code>) from the <code>parallel</code> package must be manually defined on the master node.</p>
 <p>Setup for network computing is generally straightforward in that it only requires the specification of a) the respective IP addresses within a defined R script, and b) the user name (if different from the master node’s user name; otherwise, only a) is required). On Linux, it may also be important to include relevant information about the host names and IP addresses in the <code>/etc/hosts</code> file on the master and slave nodes, and to ensure that the selected port (passed to <code>parallel::makeCluster()</code>) on the master node is not hindered by a firewall.</p>
 <p>As an example, using the following code the master (primary) node will spawn 7 slave (secondary) and 1 master node, while a separate computer on the network with the associated IP address will spawn an additional 6 slave nodes. Information will be collected on the master node, which is also where the files and objects will be saved using the associated <code>save</code>/<code>filename</code> inputs in <code>runSimulation()</code>.</p>
 <pre class="r"><code>library(parallel)
@@ -1544,24 +1544,9 @@ Final &lt;- runSimulation(..., cl=cl)
 stopCluster(cl)</code></pre>
 <p>As was the case with the local cluster definition in the first section, random numbers are automatically organized via Pierre L’Ecuyer’s (1999) method to ensure quality number generation. A similar setup can also be used via the recently supported <code>future</code> interface (see below).</p>
 </div>
-<div id="mpi-distribution" class="section level2" number="1.3">
-<h2 number="1.3"><span class="header-section-number">1.3</span> MPI distribution</h2>
-<p><code>SimDesign</code> code may be released to a computing system which supports parallel cluster computations using the industry standard Message Passing Interface (MPI) form. This simply requires that the computers be setup using the usual MPI requirements (typically, running some flavor of Linux, have password-less open-SSH access, IP addresses have been added to the <code>/etc/hosts</code> file or <code>~/.ssh/config</code>, etc). More generally though, these resources are widely available through professional organizations dedicated to super-computing. Note that if MPI is being considered, <code>design</code> has many rows to evaluate, and the super-computer with which the simulation being evaluated contains a distribution scheduler (e.g., Slurm), then you may find the approach provided by <code>runArraySimualtion()</code> to be a better use of scheduling resources (see <em>“Distributing jobs for high-performance computing (HPC)”</em> for further details).</p>
-<p>To setup the R code for an MPI cluster the argument <code>MPI = TRUE</code> needs to be added to the <code>extra_options</code> list input, which wraps the appropriate MPI directives around <code>runSimulation()</code>. At this point the source files can be submitted using suitable BASH commands to execute the <code>mpirun</code> tool. For example,</p>
-<pre class="r"><code>library(doMPI)
-cl &lt;- startMPIcluster()
-registerDoMPI(cl)
-runSimulation(design=Design, replications=1000, filename=&#39;mysimulation&#39;,
-    generate=Generate, analyse=Analyse, summarise=Summarise, extra_options = list(MPI=TRUE))
-closeCluster(cl)
-mpi.quit()</code></pre>
-<p>The necessary <code>SimDesign</code> files must be uploaded to the dedicated master node so that a BASH call to <code>mpirun</code> can be used to distribute the work across slaves. For instance, if the following BASH command is run on the master node then 16 processes will be summoned (1 master, 15 slaves) across the computers named <code>localhost</code>, <code>slave1</code>, and <code>slave2</code> in the ssh <code>config</code> file.</p>
-<p><code>mpirun -np 16 -H localhost,slave1,slave2 R --slave -f simulation.R</code></p>
-<p>A similar setup can also be used via the recently supported <code>future</code> interface (see below).</p>
-</div>
-<div id="using-the-future-framework" class="section level2" number="1.4">
-<h2 number="1.4"><span class="header-section-number">1.4</span> Using the <code>future</code> framework</h2>
-<p>Similarly, the <code>future</code> framework (see <code>help(future, package = &#39;future&#39;)</code>) can also be used for distributing the asynchronous function evaluations for each simulation replication by changing the logical input in <code>runSimulation(..., parallel = TRUE/FALSE)</code> to the character vector <code>runSimulation(..., parallel = &#39;future&#39;)</code>. For this to work, the computation plan must be pre-specified via <code>future::plan()</code>. For example, to initialize a local two-worker parallel processing computational plan one can use the follow:</p>
+<div id="using-the-future-framework" class="section level2" number="1.3">
+<h2 number="1.3"><span class="header-section-number">1.3</span> Using the <code>future</code> framework</h2>
+<p>The <code>future</code> framework (see <code>help(future, package = &#39;future&#39;)</code>) can also be used for distributing the asynchronous function evaluations for each simulation replication by changing the logical input in <code>runSimulation(..., parallel = TRUE/FALSE)</code> to the character vector <code>runSimulation(..., parallel = &#39;future&#39;)</code>. For this to work, the computation plan must be pre-specified via <code>future::plan()</code>. For example, to initialize a local two-worker parallel processing computational plan one can use the follow:</p>
 <pre class="r"><code>library(future)
 plan(multisession, workers = 2)
 
@@ -1586,6 +1571,7 @@ res &lt;- with_progress(runSimulation(design=Design, replications=1000, generate
                      parallel = &#39;future&#39;))</code></pre>
 <p>Finally, when the parallel computations are complete be sure to manually reset the computation plan to free any workers via</p>
 <pre class="r"><code>plan(sequential) # release workers</code></pre>
+<p>The benefit of the future framework is that it provides a unified distribution framework for parallel (multisession, multicore, cluster) and non-parallel (sequential) processing, manages random number generation correctly for Monte Carlo simulations, and as demonstrated above has a wide variety of tools that can be applied to a interactive sessions.</p>
 </div>
 </div>
 

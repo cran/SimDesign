@@ -120,7 +120,7 @@
 #'
 #' @section A note on parallel computing:
 #'
-#' When running simulations in parallel (either with \code{parallel = TRUE} or \code{MPI = TRUE},
+#' When running simulations in parallel (either with \code{parallel = TRUE}
 #' or when using the \code{\link{future}} approach with a \code{plan()} other than sequential)
 #' R objects defined in the global environment will generally \emph{not} be visible across nodes.
 #' Hence, you may see errors such as \code{Error: object 'something' not found} if you try to use
@@ -201,7 +201,7 @@
 #'   \code{\link[future]{plan}} for execution. This allows for greater flexibility when
 #'   specifying the general computing plan (e.g., \code{plan(multisession)}) for parallel computing
 #'   on the same machine, \code{plan(future.batchtools::batchtools_torque)} or
-#'   \code{plan(future.batchtools::batchtools_slurm)} for common MPI schedulers, etc).
+#'   \code{plan(future.batchtools::batchtools_slurm)} for common MPI/Slurm schedulers, etc).
 #'   However, it is the responsibility of the user to use \code{plan(sequential)} to reset the
 #'   computing plan when the jobs are completed
 #'
@@ -211,10 +211,9 @@
 #'   selects the maximum number cores available
 #'   and will be stopped when the simulation is complete. Note that supplying a \code{cl}
 #'   object will automatically set the \code{parallel} argument to \code{TRUE}. Define and supply this
-#'   cluster object yourself whenever you have multiple nodes to chain together (note in this case
-#'   that you must  use either the "MPI" or "PSOCK" clusters).
+#'   cluster object yourself whenever you have multiple nodes and can link them together manually
 #'
-#'   Note that if the \code{future} package has
+#'   If the \code{future} package has
 #'   been attached prior to executing \code{runSimulation()} then the associated
 #'   \code{plan()} will be followed instead
 #'
@@ -400,15 +399,35 @@
 #'        For Windows OS this defaults to \code{"PSOCK"}, otherwise \code{"SOCK"} is selected
 #'        (suitable for Linux and Mac OSX). This is ignored if the user specifies their own \code{cl} object}
 #'
-#'      \item{\code{MPI}}{logical (default is \code{FALSE}); use the \code{foreach} package in a
-#'        form usable by MPI to run simulation in parallel on a cluster? }
+#      \item{\code{MPI}}{logical (default is \code{FALSE}); use the \code{foreach} package in a
+#        form usable by MPI to run simulation in parallel on a cluster? }
 #'
 #'      \item{\code{print_RAM}}{logical (default is \code{TRUE}); print the amount of RAM
 #'        used throughout the simulation? Set to \code{FALSE} if unnecessary or if the call to
 #'        \code{\link{gc}} is unnecessarily time consuming}
 #'
-#'      \item{\code{.options.mpi}}{list of arguments passed to \code{foreach()} to control the MPI execution
-#'        properties. Only used when \code{MPI = TRUE}}
+#'      \item{\code{max_time}}{
+#'        Similar to \code{\link{runArraySimulation}}, specifies the (approximate) maximum
+#'        time that the simulation is allowed to be executed. However, unlike the implementation
+#'        in \code{runArraySimulation} is evaluated on a per condition basis,
+#'        where \code{max_time} is only evaluated after every row in the
+#'        \code{design} object has been completed (hence, is notably more approximate as it
+#'        has the potential to overshoot by a wider margin). Default sets no time limit.
+#'        See \code{\link{runArraySimulation}} for the input specifications.
+#'      }
+#'
+#'      \item{\code{max_RAM}}{
+#'        Similar to \code{\link{runArraySimulation}}, specifies the (approximate) maximum
+#'        RAM that the simulation is allowed to occupy. However, unlike the implementation
+#'        in \code{runArraySimulation} is evaluated on a per condition basis,
+#'        where \code{max_RAM} is only evaluated after every row in the
+#'        \code{design} object has been completed (hence, is notably more approximate as it
+#'        has the potential to overshoot by a wider margin). Default sets no RAM limit.
+#'        See \code{\link{runArraySimulation}} for the input specifications.
+#'      }
+#'
+#      \item{\code{.options.mpi}}{list of arguments passed to \code{foreach()} to control the MPI execution
+#        properties. Only used when \code{MPI = TRUE}}
 #'
 #'
 #'
@@ -473,7 +492,7 @@
 #' @param save logical; save the temporary simulation state to the hard-drive? This is useful
 #'   for simulations which require an extended amount of time, though for shorter simulations
 #'   can be disabled to slightly improve computational efficiency. When \code{TRUE},
-#'   which is the default when evaluating \code{replications > 10}, a temp file
+#'   which is the default when evaluating \code{replications > 2}, a temp file
 #'   will be created in the working directory which allows the simulation state to be saved
 #'   and recovered (in case of power outages, crashes, etc). As well, triggering this flag will
 #'   save any fatal \code{.Random.seed} states when conditions unexpectedly crash (where each seed
@@ -529,8 +548,8 @@
 #' @param seed a vector or list of integers to be used for reproducibility.
 #'   The length of the vector must be equal the number of rows in \code{design}.
 #'   If the input is a vector then \code{\link{set.seed}} or
-#'   \code{\link{clusterSetRNGStream}} for each condition will be called, respectively,
-#'   but will not be run when \code{MPI = TRUE}. If a list is provided then these
+#'   \code{\link{clusterSetRNGStream}} for each condition will be called, respectively.
+#'   If a list is provided then these
 #'   numbers must have been generated from \code{\link{gen_seeds}} with the argument
 #'   \code{CMRG.seed} used to specify the initial. The list approach ensures random number
 #'   generation independence across conditions and replications, while the vector input
@@ -847,21 +866,21 @@
 #'
 #'
 #' ####################################
-#' ## EXTRA: To run the simulation on a MPI cluster, use the following setup (not run)
-#' library(doMPI)
-#' cl <- startMPIcluster()
-#' registerDoMPI(cl)
-#' Final <- runSimulation(design=Design, replications=1000, MPI=TRUE,
-#'                        generate=Generate, analyse=Analyse, summarise=Summarise)
-#' saveRDS(Final, 'mysim.rds')
-#' closeCluster(cl)
-#' mpi.quit()
-#'
-#'
-#' ## Similarly, run simulation on a network linked via ssh
-#' ##  (two way ssh key-paired connection must be possible between master and slave nodes)
+#' ## EXTRA: To run the simulation on a user-define cluster, use the following setup (not run)
+# library(doMPI)
+# cl <- startMPIcluster()
+# registerDoMPI(cl)
+# Final <- runSimulation(design=Design, replications=1000, MPI=TRUE,
+#                        generate=Generate, analyse=Analyse, summarise=Summarise)
+# saveRDS(Final, 'mysim.rds')
+# closeCluster(cl)
+# mpi.quit()
+#
+#
+#' ## Network linked via ssh (two way ssh key-paired connection must be
+#' ## possible between master and slave nodes)
 #' ##
-#' ## define IP addresses, including primary IP
+#' ## Define IP addresses, including primary IP
 #' primary <- '192.168.2.20'
 #' IPs <- list(
 #'     list(host=primary, user='phil', ncore=8),
@@ -948,15 +967,13 @@
 #'
 runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL, filename = NULL,
-                          debug = 'none', load_seed = NULL, save = any(replications > 10),
+                          debug = 'none', load_seed = NULL, save = any(replications > 2),
                           store_results = TRUE, save_results = FALSE,
                           parallel = FALSE, ncores = parallel::detectCores() - 1L,
                           cl = NULL, notification = 'none', beep = FALSE, sound = 1,
-                          CI = .95, seed = NULL,
-                          boot_method='none', boot_draws = 1000L, max_errors = 50L,
-                          resume = TRUE,
-                          save_details = list(), control = list(),
-                          progress = TRUE, verbose = TRUE)
+                          CI = .95, seed = NULL, boot_method='none', boot_draws = 1000L,
+                          max_errors = 50L, resume = TRUE, save_details = list(),
+                          control = list(), progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
     resume.row <- NA
@@ -1244,8 +1261,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 message(sprintf("\nNumber of parallel clusters in use: %i", length(cl)))
         }
     }
-    Result_list <- stored_Results_list <- vector('list', nrow(design))
-    names(Result_list) <- names(stored_Results_list) <- rownames(design)
+    Result_list <- vector('list', nrow(design))
+    names(Result_list) <- rownames(design)
     time0 <- time1 <- proc.time()[3L]
     files <- dir(out_rootdir)
     if(resume && !MPI && any(files == tmpfilename) && is.null(load_seed) && debug == 'none'){
@@ -1270,6 +1287,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                         resume.row)
         time0 <- time1 - Result_list[[start-1L]]$SIM_TIME
     }
+    TIME0 <- proc.time()[3L]
     if(file.exists(tmpfilename)){
         tmp <- attr(Result_list, 'SimDesign_names')
         save_results_dirname <- tmp['save_results_dirname']
@@ -1394,10 +1412,6 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          allow_gen_errors=!SimSolveRun)
             time1 <- proc.time()[3L]
             stored_time <- stored_time + (time1 - time0)
-            if(notification == 'condition')
-                notification_condition(design[i,], Result_list[[i]], nrow(design))
-            if(print_RAM)
-                memory_used[i+1L] <- RAM_used()
         } else {
             stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
             if(verbose)
@@ -1446,28 +1460,39 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 })
                 return(list(value=tmp[1L], summary_results=summary_results))
             }
-            if(store_results){
-                stored_Results_list[[i]] <- attr(tmp, 'full_results')
-                attr(tmp, 'full_results') <- NULL
-            }
+            if(store_results)
+                stored_Results <- attr(tmp, 'full_results')
             Result_list[[i]] <- data.frame(design[i, ], as.list(tmp),
                                            check.names=FALSE)
+            if(store_results)
+                attr(Result_list[[i]], 'full_results') <- stored_Results
             attr(Result_list[[i]], 'Random.seeds') <- attr(tmp, 'stored_Random.seeds')
             attr(Result_list[[i]], 'error_seeds') <- attr(tmp, 'error_seeds')
             attr(Result_list[[i]], 'warning_seeds') <- attr(tmp, 'warning_seeds')
             attr(Result_list[[i]], 'summarise_list') <- attr(tmp, 'summarise_list')
-            Result_list[[i]]$SIM_TIME <- proc.time()[3L] - time0
             Result_list[[i]]$COMPLETED <- date()
-            if(save || save_results)
-                saveRDS(Result_list, file.path(out_rootdir, tmpfilename))
             time1 <- proc.time()[3L]
             Result_list[[i]]$SIM_TIME <- time1 - time0
-            if(notification == 'condition')
-                notification_condition(design[i,], Result_list[[i]], nrow(design))
-            if(print_RAM)
-                memory_used[i+1L] <- RAM_used()
+            if(save || save_results)
+                saveRDS(Result_list, file.path(out_rootdir, tmpfilename))
+        }
+        if(notification == 'condition')
+            notification_condition(design[i,], Result_list[[i]], nrow(design))
+        if(print_RAM)
+            memory_used[i+1L] <- RAM_used()
+        if(nrow(design) > 1L && i < nrow(design)){
+            if((time1 - TIME0) > max_time){
+                stop('max_time exceeded. See the stored temporary files for last evaluated results',
+                     call.=FALSE)
+            }
+            if(is.finite(max_RAM)){
+                if(RAM_used(format = FALSE) > max_RAM)
+                    stop('max_RAM exceeded. See the stored temporary files for last evaluated results',
+                         call.=FALSE)
+            }
         }
     }
+
     memory_used <- memory_used[-1L]
     attr(Result_list, 'SimDesign_names') <- NULL
     if(NA_summarise){
@@ -1476,7 +1501,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             x
         })
     }
-    if(store_results){
+    if(store_results && !summarise_asis){
+        stored_Results_list <- lapply(Result_list, \(x) attr(x, 'full_results'))
         if(is(stored_Results_list[[1L]], 'data.frame') ||
            is(stored_Results_list[[1L]], 'matrix')){
             for(i in seq_len(length(stored_Results_list)))
