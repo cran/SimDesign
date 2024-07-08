@@ -17,17 +17,17 @@ library(SimDesign)
 
 Design <- createDesign(N = c(10, 20, 30))
 
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     ret <- c(mean=mean(dat), median=median(dat)) # mean/median of sample data
     ret
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL){
+Summarise <- function(condition, results, fixed_objects){
     colMeans(results)
 }
 
@@ -39,14 +39,15 @@ Summarise <- function(condition, results, fixed_objects = NULL){
 #                       filename='mysim')
 
 ## -----------------------------------------------------------------------------
-Design300 <- expandDesign(Design, repeat_conditions = 100)
+rc <- 100   # number of times the design row was repeated
+Design300 <- expandDesign(Design, repeat_conditions = rc)
 Design300
 
 # target replication number for each condition
 rep_target <- 10000
 
 # replications per row in Design300
-replications <- rep(rep_target  / 100, nrow(Design300))
+replications <- rep(rep_target  / rc, nrow(Design300))
 
 ## -----------------------------------------------------------------------------
 rc <- c(100, 100, 1000)
@@ -68,7 +69,7 @@ plot(x, y)           ## seemingly independent
 plot(x[-1], y[-100]) ## subsets perfectly correlated
 
 ## -----------------------------------------------------------------------------
-# gen_seeds()   # do this once on the main node/home computer and store the number!
+# genSeeds()   # do this once on the main node/home computer and store the number!
 iseed <- 1276149341
 
 ## ----eval=FALSE---------------------------------------------------------------
@@ -94,26 +95,28 @@ iseed <- 1276149341
 #  
 #  Design <- createDesign(N = c(10, 20, 30))
 #  
-#  Generate <- function(condition, fixed_objects = NULL) {
+#  Generate <- function(condition, fixed_objects) {
 #      dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
 #      dat
 #  }
 #  
-#  Analyse <- function(condition, dat, fixed_objects = NULL) {
+#  Analyse <- function(condition, dat, fixed_objects) {
 #      ret <- c(mean=mean(dat), median=median(dat)) # mean/median of sample data
 #      ret
 #  }
 #  
-#  Summarise <- function(condition, results, fixed_objects = NULL){
+#  Summarise <- function(condition, results, fixed_objects){
 #      colMeans(results)
 #  }
 #  
 #  # expand the design to create 300 rows with associated replications
-#  Design300 <- expandDesign(Design, repeat_conditions = 100)
-#  rep_target <- 10000
-#  replications <- rep(rep_target / 100, nrow(Design300))
+#  rc <- 100
+#  Design300 <- expandDesign(Design, repeat_conditions = rc)
 #  
-#  # gen_seeds() # do this once on the main node/home computer and store the number!
+#  rep_target <- 10000
+#  replications <- rep(rep_target / rc, nrow(Design300))
+#  
+#  # genSeeds() # do this once on the main node/home computer, and store the number!
 #  iseed <- 1276149341
 #  
 #  # get assigned array ID (default uses type = 'slurm')
@@ -128,7 +131,7 @@ iseed <- 1276149341
 ## ----eval=FALSE---------------------------------------------------------------
 #  setwd('mysimfiles')
 #  library(SimDesign)
-#  Final <- aggregate_simulations(files=dir())
+#  Final <- SimCollect(files=dir())
 #  Final
 
 ## ----eval=FALSE---------------------------------------------------------------
@@ -141,17 +144,17 @@ library(SimDesign)
 Design <- createDesign(N = c(10, 20, 30),
                        SD = c(1,2,3))
 
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     dat <- with(condition, rnorm(N, 10, sd=SD)) # distributed N(10, 5)
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     ret <- c(mean=mean(dat), median=median(dat)) # mean/median of sample data
     ret
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL){
+Summarise <- function(condition, results, fixed_objects){
     colMeans(results)
 }
 
@@ -195,7 +198,7 @@ Design
 #  
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  Final <- aggregate_simulations(files=dir())
+#  Final <- SimCollect(files=dir())
 #  Final
 
 ## ----eval=FALSE---------------------------------------------------------------
@@ -215,10 +218,11 @@ subDesign
 replications_missed
 
 ## -----------------------------------------------------------------------------
-Design_left <- expandDesign(subDesign, 50) # smaller number of reps per array
+rc <- 50
+Design_left <- expandDesign(subDesign, rc) # smaller number of reps per array
 Design_left
 
-replications_left <- rep(replications_missed/50, each=50)
+replications_left <- rep(replications_missed/rc, each=rc)
 table(replications_left)
 
 # new total design and replication objects
@@ -227,13 +231,13 @@ nrow(Design_total)
 replications_total <- c(replications, replications_left)
 table(replications_total)
 
-# this *must* be the same as the original submission
+# this *must* be the same as the original submission!
 iseed <- 1276149341
 
 ## ----eval=FALSE---------------------------------------------------------------
 #  # See if any missing still
-#  aggregate_simulations(files=dir(), check.only=TRUE)
+#  SimCollect(files=dir(), check.only=TRUE)
 #  
 #  # Obtain complete simulation results
-#  Final <- aggregate_simulations(files=dir())
+#  Final <- SimCollect(files=dir())
 

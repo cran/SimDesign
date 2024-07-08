@@ -31,6 +31,7 @@ SimSolve(
   verbose = TRUE,
   control = list(),
   predCI = 0.95,
+  predCI.tol = NULL,
   ...
 )
 
@@ -102,7 +103,7 @@ fits an orthogonal polynomial of degree 2}
   Note that if individual  results from the \code{analyse} steps should
   not be used (i.e., only the aggregate from \code{summarise} is meaningful)
   then set \code{control = list(summarise.reg_data = TRUE)} to override the default
-  behaviour, thereby using only the aggregate information and weights}
+  behavior, thereby using only the aggregate information and weights}
 
 \item{parallel}{for parallel computing for slower simulation experiments
 (see \code{\link{runSimulation}} for details)}
@@ -132,7 +133,7 @@ iteration}
   the time to wait (specified in minutes) per row in the \code{Design} object
   rather than using pre-determined termination criteria based on the estimates.
   For example, if three three conditions were defined in
-  \code{Design}, and \code{wait.time=5},
+  \code{Design}, and \code{wait.time="5"},
   then the total search time till terminate after 15 minutes regardless of
   independently specified termination criteria in \code{control}. Note that
   \code{maxiter} is still used alongside \code{wait.time}, therefore this should
@@ -184,6 +185,17 @@ the defaults described below are used.}
 model-based prediction of target \code{b} given the root input estimate.
 Returned as an element in the \code{summary()} list output}
 
+\item{predCI.tol}{(optional) rather than relying on the changes between successive
+estimates (default), if the predicting CI is consistently within this
+supplied tolerance input range then terminate.
+This provides termination behaviour based on the predicted
+precision of the root solutions rather than their stability history, and therefore
+can be used to obtain estimates with a particular level of advertised accuracy.
+For example, when solving for a sample size value (\code{N}) if the solution
+associated with  \code{b = .80} requires that the advertised 95% prediction CI
+is consistently between [.795, .805] then \code{predCI.tol = .01} to indicate this
+tolerance range}
+
 \item{...}{additional arguments to be pasted to \code{\link{PBA}}}
 
 \item{object}{object of class \code{'SimSolve'}}
@@ -206,11 +218,18 @@ This function provides a stochastic root-finding approach to solving
 specific quantities in simulation experiments (e.g., solving for a specific
 sample size to meet a target power rate) using the
 Probablistic Bisection Algorithm with Bolstering and Interpolations
-(ProBABLI; Chalmers, in review). The structure follows the
+(ProBABLI; Chalmers, accepted). The structure follows the
 steps outlined in \code{\link{runSimulation}}, however portions of
 the \code{design} input are taken as variables to be estimated rather than
 fixed, and the constant \code{b} is required in order to
-solve the root equation \code{f(x) - b = 0}.
+solve the root equation \code{f(x) - b = 0}. Stochastic root search is terminated
+based on the successive behavior of the \code{x} estimates.
+For even greater advertised accuracy with ProBABLI, termination criteria
+can be based on the width of the advertised predicting interval
+(via \code{predCI.tol}) or by specifying how long the investigator
+is willing to wait for the final estimates (via \code{wait.time},
+where longer wait times lead to progressively better accuracy in
+the final estimates).
 }
 \details{
 Root finding is performed using a progressively bolstered version of the
@@ -252,7 +271,7 @@ Design    # solve for NA's
 #~~~~~~~~~~~~~~~~~~~~~~~~
 #### Step 2 --- Define generate, analyse, and summarise functions
 
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     Attach(condition)
     group1 <- rnorm(N)
     group2 <- rnorm(N, mean=d)
@@ -261,12 +280,12 @@ Generate <- function(condition, fixed_objects = NULL) {
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     p <- t.test(DV ~ group, dat, var.equal=TRUE)$p.value
     p
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL) {
+Summarise <- function(condition, results, fixed_objects) {
     # Must return a single number corresponding to f(x) in the
     # root equation f(x) = b
 
@@ -327,25 +346,39 @@ pwr.t.test(d=.8, n=N[3])
 #                         summarise=Summarise)
 # confirm
 
-# Alternatively, and more realistically, the wait.time argument can be used
+# Similarly, terminate if the prediction interval is consistently predicted
+#   to be between [.795, .805]. Note that maxiter increased as well
+solved_predCI <- SimSolve(design=Design, b=.8, interval=c(10, 500),
+                     generate=Generate, analyse=Analyse, summarise=Summarise,
+                     maxiter=200, predCI.tol=.01)
+solved_predCI
+summary(solved_predCI) # note that predCI.b are all within [.795, .805]
+
+N <- solved_predCI$N
+pwr.t.test(d=.2, n=N[1])
+pwr.t.test(d=.5, n=N[2])
+pwr.t.test(d=.8, n=N[3])
+
+# Alternatively, and often more realistically, wait.time can be used
 # to specify how long the user is willing to wait for a final estimate.
 # Solutions involving more iterations will be more accurate,
 # and therefore it is recommended to run the ProBABLI root-solver as long
 # the analyst can tolerate if the most accurate estimates are desired.
-# Below executes the simulation for 2 minutes for each condition up
+# Below executes the simulation for 5 minutes for each condition up
 # to a maximum of 1000 iterations, terminating based on whichever occurs first
 
-solved_2min <- SimSolve(design=Design, b=.8, interval=c(10, 500),
+solved_5min <- SimSolve(design=Design, b=.8, interval=c(10, 500),
                 generate=Generate, analyse=Analyse, summarise=Summarise,
-                wait.time=2, maxiter=1000)
-solved_2min
-summary(solved_2min)
+                wait.time="5", maxiter=1000)
+solved_5min
+summary(solved_5min)
 
 # use estimated N results to see how close power was
-N <- solved_2min$N
+N <- solved_5min$N
 pwr.t.test(d=.2, n=N[1])
 pwr.t.test(d=.5, n=N[2])
 pwr.t.test(d=.8, n=N[3])
+
 
 #------------------------------------------------
 
@@ -460,6 +493,9 @@ pwr.t.test(n=50, d = .8, sig.level=solved$sig.level[3])
 }
 }
 \references{
+Chalmers, R. P. (accepted). Solving Variables with Monte Carlo Simulation Experiments: A
+Stochastic Root-Solving Approach. \code{Psychological Methods}.
+
 Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
 with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
 \doi{10.20982/tqmp.16.4.p248}

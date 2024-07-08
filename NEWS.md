@@ -1,5 +1,33 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.16
+
+- Fix for `SimCollect()` when `runArraySimulatino()` result contains 
+  mixed warning outputs  (reported by Michael Troung)
+
+- `manageMessages()` added in a similar spirit to `manageWarnigns()`, though
+  to change messages into either errors or warnings (default behavior is the 
+  same as `quiet()`)
+
+- `manageWarnings()` gains an `suppress` argument to specify explicit 
+  warnings strings that can be suppressed (i.e., are known to be innocuous).
+  This provides better coding practice than the nuclear alternative
+  `base::suppressWarnings()`
+  
+- `convertWarnings()` name changed to `manageWarning()` given its 
+  increased functionality. 
+
+- `timeFormater()` function added to isolate logic of SBATCH time specification
+  utility. Now used in several places of the package (e.g., 
+  `runArraySimulation()`, `PBA()`, `SimSolve()`)
+
+- Switch to camel casing format in all functions (e.g., 
+  `add_missing() -> addMissing()`, `gen_seeds() -> genSeeds()`, etc). Exception
+  is that `aggregate_simulations()` has changed to `SimCollect()`
+  
+- `SimSolve()` gains a `predCI.tol` argument to allow algorithm termination based
+  advertised precision of the estimates
+
 ## Changes in SimDesign 2.15.1
 
 - `runSimulation(..., control = list(store_Random.seeds))` logical added to 

@@ -165,7 +165,7 @@ SimFunctions <- function(filename = NULL, dir = getwd(),
         if(comments) cat('\n### Define essential simulation functions\n')
         if(generate && add.gen){
             if(nGenerate == 1L){
-                cat('\nGenerate <- function(condition, fixed_objects = NULL) {')
+                cat('\nGenerate <- function(condition, fixed_objects) {')
                 if(comments) cat('\n    # Define data generation code ...\n')
                 if(comments) cat('\n    # Return a vector, matrix, data.frame, or list')
                 cat('\n    dat <- data.frame()')
@@ -173,7 +173,7 @@ SimFunctions <- function(filename = NULL, dir = getwd(),
                 cat('\n')
             } else {
                 for(i in 1L:nGenerate){
-                    cat(sprintf('\nGenerate.G%i <- function(condition, fixed_objects = NULL) {', i))
+                    cat(sprintf('\nGenerate.G%i <- function(condition, fixed_objects) {', i))
                     if(i < nGenerate) cat("\n    GenerateIf(TRUE)")
                     if(comments) cat('\n    # Define data generation code ...\n')
                     if(comments) cat('\n    # Return a vector, matrix, data.frame, or list')
@@ -187,14 +187,14 @@ SimFunctions <- function(filename = NULL, dir = getwd(),
         }
         if(add.analyse){
             if(nAnalyses == 1L){
-                cat('\nAnalyse <- function(condition, dat, fixed_objects = NULL) {')
+                cat('\nAnalyse <- function(condition, dat, fixed_objects) {')
                 if(comments) cat('\n    # Run statistical analyses of interest ... \n')
                 if(comments) cat('\n    # Return a named vector or list')
                 cat('\n    ret <- nc(stat1 = NaN, stat2 = NaN)\n    ret\n}')
                 cat('\n\n')
             } else {
                 for(i in 1L:nAnalyses){
-                    cat(sprintf('\nAnalyse.A%i <- function(condition, dat, fixed_objects = NULL) {', i))
+                    cat(sprintf('\nAnalyse.A%i <- function(condition, dat, fixed_objects) {', i))
                     if(comments) cat('\n    # Run statistical analyses of interest ... \n')
                     if(comments) cat('\n    # Return a named vector or list')
                     cat('\n    ret <- nc(stat1 = NaN, stat2 = NaN)\n    ret\n}')
@@ -206,7 +206,7 @@ SimFunctions <- function(filename = NULL, dir = getwd(),
             }
         }
         if(summarise && add.summarise){
-            cat('Summarise <- function(condition, results, fixed_objects = NULL) {')
+            cat('Summarise <- function(condition, results, fixed_objects) {')
             if(comments) cat('\n    # Summarise the simulation results ...\n')
             if(comments) cat('\n    # Return a named vector of results')
             if(SimSolve) cat('\n    ret <- EDR(results)\n    ret\n}\n\n')
@@ -226,7 +226,7 @@ SimFunctions <- function(filename = NULL, dir = getwd(),
                             if(summarise) ', summarise=Summarise)' else ')'))
 
             } else {
-                cat('res <- runSimulation(design=Design, replications=1000,',
+                cat('res <- runSimulation(design=Design, replications=2,',
                     if(generate) 'generate=Generate, ')
                 cat(sprintf('\n                     analyse=Analyse%s',
                             if(summarise) ', summarise=Summarise)' else ')'))
@@ -242,7 +242,7 @@ SimFunctions <- function(filename = NULL, dir = getwd(),
             else "Generate"
             genspace <- if(nGenerate > 1L) '\n                     ' else ""
             if(SimSolve) cat('solved <- SimSolve(design=Design, b=VALUE, inverval=RANGE,')
-            else cat('res <- runSimulation(design=Design, replications=1000,')
+            else cat('res <- runSimulation(design=Design, replications=2,')
             if(generate)
                 cat(sprintf('%sgenerate=%s, ', genspace, Generate_string))
             cat(sprintf('\n                     analyse=%s%s', Analyse_string,

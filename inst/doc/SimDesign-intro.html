@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2024-04-24" />
+<meta name="date" content="2024-07-08" />
 
 <title>Introduction to the SimDesign package</title>
 
@@ -1505,7 +1505,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Introduction to the SimDesign package</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2024-04-24</h4>
+<h4 class="date">2024-07-08</h4>
 
 </div>
 
@@ -1536,24 +1536,24 @@ Design &lt;- createDesign(factor1 = NA,
 
 #-------------------------------------------------------------------
 
-Generate &lt;- function(condition, fixed_objects = NULL) {
+Generate &lt;- function(condition, fixed_objects) {
     dat &lt;- data.frame()
     dat
 }
 
-Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
+Analyse &lt;- function(condition, dat, fixed_objects) {
     ret &lt;- nc(stat1 = NaN, stat2 = NaN)
     ret
 }
 
-Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+Summarise &lt;- function(condition, results, fixed_objects) {
     ret &lt;- c(bias = NaN, RMSE = NaN)
     ret
 }
 
 #-------------------------------------------------------------------
 
-res &lt;- runSimulation(design=Design, replications=1000, generate=Generate, 
+res &lt;- runSimulation(design=Design, replications=2, generate=Generate, 
                      analyse=Analyse, summarise=Summarise)
 res</code></pre>
 <p>Alternatively, if you are lazy (read: efficient) or just don’t like copy-and-pasting, <code>SimFunctions()</code> can write the output to a file by providing a <code>filename</code> argument. The following creates a file (<code>mysim.R</code>) containing the simulation design/execution and required user-defined functions.</p>
@@ -1588,7 +1588,7 @@ Design</code></pre>
 <div id="define-the-functions" class="section level2" number="2.2">
 <h2 number="2.2"><span class="header-section-number">2.2</span> Define the functions</h2>
 <p>We first start by defining the data generation functional component. The only argument accepted by this function is <code>condition</code>, which will always be a <em>single row from the Design data.frame object</em> of class <code>data.frame</code>. Conditions are run sequentially from row 1 to the last row in <code>Design</code>. It is also possible to pass a <code>fixed_objects</code> object to the function for including fixed sets of population parameters and other conditions, however for this simple simulation this input is not required.</p>
-<pre class="r"><code>Generate &lt;- function(condition, fixed_objects = NULL) {
+<pre class="r"><code>Generate &lt;- function(condition, fixed_objects) {
     N &lt;- condition$sample_size
     dist &lt;- condition$distribution
     if(dist == &#39;norm&#39;){
@@ -1599,7 +1599,7 @@ Design</code></pre>
     dat
 }</code></pre>
 <p>As we can see above, <code>Generate()</code> will return a numeric vector of length <span class="math inline">\(N\)</span> containing the data to be analysed each with a population mean of 3 (because a <span class="math inline">\(\chi^2\)</span> distribution has a mean equal to its df). Next, we define the <code>analyse</code> component to analyse said data:</p>
-<pre class="r"><code>Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
+<pre class="r"><code>Analyse &lt;- function(condition, dat, fixed_objects) {
     M0 &lt;- mean(dat)
     M1 &lt;- mean(dat, trim = .1)
     M2 &lt;- mean(dat, trim = .2)
@@ -1610,7 +1610,7 @@ Design</code></pre>
 }</code></pre>
 <p>This function accepts the data previously returned from <code>Generate()</code> (<code>dat</code>), the condition vector previously mentioned.</p>
 <p>At this point, we may conceptually think of the first two functions as being evaluated independently <span class="math inline">\(R\)</span> times to obtain <span class="math inline">\(R\)</span> sets of results. In other words, if we wanted the number of replications to be 100, the first two functions would be independently run (at least) 100 times, the results from <code>Analyse()</code> would be stored, and we would then need to summarise these 100 elements into meaningful meta statistics to describe their empirical properties. This is where computing meta-statistics such as bias, root mean-square error, detection rates, and so on are of primary importance. Unsurprisingly, then, this is the purpose of the <code>summarise</code> component:</p>
-<pre class="r"><code>Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+<pre class="r"><code>Summarise &lt;- function(condition, results, fixed_objects) {
     obs_bias &lt;- bias(results, parameter = 3)
     obs_RMSE &lt;- RMSE(results, parameter = 3)
     ret &lt;- c(bias=obs_bias, RMSE=obs_RMSE, RE=RE(obs_RMSE))
@@ -1626,28 +1626,28 @@ Design</code></pre>
 <pre class="r"><code>res &lt;- runSimulation(Design, replications = 1000, generate=Generate, 
                          analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
-## Design: 1/8;   RAM Used: 62.3 Mb;   Replications: 1000;   Total Time: 0.00s 
+## Design: 1/8;   RAM Used: 63 Mb;   Replications: 1000;   Total Time: 0.00s 
 ##  Conditions: sample_size=30, distribution=norm
 ## 
-## Design: 2/8;   RAM Used: 62.4 Mb;   Replications: 1000;   Total Time: 0.32s 
+## Design: 2/8;   RAM Used: 63.1 Mb;   Replications: 1000;   Total Time: 0.30s 
 ##  Conditions: sample_size=60, distribution=norm
 ## 
-## Design: 3/8;   RAM Used: 62.4 Mb;   Replications: 1000;   Total Time: 0.64s 
+## Design: 3/8;   RAM Used: 63.2 Mb;   Replications: 1000;   Total Time: 0.59s 
 ##  Conditions: sample_size=120, distribution=norm
 ## 
-## Design: 4/8;   RAM Used: 62.5 Mb;   Replications: 1000;   Total Time: 0.97s 
+## Design: 4/8;   RAM Used: 63.2 Mb;   Replications: 1000;   Total Time: 0.91s 
 ##  Conditions: sample_size=240, distribution=norm
 ## 
-## Design: 5/8;   RAM Used: 62.5 Mb;   Replications: 1000;   Total Time: 1.33s 
+## Design: 5/8;   RAM Used: 63.2 Mb;   Replications: 1000;   Total Time: 1.25s 
 ##  Conditions: sample_size=30, distribution=chi
 ## 
-## Design: 6/8;   RAM Used: 62.5 Mb;   Replications: 1000;   Total Time: 1.66s 
+## Design: 6/8;   RAM Used: 63.3 Mb;   Replications: 1000;   Total Time: 1.55s 
 ##  Conditions: sample_size=60, distribution=chi
 ## 
-## Design: 7/8;   RAM Used: 62.6 Mb;   Replications: 1000;   Total Time: 2.00s 
+## Design: 7/8;   RAM Used: 63.3 Mb;   Replications: 1000;   Total Time: 1.86s 
 ##  Conditions: sample_size=120, distribution=chi
 ## 
-## Design: 8/8;   RAM Used: 62.6 Mb;   Replications: 1000;   Total Time: 2.34s 
+## Design: 8/8;   RAM Used: 63.3 Mb;   Replications: 1000;   Total Time: 2.20s 
 ##  Conditions: sample_size=240, distribution=chi
 ## </code></pre>
 <pre class="r"><code># Final simulation object

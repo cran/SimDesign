@@ -33,8 +33,9 @@
 #'
 #' @param wait.time (optional) instead of terminating after specific estimate criteria
 #'   are satisfied (e.g., \code{tol}), terminate after a specific
-#'   wait time. Input must be a numeric vector indicating the number of minutes to
-#'   wait. Not that users should increase the number of \code{maxiter} as well
+#'   wait time. Input is specified either as a numeric vector in seconds or as a character
+#'   vector to be formatted by \code{\link{timeFormater}}.
+#'   Note that users should increase the number of \code{maxiter} as well
 #'   so that termination can occur if either the maximum iterations are satisfied
 #'   or the specified wait time has elapsed (whichever occurs first)
 #
@@ -119,8 +120,8 @@
 #' plot(retpba.noise, type = 'history')
 #'
 #' \dontrun{
-#' # ignore termination criteria and instead run for 1/2 minutes or 30000 iterations
-#' retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = 1/2, maxiter=30000)
+#' # ignore termination criteria and instead run for 30 seconds or 30000 iterations
+#' retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = "0:30", maxiter=30000)
 #' retpba.noise_30sec
 #'
 #' }
@@ -133,6 +134,8 @@ PBA <- function(f, interval, ..., p = .6,
                 verbose = TRUE){
 
     if(maxiter < miniter) maxiter <- miniter
+    if(!is.null(wait.time) && is.character(wait.time))
+        wait.time <- timeFormater(wait.time)
     stopifnot(length(p) == 1L)
     if(p <= 0.5)
         stop('Probability must be > 0.5')
@@ -178,6 +181,11 @@ PBA <- function(f, interval, ..., p = .6,
         control <- FromSimSolve$control
         # robust <- FromSimSolve$robust
         predCI <- FromSimSolve$predCI
+        predCI.tol <- FromSimSolve$predCI.tol
+        if(!is.null(predCI.tol)){
+            tol <- predCI.tol
+            rel.tol <- 0
+        }
         interpolate.burnin <- FromSimSolve$interpolate.burnin
         glmpred.last <- glmpred <- c(NA, NA)
         k.success <- FromSimSolve$k.success
@@ -206,8 +214,10 @@ PBA <- function(f, interval, ..., p = .6,
         }
         no_root <- (upper[1L] + lower[1L]) != 1L
         if(no_root){
-            msg <- sprintf('interval range supplied appears to be %s the probable root.',
-                           ifelse(upper[1L] == 0, '*above*', '*below*'))
+            msg <- sprintf(paste0('supplied interval range appears to be %s the probable root.',
+                           '\nResulting root estimates were [%.3f, %.3f]'),
+                           ifelse(upper[1L] == 0, '*above*', '*below*'),
+                           lower[2L], upper[2L])
             old.opts <- options()
             options(warn=1)
             warning(msg, call.=FALSE)
@@ -258,7 +268,7 @@ PBA <- function(f, interval, ..., p = .6,
             SimMod <- try(suppressWarnings(glm(formula = formula,
                                                data=SimSolveData, family=family,
                                                weights=weights)), silent=TRUE)
-            glmpred <- if(is(SimMod, 'try-error')){
+            glmpred <- glmpred0 <- if(is(SimMod, 'try-error')){
                 c(NA, NA)
             } else {
                 suppressWarnings(SimSolveUniroot(SimMod=SimMod,
@@ -266,16 +276,24 @@ PBA <- function(f, interval, ..., p = .6,
                                                  interval=quantile(medhistory[medhistory != 0],
                                                                    probs = c(.05, .95)),
                                                  max.interval=interval,
-                                                 median=med))
+                                                 median=med, CI=if(!is.null(predCI.tol)) predCI else NULL))
+            }
+            if(!is.null(predCI.tol)){
+                glmpred[1L] <- glmpred[2L]
+                glmpred.last[1L] <- glmpred[3L]
             }
             if(is.na(glmpred[1L])){
                 glmpred.converged <- FALSE
-                glmpred[1L] <- med
+                glmpred0[1L] <- med
             }
 
             # Should termination occur early when this changes very little?
             if(!any(is.na(c(glmpred[1L], glmpred.last[1L])))){
                 abs_diff <- abs(glmpred.last[1L] - glmpred[1L])
+                if(!is.null(predCI.tol)){
+                    if(glmpred0[2L] < (dots$b - predCI.tol/2)) abs_diff <- tol*2
+                    if(glmpred0[3L] > (dots$b + predCI.tol/2)) abs_diff <- tol*2
+                }
                 rel_diff <- abs_diff / abs(glmpred.last[1L])
                 if(abs_diff <= tol || rel_diff <= rel.tol){
                     k.successes <- k.successes + 1L
@@ -301,11 +319,11 @@ PBA <- function(f, interval, ..., p = .6,
             if(interpolate && iter > interpolate.after && !is.na(glmpred[1L]))
                 cat(sprintf(paste0('; k.tol = %i; Pred = %',
                                    if(integer) ".1f" else ".3f"),
-                            k.successes, glmpred[1L]))
+                            k.successes, glmpred0[1L]))
         }
 
         if(!is.null(wait.time))
-            if(proc.time()[3L] - start_time > wait.time*60) break
+            if(proc.time()[3L] - start_time > wait.time) break
 
         if(iter == maxiter) break
     }
@@ -331,7 +349,7 @@ PBA <- function(f, interval, ..., p = .6,
     fx <- exp(fx) / sum(exp(fx)) # normalize final result
     medhistory <- medhistory[1L:(iter-1L)]
     # BI <- belief_interval(x, fx, CI=CI)
-    root <- if(!interpolate) medhistory[length(medhistory)] else glmpred[1L]
+    root <- if(!interpolate) medhistory[length(medhistory)] else glmpred0[1L]
     ret <- list(iter=iter, root=root, terminated_early=converged, integer=integer,
                 e.froot=e.froot, x=x, fx=fx, medhistory=medhistory,
                 time=as.numeric(proc.time()[3L]-start_time),
@@ -350,12 +368,12 @@ print.PBA <- function(x, ...)
     out <- with(x,
          list(root = root,
               terminated_early=terminated_early,
-              time=noquote(timeFormater(time)),
+              time=noquote(timeFormater_internal(time)),
               iterations = iter))
     if(!all(is.na(x$predCIs)))
-        out <- append(out, list(pred_CI.root = x$predCIs_root,
+        out <- append(out, list(predCI.root = x$predCIs_root,
                                 b = x$b,
-                                pred_CI.b = x$predCIs), 1L)
+                                predCI.b = x$predCIs), 1L)
     if(!is.null(x$total.replications))
         out$total.replications <- x$total.replications
     if(x$integer && !is.null(x$tab))

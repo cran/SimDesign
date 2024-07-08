@@ -15,17 +15,17 @@ library(SimDesign)
 Design <- createDesign(N = c(10,20,30))
 
 ## -----------------------------------------------------------------------------
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     dat <- rnorm(condition$N)    
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     ret <- c(p = t.test(dat)$p.value)
     ret
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL) {
+Summarise <- function(condition, results, fixed_objects) {
     ret <- EDR(results, alpha = .05)
     ret
 }
@@ -34,7 +34,7 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
 set.seed(1)
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  Analyse <- function(condition, dat, fixed_objects = NULL) {
+#  Analyse <- function(condition, dat, fixed_objects) {
 #      if(condition$N == 30) stop('Danger Will Robinson!')
 #      ret <- c(p = t.test(dat)$p.value)
 #      ret
@@ -45,7 +45,7 @@ set.seed(1)
 #                       control = list(stop_on_fatal = TRUE))
 
 ## ----echo=FALSE---------------------------------------------------------------
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     if(condition$N == 30) stop('Danger Will Robinson!')
     ret <- c(p = t.test(dat)$p.value)
     ret
@@ -63,7 +63,7 @@ files <- dir()
 files[grepl('SIMDESIGN', files)]
 
 ## -----------------------------------------------------------------------------
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     ret <- c(p = t.test(dat)$p.value)
     ret
 }

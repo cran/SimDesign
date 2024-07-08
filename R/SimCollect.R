@@ -1,10 +1,12 @@
 #' Collapse separate simulation files into a single result
 #'
-#' This function aggregates the results from SimDesign's \code{\link{runSimulation}} into a single
+#' This function collects and aggregates the results from
+#' \code{SimDesign}'s \code{\link{runSimulation}} into a single
 #' objects suitable for post-analyses, or combines all the saved results directories and combines
-#' them into one. This is useful when results are run piecewise on one node (e.g., 500 replications
-#' in one batch, 500 again at a later date) or run independently across different
-#' nodes/computers that are not on the same network.
+#' them into one. This is useful when results are run piece-wise on one node (e.g., 500 replications
+#' in one batch, 500 again at a later date, though be careful about the \code{\link{set.seed}}
+#' use as the random numbers will tend to correlate the more it is used) or run independently across different
+#' nodes/computing cores (e.g., see \code{\link{runArraySimulation}}.
 #'
 #' @param files a \code{character} vector containing the names of the simulation's final \code{.rds} files
 #'
@@ -33,7 +35,6 @@
 #' @return if \code{files} is used the function returns a \code{data.frame/tibble} with the (weighted) average
 #'   of the simulation results. Otherwise, if \code{dirs} is used, the function returns NULL
 #'
-#' @aliases aggregate_simulations
 #' @references
 #'
 #' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
@@ -46,7 +47,7 @@
 #'
 #' @seealso \code{\link{runSimulation}}
 #'
-#' @export aggregate_simulations
+#' @export
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
 #'
@@ -56,30 +57,34 @@
 #' setwd('my_working_directory')
 #'
 #' ## run simulations to save the .rds files (or move them to the working directory)
-#' # ret1 <- runSimulation(..., filename='file1')
-#' # ret2 <- runSimulation(..., filename='file2')
+#' # seeds1 <- genSeeds(design)
+#' # seeds2 <- genSeeds(design, old.seeds=seeds1)
+#' # ret1 <- runSimulation(design, ..., seed=seeds1, filename='file1')
+#' # ret2 <- runSimulation(design, ..., seed=seeds2, filename='file2')
 #'
 #' # saves to the hard-drive and stores in workspace
-#' final <- aggregate_simulations(files = c('file1.rds', 'file2.rds'))
+#' final <- SimCollect(files = c('file1.rds', 'file2.rds'))
 #' final
 #'
 #' # If filename not included, can be extracted from results
 #' # files <- c(SimExtract(ret1, 'filename'), SimExtract(ret2, 'filename'))
-#' # final <- aggregate_simulations(files = files)
+#' # final <- SimCollect(files = files)
 #'
 #' # aggregate saved results for .rds files and results directories
-#' # runSimulation(..., save_results = TRUE, save_details = list(save_results_dirname = 'dir1'))
-#' # runSimulation(..., save_results = TRUE, save_details = list(save_results_dirname = 'dir2'))
+#' # runSimulation(..., seed=seeds1, save_results = TRUE,
+#' #      save_details = list(save_results_dirname = 'dir1'))
+#' # runSimulation(..., seed=seeds2, save_results = TRUE,
+#' #      save_details = list(save_results_dirname = 'dir2'))
 #'
 #' # place new saved results in 'SimDesign_results/' by default
-#' aggregate_simulations(files = c('file1.rds', 'file2.rds'),
-#'                       filename='aggreged_sim.rds',
-#'                       dirs = c('dir1', 'dir2'))
+#' SimCollect(files = c('file1.rds', 'file2.rds'),
+#'            filename='aggreged_sim.rds',
+#'            dirs = c('dir1', 'dir2'))
 #'
 #' # If dirnames not included, can be extracted from results
 #' # dirs <- c(SimExtract(ret1, 'save_results_dirname'),
 #'             SimExtract(ret2, 'save_results_dirname'))
-#' # aggregate_simulations(dirs = dirs)
+#' # SimCollect(dirs = dirs)
 #'
 #' #################################################
 #' # Example where each row condition is repeated, evaluated independently,
@@ -96,17 +101,17 @@
 #'
 #' #-------------------------------------------------------------------
 #'
-#' Generate <- function(condition, fixed_objects = NULL) {
+#' Generate <- function(condition, fixed_objects) {
 #'     dat <- with(condition, rnorm(N, mean=mu))
 #'     dat
 #' }
 #'
-#' Analyse <- function(condition, dat, fixed_objects = NULL) {
+#' Analyse <- function(condition, dat, fixed_objects) {
 #'     ret <- c(mean=mean(dat), SD=sd(dat))
 #'     ret
 #' }
 #'
-#' Summarise <- function(condition, results, fixed_objects = NULL) {
+#' Summarise <- function(condition, results, fixed_objects) {
 #'     ret <- colMeans(results)
 #'     ret
 #' }
@@ -115,7 +120,7 @@
 #'
 #' # Generate fixed seeds to be distributed
 #' set.seed(1234)
-#' seeds <- gen_seeds(Design)
+#' seeds <- genSeeds(Design)
 #' seeds
 #'
 #' # replications vector (constant is fine if the same across conditions;
@@ -126,7 +131,7 @@
 #' dir.create('sim_files/')
 #'
 #' # distribute jobs independently (explicitly parallelize here on cluster,
-#' # which is more elagantly managed via runArraySimulation)
+#' # which is more elegantly managed via runArraySimulation)
 #' sapply(1:nrow(Design), \(i) {
 #'   runSimulation(design=Design[i, ], replications=replications[i],
 #'                 generate=Generate, analyse=Analyse, summarise=Summarise,
@@ -135,20 +140,19 @@
 #'
 #' # check that all replications satisfy target
 #' files <- paste0('sim_files/job-', 1:nrow(Design), ".rds")
-#' aggregate_simulations(files = files, check.only = TRUE)
+#' SimCollect(files = files, check.only = TRUE)
 #'
 #' # this would have been returned were the target.rep supposed to be 1000
-#' aggregate_simulations(files = files, check.only = TRUE, target.reps=1000)
+#' SimCollect(files = files, check.only = TRUE, target.reps=1000)
 #'
 #' # aggregate into single object
-#' sim <- aggregate_simulations(files = paste0('sim_files/job-',
-#'                                      1:nrow(Design), ".rds"))
+#' sim <- SimCollect(files = paste0('sim_files/job-', 1:nrow(Design), ".rds"))
 #' sim
 #'
 #' }
-aggregate_simulations <- function(files = NULL, filename = NULL,
-                                  dirs = NULL, results_dirname = 'SimDesign_aggregate_results',
-                                  select = NULL, check.only = FALSE, target.reps = NULL){
+SimCollect <- function(files = NULL, filename = NULL,
+                       dirs = NULL, results_dirname = 'SimDesign_aggregate_results',
+                       select = NULL, check.only = FALSE, target.reps = NULL){
     if(check.only) select <- 'REPLICATIONS'
     oldfiles <- files
     if(!is.null(dirs)){
@@ -209,8 +213,14 @@ aggregate_simulations <- function(files = NULL, filename = NULL,
                   "total_elapsed_time", "stored_Random.seeds_list")] <- NULL
     errors <- lapply(readin, function(x)
         as.data.frame(x[ ,grepl('ERROR', colnames(x)), drop=FALSE]))
+    warnings <- lapply(readin, function(x)
+        as.data.frame(x[ ,grepl('WARNINGS', colnames(x)), drop=FALSE]))
     nms <- unique(do.call(c, lapply(errors, function(x) colnames(x))))
-    readin <- lapply(readin, function(x) x[ ,!grepl('ERROR', colnames(x)), drop=FALSE])
+    if(!length(nms)) nms <- 'ERRORS'
+    nmsw <- unique(do.call(c, lapply(warnings, function(x) colnames(x))))
+    if(!length(nmsw)) nmsw <- 'WARNINGS'
+    readin <- lapply(readin, function(x) x[ ,!(
+        grepl('ERROR', colnames(x)) | grepl('WARNINGS', colnames(x))), drop=FALSE])
     if(length(unique(sapply(readin, ncol))) > 1L)
         stop('Number of columns in the replications not equal')
     designs <- lapply(readin, \(x) SimExtract(x, 'Design'))
@@ -233,12 +243,20 @@ aggregate_simulations <- function(files = NULL, filename = NULL,
     full_out <- vector('list', length(unique.set.index))
     readin.old <- readin
     errors.old <- errors
+    warnings.old <- warnings
     design_names <- attr(readin[[1L]], "design_names")$design
+    errors_info <- lapply(readin.old, \(x) SimExtract(x, 'errors',
+                                                      append=FALSE, fuzzy=FALSE))
+    warnings_info <- lapply(readin.old, \(x) SimExtract(x, 'warnings',
+                                                        append=FALSE, fuzzy=FALSE))
     for(j in unique.set.index){
         readin <- readin.old[which(j == set.index)]
         errors <- errors.old[which(j == set.index)]
+        warnings <- warnings.old[which(j == set.index)]
         try_errors <- as.data.frame(matrix(0L, nrow(readin[[1L]]), length(nms)))
+        caught_warnings <- as.data.frame(matrix(0L, nrow(readin[[1L]]), length(nms)))
         names(try_errors) <- nms
+        names(caught_warnings) <- nmsw
         ret <- readin[[1L]]
         pick <- sapply(readin[[1L]], is.numeric) & !(colnames(readin[[1]]) %in% design_names)
         ret[, pick] <- 0
@@ -257,6 +275,11 @@ aggregate_simulations <- function(files = NULL, filename = NULL,
                 try_errors[,match(nms, names(try_errors))] <- errors[[i]][ ,tmp] +
                     try_errors[,match(nms, names(try_errors))]
             }
+            tmp <- stats::na.omit(match(nmsw, names(warnings[[i]])))
+            if(length(tmp) > 0L){
+                caught_warnings[,match(nmsw, names(caught_warnings))] <- warnings[[i]][ ,tmp] +
+                    caught_warnings[,match(nmsw, names(caught_warnings))]
+            }
             ret$SIM_TIME <- ret$SIM_TIME + readin[[i]]$SIM_TIME
             ret[ ,pick] <- ret[ ,pick] + weights[i] * readin[[i]][ ,pick]
             if(has_stored_results & i > 1L){
@@ -268,7 +291,8 @@ aggregate_simulations <- function(files = NULL, filename = NULL,
         if(has_stored_results)
             results <- attr(ret, 'extra_info')$stored_results
         try_errors[try_errors == 0L] <- NA
-        out <- dplyr::as_tibble(data.frame(ret, try_errors, check.names = FALSE))
+        caught_warnings[caught_warnings == 0L] <- NA
+        out <- dplyr::as_tibble(data.frame(ret, try_errors, caught_warnings, check.names = FALSE))
         out$SEED <- NULL
         if(has_stored_results)
             attr(out, 'extra_info') <- list(stored_results=results)
@@ -277,11 +301,15 @@ aggregate_simulations <- function(files = NULL, filename = NULL,
     if(length(unique.set.index) == 1L){
         out <- full_out[[1L]]
         extra_info1$stored_results <- attr(out, 'extra_info')$stored_results
+        errors_info <- add_cbind(errors_info)
+        warnings_info <- add_cbind(warnings_info)
     } else {
         out <- do.call(rbind, full_out)
         if(has_stored_results)
             extra_info1$stored_results <- do.call(rbind,
                             lapply(full_out, \(x) attr(x, 'extra_info')$stored_results))
+        errors_info <- dplyr::as_tibble(do.call(rbind, errors_info))
+        warnings_info <- dplyr::as_tibble(do.call(rbind, warnings_info))
     }
     if(check.only){
         if(is.null(target.reps)) target.reps <- max(out$REPLICATIONS)
@@ -291,7 +319,7 @@ aggregate_simulations <- function(files = NULL, filename = NULL,
             out$MISSED_REPLICATIONS <- as.integer(diff)
             out$TARGET_REPLICATIONS <- as.integer(target.reps)
             out$REPLICATIONS <- NULL
-            message("The follow design conditions did not satisfy the target.reps")
+            message("The following design conditions did not satisfy the target.reps")
             return(out[reps_bad,])
         } else {
             message(c('All replications satisfied target.reps criteria of ', target.reps))
@@ -310,7 +338,9 @@ aggregate_simulations <- function(files = NULL, filename = NULL,
     extra_info1$number_of_conditions <- nrow(out)
     extra_info1$ncores <- ncores
     attr(out, 'extra_info') <- extra_info1
-    invisible(out)
+    attr(out, 'ERROR_msg') <- errors_info
+    attr(out, 'WARNING_msg') <- warnings_info
+    out
 }
 
 subset_results <- function(obj, select){
@@ -323,4 +353,12 @@ subset_results <- function(obj, select){
     }
     attr(obj, 'extra_info')$stored_results <- res
     obj
+}
+
+#' @rdname SimCollect
+#' @param ... not used
+#' @export
+aggregate_simulations <- function(...){
+    .Deprecated('SimCollect')
+    SimCollect(...)
 }

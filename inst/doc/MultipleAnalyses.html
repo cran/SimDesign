@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2024-04-24" />
+<meta name="date" content="2024-07-08" />
 
 <title>Multiple analysis functions</title>
 
@@ -1505,7 +1505,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Multiple analysis functions</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2024-04-24</h4>
+<h4 class="date">2024-07-08</h4>
 
 </div>
 
@@ -1531,24 +1531,24 @@ div.tocify {
 ## 
 ## #-------------------------------------------------------------------
 ## 
-## Generate &lt;- function(condition, fixed_objects = NULL) {
+## Generate &lt;- function(condition, fixed_objects) {
 ##     dat &lt;- data.frame()
 ##     dat
 ## }
 ## 
-## Analyse &lt;- function(condition, dat, fixed_objects = NULL) {
+## Analyse &lt;- function(condition, dat, fixed_objects) {
 ##     ret &lt;- nc(stat1 = NaN, stat2 = NaN)
 ##     ret
 ## }
 ## 
-## Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+## Summarise &lt;- function(condition, results, fixed_objects) {
 ##     ret &lt;- c(bias = NaN, RMSE = NaN)
 ##     ret
 ## }
 ## 
 ## #-------------------------------------------------------------------
 ## 
-## res &lt;- runSimulation(design=Design, replications=1000, generate=Generate, 
+## res &lt;- runSimulation(design=Design, replications=2, generate=Generate, 
 ##                      analyse=Analyse, summarise=Summarise)
 ## res</code></pre>
 <p>which uses the default <code>nAnalyses=1</code> to generate only a single <code>Analyse()</code> function. In the context of multiple analysis functions, however, users may be more interested in passing the number of analysis functions they believe they will need in their simulation (e.g., if analyzing a <span class="math inline">\(t\)</span>-test setup to compare the Welch versus independent samples t-test, then two analysis functions should be used). Passing <code>nAnalyses=2</code> to <code>SimFunctions()</code> creates the following template:</p>
@@ -1562,31 +1562,31 @@ div.tocify {
 ## 
 ## #-------------------------------------------------------------------
 ## 
-## Generate &lt;- function(condition, fixed_objects = NULL) {
+## Generate &lt;- function(condition, fixed_objects) {
 ##     dat &lt;- data.frame()
 ##     dat
 ## }
 ## 
-## Analyse.A1 &lt;- function(condition, dat, fixed_objects = NULL) {
+## Analyse.A1 &lt;- function(condition, dat, fixed_objects) {
 ##     ret &lt;- nc(stat1 = NaN, stat2 = NaN)
 ##     ret
 ## }
 ## 
-## Analyse.A2 &lt;- function(condition, dat, fixed_objects = NULL) {
+## Analyse.A2 &lt;- function(condition, dat, fixed_objects) {
 ##     ret &lt;- nc(stat1 = NaN, stat2 = NaN)
 ##     ret
 ## }
 ## 
 ## #-------------------------------------------------------------------
 ## 
-## Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+## Summarise &lt;- function(condition, results, fixed_objects) {
 ##     ret &lt;- c(bias = NaN, RMSE = NaN)
 ##     ret
 ## }
 ## 
 ## #-------------------------------------------------------------------
 ## 
-## res &lt;- runSimulation(design=Design, replications=1000,generate=Generate, 
+## res &lt;- runSimulation(design=Design, replications=2,generate=Generate, 
 ##                      analyse=list(A1=Analyse.A1, A2=Analyse.A2), 
 ##                      summarise=Summarise)
 ## res</code></pre>
@@ -1614,7 +1614,7 @@ pars &lt;- list(ten=pars_10, twenty=pars_20)
 
 P_logit &lt;- function(a, d, Theta) exp(a * Theta + d) / (1 + exp(a * Theta + d))
 P_ogive &lt;- function(a, d, Theta) pnorm(a * Theta + d)</code></pre>
-<pre class="r"><code>Generate &lt;- function(condition, fixed_objects = NULL) {
+<pre class="r"><code>Generate &lt;- function(condition, fixed_objects) {
 
     N &lt;- condition$sample_size
     nitems &lt;- condition$nitems
@@ -1635,7 +1635,7 @@ P_ogive &lt;- function(a, d, Theta) pnorm(a * Theta + d)</code></pre>
     as.data.frame(dat) #data.frame works nicer with lavaan
 }
 
-Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
+Analyse.FIML &lt;- function(condition, dat, fixed_objects) {
     mod &lt;- mirt(dat, 1L, verbose=FALSE)
     if(!extract.mirt(mod, &#39;converged&#39;)) stop(&#39;mirt did not converge&#39;)
     cfs &lt;- mirt::coef(mod, simplify = TRUE, digits = Inf)
@@ -1645,7 +1645,7 @@ Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
     ret
 }
 
-Analyse.DWLS &lt;- function(condition, dat, fixed_objects = NULL) {
+Analyse.DWLS &lt;- function(condition, dat, fixed_objects) {
     nitems &lt;- condition$nitems
     lavmod &lt;- paste0(&#39;F =~ &#39;, paste0(&#39;NA*&#39;, colnames(dat)[1L], &#39; + &#39;),
                      paste0(colnames(dat)[-1L], collapse = &#39; + &#39;),
@@ -1661,7 +1661,7 @@ Analyse.DWLS &lt;- function(condition, dat, fixed_objects = NULL) {
     ret
 }
 
-Summarise &lt;- function(condition, results, fixed_objects = NULL) {
+Summarise &lt;- function(condition, results, fixed_objects) {
     nitems &lt;- condition$nitems
     nitems_name &lt;- ifelse(nitems == 10, &#39;ten&#39;, &#39;twenty&#39;)
 
@@ -1723,7 +1723,7 @@ Design</code></pre>
 ## 11         500     20 continuous
 ## 12        1000     20 continuous</code></pre>
 <p>Provided that the <code>Generate()</code> step utilized this <code>indicators</code> character vector, this would imply that the <code>dat</code> object returned from <code>Generate()</code> could consist of discrete or continuous data. In the case of continuous indicator variables, <code>lavaan</code> could be used as it supports such indicator types; however, <code>mirt</code> cannot. So, to ensure that only the analysis function pertaining to <code>lavaan</code> is used one could include the following replacement definition that used <code>mirt</code>, but now includes an <code>AnalyseIf()</code> logical given the <code>indicators</code> variable’s state.</p>
-<pre class="r"><code>Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
+<pre class="r"><code>Analyse.FIML &lt;- function(condition, dat, fixed_objects) {
     AnalyseIf(condition$indicators == &#39;discrete&#39;)
     # equivalently: 
     #   AnalyseIf(indicators == &#39;discrete&#39;, condition)
@@ -1738,13 +1738,13 @@ Design</code></pre>
 }</code></pre>
 <p>Using this definition the final object returned by <code>runSimulation()</code> will provide suitable <code>NA</code> placeholders (where appropriate). For continuous indicators the results will be presented as though <code>mirt</code> was never used for the continuous indicator conditions controlled by the <code>Design</code> object.</p>
 <p>Note that a similar logic can be made for multiple <code>Generate()</code> functions, templated via <code>SimDesign::SimFunctions(nGenerate = 2)</code>, and requiring specific <code>GenerateIf()</code> tests to indicate which generation function should be used. For those interested in this type of structure, the following could be used to separate the discrete/continuous data generation per <code>Design</code> row:</p>
-<pre class="r"><code>Generate.G1 &lt;- function(condition, fixed_objects = NULL) {
+<pre class="r"><code>Generate.G1 &lt;- function(condition, fixed_objects) {
     GenerateIf(condition$indicators == &#39;discrete&#39;)
     ...
     dat
 }
 
-Generate.G2 &lt;- function(condition, fixed_objects = NULL) {
+Generate.G2 &lt;- function(condition, fixed_objects) {
     GenerateIf(condition$indicators == &#39;continuous&#39;)
     ...
     dat
@@ -1777,12 +1777,12 @@ Design</code></pre>
 ## 11         500     20 DWLS  
 ## 12        1000     20 DWLS</code></pre>
 <p>and the analysis functions above were supplied defined as</p>
-<pre class="r"><code>Analyse.FIML &lt;- function(condition, dat, fixed_objects = NULL) {
+<pre class="r"><code>Analyse.FIML &lt;- function(condition, dat, fixed_objects) {
     AnalyseIf(method == &#39;FIML&#39;, condition)
     #...
 }
 
-Analyse.DWLS &lt;- function(condition, dat, fixed_objects = NULL) {
+Analyse.DWLS &lt;- function(condition, dat, fixed_objects) {
     AnalyseIf(method == &#39;DWLS&#39;, condition)
     # ...
 }

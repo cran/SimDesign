@@ -30,6 +30,8 @@
 #'   \emph{"System is computationally singular: reciprocal condition number = 2.15321e-16"} are
 #'   effectively the same, and likely should be reported in the same columns of the extracted output
 #'
+#' @param append logical; append the design conditions when extracting error/warning messages?
+#'
 #' @export
 #'
 #' @references
@@ -48,21 +50,21 @@
 #'
 #' \dontrun{
 #'
-#' Generate <- function(condition, fixed_objects = NULL) {
+#' Generate <- function(condition, fixed_objects) {
 #'     int <- sample(1:10, 1)
 #'     if(int > 5) warning('GENERATE WARNING: int greater than 5')
-#'     if(int == 1) stop('GENERATE WARNING: integer is 1')
+#'     if(int == 1) stop('GENERATE ERROR: integer is 1')
 #'     rnorm(5)
 #' }
 #'
-#' Analyse <- function(condition, dat, fixed_objects = NULL) {
+#' Analyse <- function(condition, dat, fixed_objects) {
 #'     int <- sample(1:10, 1)
 #'     if(int > 5) warning('ANALYSE WARNING: int greater than 5')
-#'     if(int == 1) stop('ANALYSE WARNING: int is 1')
+#'     if(int == 1) stop('ANALYSE ERROR: int is 1')
 #'     c(ret = 1)
 #' }
 #'
-#' Summarise <- function(condition, results, fixed_objects = NULL) {
+#' Summarise <- function(condition, results, fixed_objects) {
 #'     mean(results)
 #' }
 #'
@@ -82,7 +84,7 @@
 #'
 #'
 #' }
-SimExtract <- function(object, what, fuzzy = TRUE){
+SimExtract <- function(object, what, fuzzy = TRUE, append = TRUE){
     stopifnot(is(object, "SimDesign"))
     what <- tolower(what)
     pick <- attr(object, 'design_names')$design
@@ -94,7 +96,8 @@ SimExtract <- function(object, what, fuzzy = TRUE){
     ret <- if(what == 'results'){
         extract_results(object)
     } else if(what == 'errors'){
-        cbind(Design, extract_errors(object, fuzzy=fuzzy))
+        err <- extract_errors(object, fuzzy=fuzzy)
+        if(length(err) && append) cbind(Design, err) else err
     } else if(what == 'summarise'){
         extract_summarise(object)
     }  else if(what == 'seeds'){
@@ -104,7 +107,8 @@ SimExtract <- function(object, what, fuzzy = TRUE){
     } else if(what == 'error_seeds'){
         extract_error_seeds(object)
     } else if(what == 'warnings'){
-        cbind(Design, extract_warnings(object, fuzzy=fuzzy))
+        wrn <- extract_warnings(object, fuzzy=fuzzy)
+        if(length(wrn) && append) cbind(Design, wrn) else wrn
     } else if(what == 'warning_seeds'){
         extract_warning_seeds(object)
     } else if(what == 'save_results_dirname'){
@@ -184,6 +188,7 @@ extract_summarise <- function(object){
 }
 
 fuzzy_reduce <- function(df){
+    if(!length(df)) return(df)
     nms <- colnames(df)
     matched <- logical(length(nms))
     unames <- c()

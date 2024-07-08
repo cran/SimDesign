@@ -26,7 +26,7 @@ get_packages <- function(packages){
 }
 
 # base-code borrowed and modified from pbapply
-timeFormater <- function(time, decimals = TRUE){
+timeFormater_internal <- function(time, decimals = TRUE){
     dec <- time - floor(time)
     time <- floor(time - dec)
     dec <- round(dec, 2)
@@ -68,7 +68,7 @@ print_progress <- function(row, trow, stored_time, RAM, progress,
     }
     if(RAM != "") RAM <- sprintf(';   RAM Used: %s', RAM)
     cat(sprintf('\rDesign: %i/%i%s;   Replications: %i;   Total Time: %s ',
-                row, trow, RAM, replications, timeFormater(sum(stored_time))))
+                row, trow, RAM, replications, timeFormater_internal(sum(stored_time))))
     cat(sprintf('\n Conditions: %s\n', condstring))
     if(progress) cat('\r')
     invisible(NULL)
@@ -80,7 +80,7 @@ notification_condition <- function(condition, results, total){
     RPushbullet::pbPost(type = 'note',
                         title = sprintf("Condition %i/%i completed", condition$ID, total),
                         body = sprintf("Execution time: %s \nErrors: %i \nWarnings: %i",
-                                       timeFormater(results$SIM_TIME),
+                                       timeFormater_internal(results$SIM_TIME),
                                        ifelse(is.null(results$ERRORS), 0, results$ERRORS),
                                        ifelse(is.null(results$WARNINGS), 0, results$WARNINGS)))
 
@@ -91,27 +91,32 @@ notification_final <- function(Final){
     RPushbullet::pbPost(type = 'note',
                         title = "Simulation completed",
                         body = sprintf("Total execution time: %s \nTotal Errors: %i \nTotal Warnings: %i",
-                                       timeFormater(sum(Final$SIM_TIME)),
+                                       timeFormater_internal(sum(Final$SIM_TIME)),
                                        ifelse(is.null(Final$ERRORS), 0, sum(Final$ERRORS)),
                                        ifelse(is.null(Final$WARNINGS), 0, sum(Final$WARNINGS))))
     invisible(NULL)
 }
 
-#' Suppress function messages and Concatenate and Print (cat)
+#' Suppress verbose function messages
 #'
 #' This function is used to suppress information printed from external functions
 #' that make internal use of \code{link{message}} and \code{\link{cat}}, which
 #' provide information in interactive R sessions. For simulations, the session
 #' is not interactive, and therefore this type of output should be suppressed.
-#' For similar behaviour for suppressing warning messages see
-#' \code{\link{suppressWarnings}}, though use this function carefully as some
-#' warnings can be meaningful and unexpected.
+#' For similar behaviour for suppressing warning messages, see
+#' \code{link{manageWarnings}}.
 #'
 #' @param ... the functional expression to be evaluated
 #'
-#' @param messages logical; suppress all messages?
+#' @param cat logical; also capture calls from \code{\link{cat}}? If
+#'   \code{FALSE} only \code{\link{message}} will be suppressed
 #'
-#' @param cat logical; suppress all concatenate and print calls from \code{\link{cat}}?
+#' @param keep logical; return a character vector of the messages/concatenate
+#'   and print strings as an attribute to the resulting object from \code{expr(...)}?
+#'
+#' @param attr.name attribute name to use when \code{keep = TRUE}
+#'
+#' @seealso \code{\link{manageWarnings}}
 #'
 #' @export
 #'
@@ -126,11 +131,14 @@ notification_final <- function(Final){
 #' \doi{10.1080/10691898.2016.1246953}
 #'
 #' @examples
-#' myfun <- function(x){
+#'
+#' myfun <- function(x, warn=FALSE){
 #'    message('This function is rather chatty')
 #'    cat("It even prints in different output forms!\n")
 #'    message('And even at different....')
 #'    cat("...times!\n")
+#'    if(warn)
+#'      warning('It may even throw warnings!')
 #'    x
 #' }
 #'
@@ -141,14 +149,29 @@ notification_final <- function(Final){
 #' out <- quiet(myfun(1))
 #' out
 #'
-quiet <- function(..., messages=FALSE, cat=FALSE){
-    if(!cat){
-        tmpf <- tempfile()
-        sink(tmpf)
-        on.exit({sink(); file.remove(tmpf)})
-    }
-    out <- if(messages) eval(...) else suppressMessages(eval(...))
-    out
+#' # which messages are suppressed? Extract stored attribute
+#' out <- quiet(myfun(1), keep = TRUE)
+#' attr(out, 'quiet.messages')
+#'
+#' # Warning messages still get through (see manageWarnings(suppress)
+#' #  for better alternative than using suppressWarnings())
+#' out2 <- myfun(2, warn=TRUE) |> quiet() # warning gets through
+#' out2
+#'
+#' # suppress warning message explicitly, allowing others to be raised if present
+#' myfun(2, warn=TRUE) |> quiet() |>
+#'    manageWarnings(suppress='It may even throw warnings!')
+#'
+quiet <- function(..., cat=TRUE, keep=FALSE, attr.name='quiet.messages'){
+    fun <- function(x) eval(x)
+    capts <- NULL
+    mess <- if(cat)
+        testthat::capture_messages(
+            testthat::capture_output_lines(ret <- fun(...)) -> capts)
+    else testthat::capture_messages(ret <- fun(...))
+    if(keep)
+        attr(ret, attr.name) <- c(message.=mess, cat.=capts)
+    ret
 }
 
 #' Auto-named Concatenation of Vector or List
@@ -383,7 +406,7 @@ lapply_timer <- function(X, FUN, max_time, max_RAM, ...){
     ret
 }
 
-combined_Analyses <- function(condition, dat, fixed_objects = NULL){
+combined_Analyses <- function(condition, dat, fixed_objects){
     if(!is.null(.SIMDENV$ANALYSE_FUNCTIONS)){
         ANALYSE_FUNCTIONS <- .SIMDENV$ANALYSE_FUNCTIONS
         TRY_ALL_ANALYSE <- .SIMDENV$TRY_ALL_ANALYSE
@@ -421,7 +444,7 @@ combined_Analyses <- function(condition, dat, fixed_objects = NULL){
     ret
 }
 
-combined_Generate <- function(condition, fixed_objects = NULL){
+combined_Generate <- function(condition, fixed_objects){
     if(!is.null(.SIMDENV$GENERATE_FUNCTIONS))
         GENERATE_FUNCTIONS <- .SIMDENV$GENERATE_FUNCTIONS
     nfuns <- length(GENERATE_FUNCTIONS)
@@ -649,7 +672,7 @@ set_seed <- function(seed){
 }
 
 valid_results <- function(x)
-    is(x, 'numeric') || is(x, 'data.frame') || is(x, 'list') || is(x, 'try-error')
+    is(x, 'numeric') || is(x, 'data.frame') || is(x, 'list') || is(x, 'logical') || is(x, 'try-error')
 
 #' Generate random seeds
 #'
@@ -676,6 +699,16 @@ valid_results <- function(x)
 #'   to pull out the specific seed rather than manage a complete list, and
 #'   is therefore more memory efficient
 #'
+#' @param old.seeds (optional) vector or matrix of last seeds used in
+#'   previous simulations to avoid repeating the same seed on a subsequent run.
+#'   Note that this approach should be used sparingly as seeds set more frequently
+#'   are more likely to correlate, and therefore provide less optimal random
+#'   number behaviour (e.g., if performing a simulation on two runs to achieve
+#'   5000 * 2 = 10,000 replications this is likely reasonable,
+#'   but for simulations with 100 * 2 = 200 replications this is more
+#'   likely to be sub-optimal).
+#'   Length must be equal to the number of rows in \code{design}
+#'
 #' @export
 #'
 #' @author Phil Chalmers \email{rphilip.chalmers@@gmail.com}
@@ -683,37 +716,57 @@ valid_results <- function(x)
 #' @examples
 #'
 #' # generate 1 seed (default)
-#' gen_seeds()
+#' genSeeds()
 #'
 #' # generate 5 unique seeds
-#' gen_seeds(5)
+#' genSeeds(5)
 #'
 #' # generate from nrow(design)
 #' design <- createDesign(factorA=c(1,2,3),
 #'                        factorB=letters[1:3])
-#' seeds <- gen_seeds(design)
+#' seeds <- genSeeds(design)
 #' seeds
 #'
+#' # construct new seeds that are independent from original (use this sparingly)
+#' newseeds <- genSeeds(design, old.seeds=seeds)
+#' newseeds
+#'
+#' # can be done in batches too
+#' newseeds2 <- genSeeds(design, old.seeds=cbind(seeds, newseeds))
+#' cbind(seeds, newseeds, newseeds2) # all unique
+#'
+#' ############
 #' # generate seeds for runArraySimulation()
-#' (iseed <- gen_seeds())  # initial seed
-#' seed_list <- gen_seeds(design, iseed=iseed)
+#' (iseed <- genSeeds())  # initial seed
+#' seed_list <- genSeeds(design, iseed=iseed)
 #' seed_list
 #'
 #' # expand number of unique seeds given iseed (e.g., in case more replications
 #' # are required at a later date)
-#' seed_list_tmp <- gen_seeds(nrow(design)*2, iseed=iseed)
+#' seed_list_tmp <- genSeeds(nrow(design)*2, iseed=iseed)
 #' str(seed_list_tmp) # first 9 seeds identical to seed_list
 #'
 #' # more usefully for HPC, extract only the seed associated with an arrayID
-#' arraySeed.15 <- gen_seeds(nrow(design)*2, iseed=iseed, arrayID=15)
+#' arraySeed.15 <- genSeeds(nrow(design)*2, iseed=iseed, arrayID=15)
 #' arraySeed.15
 #'
-gen_seeds <- function(design = 1L, iseed = NULL, arrayID = NULL){
+genSeeds <- function(design = 1L, iseed = NULL, arrayID = NULL, old.seeds = NULL){
     if(missing(design)) design <- 1L
     if(is.numeric(design))
         design <- matrix(NA, nrow=design)
     if(is.null(iseed)){
         seed <- rint(nrow(design), min=1L, max = 2147483647L)
+        if(!is.null(old.seeds)){
+            old.seeds <- as.vector(old.seeds)
+            while(TRUE){
+                whc <- which(seed %in% old.seeds)
+                if(length(whc)){
+                    seed[whc] <- rint(nrow(design), min=1L, max = 2147483647L)
+                    next
+                }
+                break
+            }
+        }
     } else {
         rngkind <- RNGkind()
         RNGkind("L'Ecuyer-CMRG")
@@ -744,15 +797,59 @@ gen_seeds <- function(design = 1L, iseed = NULL, arrayID = NULL){
     seed
 }
 
-# Test cases:
-#
-# sbatch_time2sec("4-12")        # day-hours
-# sbatch_time2sec("4-12:15")     # day-hours:minutes
-# sbatch_time2sec("4-12:15:30")  # day-hours:minutes:seconds
-#
-# sbatch_time2sec("30")          # minutes
-# sbatch_time2sec("30:30")       # minutes:seconds
-# sbatch_time2sec("4:30:30")     # hours:minutes:seconds
+#' Format time string to suitable numeric output
+#'
+#' Format time input string into suitable numeric output metric (e.g., seconds).
+#' Input follows the \code{SBATCH} utility specifications.
+#' Accepted time formats include \code{"minutes"},
+#' \code{"minutes:seconds"}, \code{"hours:minutes:seconds"},
+#' \code{"days-hours"}, \code{"days-hours:minutes"} and
+#' \code{"days-hours:minutes:seconds"}.
+#'
+#' For example, \code{max_time = "60"} indicates a maximum time of 60 minutes,
+#' \code{max_time = "03:00:00"} a maximum time of 3 hours,
+#' \code{max_time = "4-12"} a maximum of 4 days and 12 hours, and
+#' \code{max_time = "2-02:30:00"} a maximum of 2 days, 2 hours and 30 minutes.
+#'
+#' @param time a character string to be formatted. If a numeric vector is supplied
+#' then this will be interpreted as seconds.
+#'
+#' @param output type of numeric output to convert time into.
+#' Currently supported are \code{'sec'} for seconds (default),
+#' \code{'min'} for minutes, \code{'hour'}, and \code{'day'}
+#'
+#' @export
+#'
+#' @examples
+#'
+#' # Test cases (outputs in seconds)
+#' timeFormater("4-12")        # day-hours
+#' timeFormater("4-12:15")     # day-hours:minutes
+#' timeFormater("4-12:15:30")  # day-hours:minutes:seconds
+#'
+#' timeFormater("30")          # minutes
+#' timeFormater("30:30")       # minutes:seconds
+#' timeFormater("4:30:30")     # hours:minutes:seconds
+#'
+#' # output in hours
+#' timeFormater("4-12", output = 'hour')
+#' timeFormater("4-12:15", output = 'hour')
+#' timeFormater("4-12:15:30", output = 'hour')
+#'
+#' timeFormater("30", output = 'hour')
+#' timeFormater("30:30", output = 'hour')
+#' timeFormater("4:30:30", output = 'hour')
+#'
+timeFormater <- function(time, output='sec'){
+    stopifnot(length(time) == 1L && length(output) == 1L)
+    stopifnot(output %in% c('sec', 'min', 'hour', 'day'))
+    time <- sbatch_time2sec(time)
+    if(output == 'min') time <- time / 60
+    if(output == 'hour') time <- time / 60 / 60
+    if(output == 'min') time <- time / 60 / 60 / 24
+    time
+}
+
 sbatch_time2sec <- function(time){
     ret <- if(is.character(time)){
         time <- gsub(pattern = " ", "", time)
@@ -807,4 +904,41 @@ sbatch_RAM2bytes <- function(RAM){
         RAM * C
     } else RAM
     ret
+}
+
+#' @rdname genSeeds
+#' @param ... does nothing
+gen_seeds <- function(...){
+    .Deprecated('genSeeds')
+    genSeeds(...)
+
+}
+
+add_cbind <- function(lst){
+    len <- sapply(lst, length)
+    if(!any(len)) return(lst[[1L]])
+    lst <- lapply(lst, \(x){
+        x[is.na(x)] <- 0
+        x
+    })
+    for(i in 1L:length(lst)){
+        if(length(lst[[i]])){
+            ret <- lst[[i]]
+            if(i == length(lst)) return(ret)
+            break
+        }
+    }
+    from <- i + 1L
+    for(i in from:length(lst)){
+        nms <- colnames(ret)
+        nms2 <- colnames(lst[[i]])
+        matched <- nms %in% nms2
+        if(any(matched)){
+            for(j in 1L:length(nms))
+                if(matched[j])
+                    ret[,nms[j]] <- ret[,nms[j]] + lst[[i]][,nms[j]]
+        }
+        ret <- cbind(ret, lst[[i]][,!matched])
+    }
+    dplyr::as_tibble(ret)
 }

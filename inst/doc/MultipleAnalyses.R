@@ -35,7 +35,7 @@ P_logit <- function(a, d, Theta) exp(a * Theta + d) / (1 + exp(a * Theta + d))
 P_ogive <- function(a, d, Theta) pnorm(a * Theta + d)
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  Generate <- function(condition, fixed_objects = NULL) {
+#  Generate <- function(condition, fixed_objects) {
 #  
 #      N <- condition$sample_size
 #      nitems <- condition$nitems
@@ -56,7 +56,7 @@ P_ogive <- function(a, d, Theta) pnorm(a * Theta + d)
 #      as.data.frame(dat) #data.frame works nicer with lavaan
 #  }
 #  
-#  Analyse.FIML <- function(condition, dat, fixed_objects = NULL) {
+#  Analyse.FIML <- function(condition, dat, fixed_objects) {
 #      mod <- mirt(dat, 1L, verbose=FALSE)
 #      if(!extract.mirt(mod, 'converged')) stop('mirt did not converge')
 #      cfs <- mirt::coef(mod, simplify = TRUE, digits = Inf)
@@ -66,7 +66,7 @@ P_ogive <- function(a, d, Theta) pnorm(a * Theta + d)
 #      ret
 #  }
 #  
-#  Analyse.DWLS <- function(condition, dat, fixed_objects = NULL) {
+#  Analyse.DWLS <- function(condition, dat, fixed_objects) {
 #      nitems <- condition$nitems
 #      lavmod <- paste0('F =~ ', paste0('NA*', colnames(dat)[1L], ' + '),
 #                       paste0(colnames(dat)[-1L], collapse = ' + '),
@@ -82,7 +82,7 @@ P_ogive <- function(a, d, Theta) pnorm(a * Theta + d)
 #      ret
 #  }
 #  
-#  Summarise <- function(condition, results, fixed_objects = NULL) {
+#  Summarise <- function(condition, results, fixed_objects) {
 #      nitems <- condition$nitems
 #      nitems_name <- ifelse(nitems == 10, 'ten', 'twenty')
 #  
@@ -274,7 +274,7 @@ res <- structure(list(sample_size = c(250, 500, 1000, 250, 500, 1000
         "coda", "codetools", "crayon", "curl", "datawizard", 
         "DBI", "dcurver", "Deriv", "digest", "dplyr", "effectsize", 
         "ellipsis", "emmeans", "estimability", "evaluate", "fansi", 
-        "foreach", "generics", "glue", "GPArotation", "htmltools", 
+        "generics", "glue", "GPArotation", "htmltools", 
         "insight", "iterators", "jsonlite", "knitr", "lattice", 
         "lavaan", "lifecycle", "magrittr", "MASS", "Matrix", 
         "mgcv", "mirt", "mnormt", "multcomp", "mvtnorm", "nlme", 
@@ -319,7 +319,6 @@ res <- structure(list(sample_size = c(250, 500, 1000, 250, 500, 1000
         "C:/R/R-4.0.2/library/dplyr", "C:/R/R-4.0.2/library/effectsize", 
         "C:/R/R-4.0.2/library/ellipsis", "C:/R/R-4.0.2/library/emmeans", 
         "C:/R/R-4.0.2/library/estimability", "C:/R/R-4.0.2/library/evaluate", 
-        "C:/R/R-4.0.2/library/fansi", "C:/R/R-4.0.2/library/foreach", 
         "C:/R/R-4.0.2/library/generics", "C:/R/R-4.0.2/library/glue", 
         "C:/R/R-4.0.2/library/GPArotation", "C:/R/R-4.0.2/library/htmltools", 
         "C:/R/R-4.0.2/library/insight", "C:/R/R-4.0.2/library/iterators", 
@@ -356,7 +355,6 @@ res <- structure(list(sample_size = c(250, 500, 1000, 250, 500, 1000
         "C:/R/R-4.0.2/library/dplyr", "C:/R/R-4.0.2/library/effectsize", 
         "C:/R/R-4.0.2/library/ellipsis", "C:/R/R-4.0.2/library/emmeans", 
         "C:/R/R-4.0.2/library/estimability", "C:/R/R-4.0.2/library/evaluate", 
-        "C:/R/R-4.0.2/library/fansi", "C:/R/R-4.0.2/library/foreach", 
         "C:/R/R-4.0.2/library/generics", "C:/R/R-4.0.2/library/glue", 
         "C:/R/R-4.0.2/library/GPArotation", "C:/R/R-4.0.2/library/htmltools", 
         "C:/R/R-4.0.2/library/insight", "C:/R/R-4.0.2/library/iterators", 
@@ -463,7 +461,7 @@ res <- structure(list(sample_size = c(250, 500, 1000, 250, 500, 1000
     "bayestestR", "cli", "cluster", "coda", "codetools", "crayon", 
     "curl", "datawizard", "DBI", "dcurver", "Deriv", "digest", 
     "dplyr", "effectsize", "ellipsis", "emmeans", "estimability", 
-    "evaluate", "fansi", "foreach", "generics", "glue", "GPArotation", 
+    "evaluate", "fansi", "generics", "glue", "GPArotation", 
     "htmltools", "insight", "iterators", "jsonlite", "knitr", 
     "lattice", "lavaan", "lifecycle", "magrittr", "MASS", "Matrix", 
     "mgcv", "mirt", "mnormt", "multcomp", "mvtnorm", "nlme", 
@@ -493,7 +491,7 @@ Design <- createDesign(sample_size = sample_sizes,
 Design
 
 ## -----------------------------------------------------------------------------
-Analyse.FIML <- function(condition, dat, fixed_objects = NULL) {
+Analyse.FIML <- function(condition, dat, fixed_objects) {
     AnalyseIf(condition$indicators == 'discrete')
     # equivalently: 
     #   AnalyseIf(indicators == 'discrete', condition)
@@ -508,13 +506,13 @@ Analyse.FIML <- function(condition, dat, fixed_objects = NULL) {
 }
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  Generate.G1 <- function(condition, fixed_objects = NULL) {
+#  Generate.G1 <- function(condition, fixed_objects) {
 #      GenerateIf(condition$indicators == 'discrete')
 #      ...
 #      dat
 #  }
 #  
-#  Generate.G2 <- function(condition, fixed_objects = NULL) {
+#  Generate.G2 <- function(condition, fixed_objects) {
 #      GenerateIf(condition$indicators == 'continuous')
 #      ...
 #      dat
@@ -532,12 +530,12 @@ Design <- createDesign(sample_size = sample_sizes,
 Design
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  Analyse.FIML <- function(condition, dat, fixed_objects = NULL) {
+#  Analyse.FIML <- function(condition, dat, fixed_objects) {
 #      AnalyseIf(method == 'FIML', condition)
 #      #...
 #  }
 #  
-#  Analyse.DWLS <- function(condition, dat, fixed_objects = NULL) {
+#  Analyse.DWLS <- function(condition, dat, fixed_objects) {
 #      AnalyseIf(method == 'DWLS', condition)
 #      # ...
 #  }

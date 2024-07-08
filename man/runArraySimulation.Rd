@@ -64,16 +64,9 @@ See \code{\link{runSimulation}}}
 
   \code{max_time} specifies the maximum time allowed for a
   single simulation condition to execute (default does not set
-  any time limits). This is primarily useful when the HPC cluster
+  any time limits), and is formatted according to the specification in
+  \code{\link{timeFormater}}. This is primarily useful when the HPC cluster
   will time out after some known elapsed time.
-  Following the \code{SBATCH} specifications, acceptable time formats include
-  \code{"minutes"}, \code{"minutes:seconds"}, \code{"hours:minutes:seconds"},
-  \code{"days-hours"}, \code{"days-hours:minutes"} and
-  \code{"days-hours:minutes:seconds"}.
-  For example, \code{max_time = "60"} indicates a maximum time of 60 minutes,
-  \code{max_time = "03:00:00"} a maximum time of 3 hours,
-  \code{max_time = "4-12"} a maximum of 4 days and 12 hours, and
-  \code{max_time = "2-02:30:00"} a maximum of 2 days, 2 hours and 30 minutes.
   In general, this input should be set to somewhere around
   80-90% of the true termination time so that any evaluations completed
   before the cluster is terminated can be saved. Default applies no time limit
@@ -126,24 +119,24 @@ library(SimDesign)
 
 Design <- createDesign(N = c(10, 20, 30))
 
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     ret <- c(mean=mean(dat), median=median(dat)) # mean/median of sample data
     ret
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL){
+Summarise <- function(condition, results, fixed_objects){
     colMeans(results)
 }
 
 \dontrun{
 
 # define initial seed (do this only once to keep it constant!)
-# iseed <- gen_seeds()
+# iseed <- genSeeds()
 iseed <- 554184288
 
 ### On cluster submission, the active array ID is obtained via getArrayID(),
@@ -170,7 +163,7 @@ SimClean('mysim-1.rds')
 Design5 <- expandDesign(Design, 5)
 Design5
 
-# iseed <- gen_seeds()
+# iseed <- genSeeds()
 iseed <- 554184288
 
 # arrayID <- getArrayID(type = 'slurm')
@@ -216,7 +209,7 @@ condition14
 SimResults(condition14)
 
 # aggregate simulation results into single file
-final <- aggregate_simulations(files=dir())
+final <- SimCollect(files=dir())
 final
 
 SimResults(final) |> View()
@@ -238,7 +231,7 @@ Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
 }
 \seealso{
 \code{\link{runSimulation}}, \code{\link{expandDesign}},
-  \code{\link{gen_seeds}}, \code{\link{aggregate_simulations}}, \code{\link{getArrayID}}
+  \code{\link{gen_seeds}}, \code{\link{SimCollect}}, \code{\link{getArrayID}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

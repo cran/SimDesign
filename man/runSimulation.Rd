@@ -51,7 +51,9 @@ to create this simulation design object}
 \item{replications}{number of independent replications to perform per
 condition (i.e., each row in \code{design}). Can be a single number, which
 will be used for each design condition, or an integer vector with length
-equal to \code{nrow(design)}. All inputs must be greater than 0}
+equal to \code{nrow(design)}. All inputs must be greater than 0, though setting
+to less than 3 (for initial testing purpose) will disable the \code{save}
+and \code{control$stop_on_fatal} flags}
 
 \item{generate}{user-defined data and parameter generating function (or named list of functions).
 See \code{\link{Generate}} for details. Note that this argument may be omitted by the
@@ -235,7 +237,7 @@ primarily useful for debugging purposes.
   computing plan when the jobs are completed}
 
 \item{ncores}{number of cores to be used in parallel execution (ignored if using the
-\code{future} package approach). Default uses all available minus 1}
+\code{\link[future]{future}} package approach). Default uses all available minus 1}
 
 \item{cl}{cluster object defined by \code{\link{makeCluster}} used to run code in parallel
   (ignored if using the \code{\link[future]{future}} package approach).
@@ -370,7 +372,8 @@ in the simulation}
       the simulation will continue as though errors did not occur, however a column
       \code{FATAL_TERMINATION} will be included in the resulting object indicating the final
       error message observed, and \code{NA} placeholders will be placed in all other row-elements.
-      Default is \code{FALSE}}
+      Default is \code{FALSE}, though is automatically set to \code{TRUE} when \code{replications < 3}
+      for the purpose of debugging}
 
      \item{\code{warnings_as_errors}}{logical (default is \code{FALSE});
      treat warning messages as error messages during the simulation? Default is FALSE,
@@ -381,7 +384,7 @@ in the simulation}
      Note that this argument is generally intended for debugging/early planning
      stages when designing a simulation experiment. If specific warnings are known to
      be problematic and should be treated as errors then please use
-     \code{\link{convertWarnings}} instead}
+     \code{\link{manageWarnings}} instead}
 
      \item{\code{save_seeds}}{
      logical; save the \code{.Random.seed} states prior to performing
@@ -460,7 +463,6 @@ in the simulation}
        For Windows OS this defaults to \code{"PSOCK"}, otherwise \code{"SOCK"} is selected
        (suitable for Linux and Mac OSX). This is ignored if the user specifies their own \code{cl} object}
 
-
      \item{\code{print_RAM}}{logical (default is \code{TRUE}); print the amount of RAM
        used throughout the simulation? Set to \code{FALSE} if unnecessary or if the call to
        \code{\link{gc}} is unnecessarily time consuming}
@@ -472,7 +474,7 @@ in the simulation}
        where \code{max_time} is only evaluated after every row in the
        \code{design} object has been completed (hence, is notably more approximate as it
        has the potential to overshoot by a wider margin). Default sets no time limit.
-       See \code{\link{runArraySimulation}} for the input specifications.
+       See \code{\link{timeFormater}} for the input specifications.
      }
 
      \item{\code{max_RAM}}{
@@ -484,9 +486,6 @@ in the simulation}
        has the potential to overshoot by a wider margin). Default sets no RAM limit.
        See \code{\link{runArraySimulation}} for the input specifications.
      }
-
-
-
 
    }}
 
@@ -536,7 +535,8 @@ This function runs a Monte Carlo simulation study given a set of predefined simu
 design conditions, and number of replications. Results can be saved as temporary files in case of
 interruptions and may be restored by re-running \code{runSimulation}, provided that the respective temp
 file can be found in the working directory. \code{runSimulation} supports parallel
-and cluster computing (with the \code{parallel} and \code{future} packages; see also
+and cluster computing (with the \code{\link[parallel]{parallel}} and
+\code{\link[future]{future}} packages; see also
 \code{\link{runArraySimulation}} for submitting array jobs to HPC clusters),
 global and local debugging, error handling (including fail-safe
 stopping when functions fail too often, even across nodes), provides bootstrap estimates of the
@@ -585,9 +585,9 @@ with the exact functional arguments listed:
 
 \describe{
   \item{\code{Design <- createDesign(...)}}{}
-  \item{\code{Generate <- function(condition, fixed_objects = NULL) \{...\} }}{}
-  \item{\code{Analyse <- function(condition, dat, fixed_objects = NULL) \{...\} }}{}
-  \item{\code{Summarise <- function(condition, results, fixed_objects = NULL) \{...\} }}{}
+  \item{\code{Generate <- function(condition, fixed_objects) \{...\} }}{}
+  \item{\code{Analyse <- function(condition, dat, fixed_objects) \{...\} }}{}
+  \item{\code{Summarise <- function(condition, results, fixed_objects) \{...\} }}{}
   \item{\code{res <- runSimulation(design=Design, replications, generate=Generate,
         analyse=Analyse, summarise=Summarise)}}{}
 }
@@ -659,7 +659,7 @@ in the R console to remove any previously saved temporary objects.
 
 
 When running simulations in parallel (either with \code{parallel = TRUE}
-or when using the \code{\link{future}} approach with a \code{plan()} other than sequential)
+or when using the \code{\link[future]{future}} approach with a \code{plan()} other than sequential)
 R objects defined in the global environment will generally \emph{not} be visible across nodes.
 Hence, you may see errors such as \code{Error: object 'something' not found} if you try to use
 an object that is defined in the work space but is not passed to \code{runSimulation}.
@@ -693,19 +693,19 @@ Design <- createDesign(N = c(10, 20, 30))
 #### Step 2 --- Define generate, analyse, and summarise functions
 
 # help(Generate)
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
     dat
 }
 
 # help(Analyse)
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     ret <- c(mean=mean(dat)) # mean of the sample data vector
     ret
 }
 
 # help(Summarise)
-Summarise <- function(condition, results, fixed_objects = NULL) {
+Summarise <- function(condition, results, fixed_objects) {
     # mean and SD summary of the sample means
     ret <- c(mu=mean(results$mean), SE=sd(results$mean))
     ret
@@ -715,22 +715,24 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
 #~~~~~~~~~~~~~~~~~~~~~~~~
 #### Step 3 --- Collect results by looping over the rows in design
 
-# run the simulation
-Final <- runSimulation(design=Design, replications=10,
+# run the simulation in testing mode (replications = 2)
+Final <- runSimulation(design=Design, replications=2,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 Final
 SimResults(Final)
 
-\dontrun{
 # reproduce exact simulation
-Final_rep <- runSimulation(design=Design, replications=10, seed=Final$SEED,
+Final_rep <- runSimulation(design=Design, replications=2, seed=Final$SEED,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 Final_rep
+SimResults(Final_rep)
 
-# run with more standard number of replications (note the storage message)
+\dontrun{
+# run with more standard number of replications
 Final <- runSimulation(design=Design, replications=1000,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 Final
+SimResults(Final)
 
 #~~~~~~~~~~~~~~~~~~~~~~~~
 #### Extras
@@ -747,18 +749,18 @@ Final
 #   if RAM storage could be an issue and error/warning message information is important.
 
 # a) approach
-res <- runSimulation(design=Design, replications=5,
+res <- runSimulation(design=Design, replications=100,
                      generate=Generate, analyse=Analyse)
 res
 
 # b) approach (store_results = TRUE by default)
-res <- runSimulation(design=Design, replications=5,
+res <- runSimulation(design=Design, replications=100,
                      generate=Generate, analyse=Analyse, summarise=Summarise)
 res
 SimResults(res)
 
 # c) approach
-Final <- runSimulation(design=Design, replications=5, save_results=TRUE,
+Final <- runSimulation(design=Design, replications=100, save_results=TRUE,
                        generate=Generate, analyse=Analyse, summarise=Summarise)
 
 # read-in all conditions (can be memory heavy)
@@ -812,7 +814,7 @@ Design
 #~~~~~~~~~~~~~~~~~~~~~~~~
 #### Step 2 --- Define generate, analyse, and summarise functions
 
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     N <- condition$sample_size      # could use Attach() to make objects available
     grs <- condition$group_size_ratio
     sd <- condition$standard_deviation_ratio
@@ -829,7 +831,7 @@ Generate <- function(condition, fixed_objects = NULL) {
     dat
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     welch <- t.test(DV ~ group, dat)$p.value
     independent <- t.test(DV ~ group, dat, var.equal=TRUE)$p.value
 
@@ -839,7 +841,7 @@ Analyse <- function(condition, dat, fixed_objects = NULL) {
     ret
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL) {
+Summarise <- function(condition, results, fixed_objects) {
     #find results of interest here (e.g., alpha < .1, .05, .01)
     ret <- EDR(results, alpha = .05)
     ret
@@ -850,7 +852,7 @@ Summarise <- function(condition, results, fixed_objects = NULL) {
 #### Step 3 --- Collect results by looping over the rows in design
 
 # first, test to see if it works
-res <- runSimulation(design=Design, replications=5,
+res <- runSimulation(design=Design, replications=2,
                      generate=Generate, analyse=Analyse, summarise=Summarise)
 res
 
@@ -887,7 +889,7 @@ runSimulation(design=Design, replications=1000,
 
 ## Alternatively, place a browser() within the desired function line to
 ##   jump to a specific location
-Summarise <- function(condition, results, fixed_objects = NULL) {
+Summarise <- function(condition, results, fixed_objects) {
     #find results of interest here (e.g., alpha < .1, .05, .01)
     browser()
     ret <- EDR(results[,nms], alpha = .05)
@@ -1006,8 +1008,8 @@ Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
   \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
   \code{\link{SimExtract}},
   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-  \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
-  \code{\link{SimShiny}}, \code{\link{convertWarnings}}, \code{\link{runArraySimulation}}
+  \code{\link{SimCollect}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
+  \code{\link{SimShiny}}, \code{\link{manageWarnings}}, \code{\link{runArraySimulation}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

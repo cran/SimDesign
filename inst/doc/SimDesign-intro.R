@@ -27,7 +27,7 @@ Design <- createDesign(sample_size = c(30, 60, 120, 240),
 Design
 
 ## -----------------------------------------------------------------------------
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     N <- condition$sample_size
     dist <- condition$distribution
     if(dist == 'norm'){
@@ -39,7 +39,7 @@ Generate <- function(condition, fixed_objects = NULL) {
 }
 
 ## -----------------------------------------------------------------------------
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     M0 <- mean(dat)
     M1 <- mean(dat, trim = .1)
     M2 <- mean(dat, trim = .2)
@@ -50,7 +50,7 @@ Analyse <- function(condition, dat, fixed_objects = NULL) {
 }
 
 ## -----------------------------------------------------------------------------
-Summarise <- function(condition, results, fixed_objects = NULL) {
+Summarise <- function(condition, results, fixed_objects) {
     obs_bias <- bias(results, parameter = 3)
     obs_RMSE <- RMSE(results, parameter = 3)
     ret <- c(bias=obs_bias, RMSE=obs_RMSE, RE=RE(obs_RMSE))

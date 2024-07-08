@@ -4,7 +4,8 @@
 #' design conditions, and number of replications. Results can be saved as temporary files in case of
 #' interruptions and may be restored by re-running \code{runSimulation}, provided that the respective temp
 #' file can be found in the working directory. \code{runSimulation} supports parallel
-#' and cluster computing (with the \code{parallel} and \code{future} packages; see also
+#' and cluster computing (with the \code{\link[parallel]{parallel}} and
+#' \code{\link[future]{future}} packages; see also
 #' \code{\link{runArraySimulation}} for submitting array jobs to HPC clusters),
 #' global and local debugging, error handling (including fail-safe
 #' stopping when functions fail too often, even across nodes), provides bootstrap estimates of the
@@ -52,9 +53,9 @@
 #'
 #' \describe{
 #'   \item{\code{Design <- createDesign(...)}}{}
-#'   \item{\code{Generate <- function(condition, fixed_objects = NULL) \{...\} }}{}
-#'   \item{\code{Analyse <- function(condition, dat, fixed_objects = NULL) \{...\} }}{}
-#'   \item{\code{Summarise <- function(condition, results, fixed_objects = NULL) \{...\} }}{}
+#'   \item{\code{Generate <- function(condition, fixed_objects) \{...\} }}{}
+#'   \item{\code{Analyse <- function(condition, dat, fixed_objects) \{...\} }}{}
+#'   \item{\code{Summarise <- function(condition, results, fixed_objects) \{...\} }}{}
 #'   \item{\code{res <- runSimulation(design=Design, replications, generate=Generate,
 #'         analyse=Analyse, summarise=Summarise)}}{}
 #' }
@@ -121,7 +122,7 @@
 #' @section A note on parallel computing:
 #'
 #' When running simulations in parallel (either with \code{parallel = TRUE}
-#' or when using the \code{\link{future}} approach with a \code{plan()} other than sequential)
+#' or when using the \code{\link[future]{future}} approach with a \code{plan()} other than sequential)
 #' R objects defined in the global environment will generally \emph{not} be visible across nodes.
 #' Hence, you may see errors such as \code{Error: object 'something' not found} if you try to use
 #' an object that is defined in the work space but is not passed to \code{runSimulation}.
@@ -181,7 +182,9 @@
 #' @param replications number of independent replications to perform per
 #'   condition (i.e., each row in \code{design}). Can be a single number, which
 #'   will be used for each design condition, or an integer vector with length
-#'   equal to \code{nrow(design)}. All inputs must be greater than 0
+#'   equal to \code{nrow(design)}. All inputs must be greater than 0, though setting
+#'   to less than 3 (for initial testing purpose) will disable the \code{save}
+#'   and \code{control$stop_on_fatal} flags
 #'
 #' @param fixed_objects (optional) an object (usually a named \code{list})
 #'   containing additional user-defined objects
@@ -309,7 +312,8 @@
 #'       the simulation will continue as though errors did not occur, however a column
 #'       \code{FATAL_TERMINATION} will be included in the resulting object indicating the final
 #'       error message observed, and \code{NA} placeholders will be placed in all other row-elements.
-#'       Default is \code{FALSE}}
+#'       Default is \code{FALSE}, though is automatically set to \code{TRUE} when \code{replications < 3}
+#'       for the purpose of debugging}
 #'
 #'      \item{\code{warnings_as_errors}}{logical (default is \code{FALSE});
 #'      treat warning messages as error messages during the simulation? Default is FALSE,
@@ -320,7 +324,7 @@
 #'      Note that this argument is generally intended for debugging/early planning
 #'      stages when designing a simulation experiment. If specific warnings are known to
 #'      be problematic and should be treated as errors then please use
-#'      \code{\link{convertWarnings}} instead}
+#'      \code{\link{manageWarnings}} instead}
 #'
 #'      \item{\code{save_seeds}}{
 #'      logical; save the \code{.Random.seed} states prior to performing
@@ -399,9 +403,6 @@
 #'        For Windows OS this defaults to \code{"PSOCK"}, otherwise \code{"SOCK"} is selected
 #'        (suitable for Linux and Mac OSX). This is ignored if the user specifies their own \code{cl} object}
 #'
-#      \item{\code{MPI}}{logical (default is \code{FALSE}); use the \code{foreach} package in a
-#        form usable by MPI to run simulation in parallel on a cluster? }
-#'
 #'      \item{\code{print_RAM}}{logical (default is \code{TRUE}); print the amount of RAM
 #'        used throughout the simulation? Set to \code{FALSE} if unnecessary or if the call to
 #'        \code{\link{gc}} is unnecessarily time consuming}
@@ -413,7 +414,7 @@
 #'        where \code{max_time} is only evaluated after every row in the
 #'        \code{design} object has been completed (hence, is notably more approximate as it
 #'        has the potential to overshoot by a wider margin). Default sets no time limit.
-#'        See \code{\link{runArraySimulation}} for the input specifications.
+#'        See \code{\link{timeFormater}} for the input specifications.
 #'      }
 #'
 #'      \item{\code{max_RAM}}{
@@ -425,11 +426,6 @@
 #'        has the potential to overshoot by a wider margin). Default sets no RAM limit.
 #'        See \code{\link{runArraySimulation}} for the input specifications.
 #'      }
-#'
-#      \item{\code{.options.mpi}}{list of arguments passed to \code{foreach()} to control the MPI execution
-#        properties. Only used when \code{MPI = TRUE}}
-#'
-#'
 #'
 #'    }
 #'
@@ -487,7 +483,7 @@
 #'   is going wrong in the generate-analyse phases. Default is 50
 #'
 #' @param ncores number of cores to be used in parallel execution (ignored if using the
-#'   \code{future} package approach). Default uses all available minus 1
+#'   \code{\link[future]{future}} package approach). Default uses all available minus 1
 #'
 #' @param save logical; save the temporary simulation state to the hard-drive? This is useful
 #'   for simulations which require an extended amount of time, though for shorter simulations
@@ -619,8 +615,8 @@
 #'   \code{\link{Generate}}, \code{\link{Analyse}}, \code{\link{Summarise}},
 #'   \code{\link{SimExtract}},
 #'   \code{\link{reSummarise}}, \code{\link{SimClean}}, \code{\link{SimAnova}}, \code{\link{SimResults}},
-#'   \code{\link{aggregate_simulations}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
-#'   \code{\link{SimShiny}}, \code{\link{convertWarnings}}, \code{\link{runArraySimulation}}
+#'   \code{\link{SimCollect}}, \code{\link{Attach}}, \code{\link{AnalyseIf}},
+#'   \code{\link{SimShiny}}, \code{\link{manageWarnings}}, \code{\link{runArraySimulation}}
 #'
 #' @export runSimulation
 #'
@@ -657,19 +653,19 @@
 #' #### Step 2 --- Define generate, analyse, and summarise functions
 #'
 #' # help(Generate)
-#' Generate <- function(condition, fixed_objects = NULL) {
+#' Generate <- function(condition, fixed_objects) {
 #'     dat <- with(condition, rnorm(N, 10, 5)) # distributed N(10, 5)
 #'     dat
 #' }
 #'
 #' # help(Analyse)
-#' Analyse <- function(condition, dat, fixed_objects = NULL) {
+#' Analyse <- function(condition, dat, fixed_objects) {
 #'     ret <- c(mean=mean(dat)) # mean of the sample data vector
 #'     ret
 #' }
 #'
 #' # help(Summarise)
-#' Summarise <- function(condition, results, fixed_objects = NULL) {
+#' Summarise <- function(condition, results, fixed_objects) {
 #'     # mean and SD summary of the sample means
 #'     ret <- c(mu=mean(results$mean), SE=sd(results$mean))
 #'     ret
@@ -679,22 +675,24 @@
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Step 3 --- Collect results by looping over the rows in design
 #'
-#' # run the simulation
-#' Final <- runSimulation(design=Design, replications=10,
+#' # run the simulation in testing mode (replications = 2)
+#' Final <- runSimulation(design=Design, replications=2,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' Final
 #' SimResults(Final)
 #'
-#' \dontrun{
 #' # reproduce exact simulation
-#' Final_rep <- runSimulation(design=Design, replications=10, seed=Final$SEED,
+#' Final_rep <- runSimulation(design=Design, replications=2, seed=Final$SEED,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' Final_rep
+#' SimResults(Final_rep)
 #'
-#' # run with more standard number of replications (note the storage message)
+#' \dontrun{
+#' # run with more standard number of replications
 #' Final <- runSimulation(design=Design, replications=1000,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #' Final
+#' SimResults(Final)
 #'
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Extras
@@ -711,18 +709,18 @@
 #' #   if RAM storage could be an issue and error/warning message information is important.
 #'
 #' # a) approach
-#' res <- runSimulation(design=Design, replications=5,
+#' res <- runSimulation(design=Design, replications=100,
 #'                      generate=Generate, analyse=Analyse)
 #' res
 #'
 #' # b) approach (store_results = TRUE by default)
-#' res <- runSimulation(design=Design, replications=5,
+#' res <- runSimulation(design=Design, replications=100,
 #'                      generate=Generate, analyse=Analyse, summarise=Summarise)
 #' res
 #' SimResults(res)
 #'
 #' # c) approach
-#' Final <- runSimulation(design=Design, replications=5, save_results=TRUE,
+#' Final <- runSimulation(design=Design, replications=100, save_results=TRUE,
 #'                        generate=Generate, analyse=Analyse, summarise=Summarise)
 #'
 #' # read-in all conditions (can be memory heavy)
@@ -776,7 +774,7 @@
 #' #~~~~~~~~~~~~~~~~~~~~~~~~
 #' #### Step 2 --- Define generate, analyse, and summarise functions
 #'
-#' Generate <- function(condition, fixed_objects = NULL) {
+#' Generate <- function(condition, fixed_objects) {
 #'     N <- condition$sample_size      # could use Attach() to make objects available
 #'     grs <- condition$group_size_ratio
 #'     sd <- condition$standard_deviation_ratio
@@ -793,7 +791,7 @@
 #'     dat
 #' }
 #'
-#' Analyse <- function(condition, dat, fixed_objects = NULL) {
+#' Analyse <- function(condition, dat, fixed_objects) {
 #'     welch <- t.test(DV ~ group, dat)$p.value
 #'     independent <- t.test(DV ~ group, dat, var.equal=TRUE)$p.value
 #'
@@ -803,7 +801,7 @@
 #'     ret
 #' }
 #'
-#' Summarise <- function(condition, results, fixed_objects = NULL) {
+#' Summarise <- function(condition, results, fixed_objects) {
 #'     #find results of interest here (e.g., alpha < .1, .05, .01)
 #'     ret <- EDR(results, alpha = .05)
 #'     ret
@@ -814,7 +812,7 @@
 #' #### Step 3 --- Collect results by looping over the rows in design
 #'
 #' # first, test to see if it works
-#' res <- runSimulation(design=Design, replications=5,
+#' res <- runSimulation(design=Design, replications=2,
 #'                      generate=Generate, analyse=Analyse, summarise=Summarise)
 #' res
 #'
@@ -851,7 +849,7 @@
 #'
 #' ## Alternatively, place a browser() within the desired function line to
 #' ##   jump to a specific location
-#' Summarise <- function(condition, results, fixed_objects = NULL) {
+#' Summarise <- function(condition, results, fixed_objects) {
 #'     #find results of interest here (e.g., alpha < .1, .05, .01)
 #'     browser()
 #'     ret <- EDR(results[,nms], alpha = .05)
@@ -976,6 +974,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           control = list(), progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
+    if(replications < 3L){
+        if(verbose)
+            message('save, stop_on_fatal, and print_RAM flags disabled for testing purposes')
+        control$print_RAM <- FALSE
+        if(is.null(control$stop_on_fatal))
+            control$stop_on_fatal <- TRUE
+    }
     resume.row <- NA
     if(is.numeric(resume)){
         resume.row <- resume
@@ -988,7 +993,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         parallel <- TRUE
     } else useFuture <- FALSE
     if(is.null(seed))
-        seed <- gen_seeds(design)
+        seed <- genSeeds(design)
     if(debug != 'none'){
         if(grepl('-', debug)){
             tmp <- strsplit(debug, '-')[[1]]
@@ -998,7 +1003,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         }
     }
     if(missing(generate) && !missing(analyse))
-        generate <- function(condition, dat, fixed_objects = NULL){}
+        generate <- function(condition, dat, fixed_objects){}
     if(is.list(generate)){
         if(debug %in% c('all', 'generate'))
             stop('debug input not supported when generate is a list', call.=FALSE)
@@ -1093,7 +1098,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(!missing(summarise)){
         NA_summarise <- if(!is.function(summarise) && is.na(summarise)) TRUE else FALSE
         if(NA_summarise){
-            summarise <- function(condition, results, fixed_objects = NULL){0}
+            summarise <- function(condition, results, fixed_objects){0}
             if(!save_results)
                 message('NA value for summarise input supplied; automatically setting save_results to TRUE\n')
             save <- save_results <- TRUE
@@ -1139,7 +1144,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     debug <- tolower(debug)
     summarise_asis <- FALSE
     if(missing(summarise)){
-        summarise <- function(condition, results, fixed_objects = NULL) results
+        summarise <- function(condition, results, fixed_objects) results
         summarise_asis <- TRUE
         stored_time <- 0
         if(save || save_results)
@@ -1272,6 +1277,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             file.path(out_rootdir, tmpfilename)))
 
         Result_list <- readRDS(file.path(out_rootdir, tmpfilename))
+        if(unname(attr(Result_list, 'SimDesign_names')['design_names']) !=
+           paste0(colnames(design), collapse=';'))
+            stop('design names are not the same upon resuming simulation.', call.=FALSE)
         if(nrow(design) != length(Result_list)){
             if(nrow(design) < length(Result_list))
                 Result_list <- Result_list[1L:nrow(design)]
@@ -1292,6 +1300,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         tmp <- attr(Result_list, 'SimDesign_names')
         save_results_dirname <- tmp['save_results_dirname']
         save_seeds_dirname <- tmp['save_seeds_dirname']
+        design_names <- tmp['design_names']
     }
     if(save_results){
         save <- TRUE
@@ -1342,7 +1351,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 parallel::parSapply(cl, 1L:(length(cl)*2),
                                     function(ind, packages) load_packages(packages),
                                     packages=packages)
-            } # foreach() doesn't like load_packages()
+            }
         } else {
             future.apply::future_lapply(1L:(future::nbrOfWorkers()*2),
                                         function(ind, packages) load_packages(packages),
@@ -1355,7 +1364,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 } else if(parallel){
                 try(table(parallel::parSapply(cl, rep(tmp[i], each=length(cl)*2),
                                               get_packages)))
-            } else "" # for foreach()
+            }
             if(tmp[i] == 'stats') next
             if(length(packs) > 1L)
                 message(sprintf('Warning message:\nVersions of %s differ across clusters: %s',
@@ -1365,7 +1374,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(is.null(attr(Result_list, 'SimDesign_names')))
         attr(Result_list, 'SimDesign_names') <-
         c(save_results_dirname=file.path(out_rootdir, save_results_dirname),
-          save_seeds_dirname=file.path(out_rootdir, save_seeds_dirname))
+          save_seeds_dirname=file.path(out_rootdir, save_seeds_dirname),
+          design_names=paste0(colnames(design), collapse=';'))
     if(progress) verbose <- TRUE
     memory_used <- character(nrow(design)+1L)
     if(print_RAM)
@@ -1547,7 +1557,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
     if(verbose)
         message('\nSimulation complete. Total execution time: ',
-                timeFormater(sum(stored_time)), "\n")
+                timeFormater_internal(sum(stored_time)), "\n")
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
     if(store_Random.seeds){
         stored_Random.seeds_list <- lapply(1L:length(Result_list),
@@ -1678,7 +1688,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
 #' @export
 summary.SimDesign <- function(object, ...){
     ret <- attr(object, 'extra_info')
-    ret$total_elapsed_time <- noquote(timeFormater(ret$total_elapsed_time, TRUE))
+    ret$total_elapsed_time <- noquote(
+        timeFormater_internal(ret$total_elapsed_time, TRUE))
     ret$stored_results <- NULL
     ret$error_seeds <- NULL
     ret$warning_seeds <- NULL
@@ -1695,7 +1706,8 @@ summary.SimDesign <- function(object, ...){
 #' @export
 print.SimDesign <- function(x, list2char = TRUE, ...){
     if(suppressWarnings(!is.null(x$SIM_TIME)))
-        x$SIM_TIME <- sapply(x$SIM_TIME, function(x) noquote(timeFormater(x)))
+        x$SIM_TIME <- sapply(x$SIM_TIME, function(x)
+            noquote(timeFormater_internal(x)))
     class(x) <- c('Design', class(x)[-1L])
     print(x=x, list2char=list2char, ...)
 }

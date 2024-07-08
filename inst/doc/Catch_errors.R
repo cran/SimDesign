@@ -18,12 +18,12 @@ library(SimDesign)
 Design <- createDesign(N = c(10,20,30))
 
 ## -----------------------------------------------------------------------------
-Generate <- function(condition, fixed_objects = NULL) {
+Generate <- function(condition, fixed_objects) {
     ret <- with(condition, rnorm(N))
     ret
 }
 
-Analyse <- function(condition, dat, fixed_objects = NULL) {
+Analyse <- function(condition, dat, fixed_objects) {
     whc <- sample(c(0,1,2,3), 1, prob = c(.7, .20, .05, .05))
     if(whc == 0){
        ret <- mean(dat)
@@ -43,7 +43,7 @@ Analyse <- function(condition, dat, fixed_objects = NULL) {
     ret
 }
 
-Summarise <- function(condition, results, fixed_objects = NULL) {
+Summarise <- function(condition, results, fixed_objects) {
     ret <- c(bias = bias(results, 0))
     ret
 }
@@ -100,17 +100,17 @@ out <- myfun()
 
 ## ----error=TRUE---------------------------------------------------------------
 set.seed(1)
-out1 <- convertWarnings(myfun(), 
-                        'This warning is serious')
+out1 <- manageWarnings(myfun(), 
+                        warning2error='This warning is serious')
 out1
 
 set.seed(2)
-out2 <- convertWarnings(myfun(), 
-                        'This warning is serious')
+out2 <- manageWarnings(myfun(), 
+                        warning2error='This warning is serious')
 out2
 
 set.seed(7)
-out3 <- convertWarnings(myfun(), 
-                        'This warning is serious')
+out3 <- manageWarnings(myfun(), 
+                        warning2error='This warning is serious')
 out3
 
