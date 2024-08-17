@@ -21,7 +21,7 @@ runSimulation(
   store_results = TRUE,
   save_results = FALSE,
   parallel = FALSE,
-  ncores = parallel::detectCores() - 1L,
+  ncores = parallelly::availableCores(omit = 1L),
   cl = NULL,
   notification = "none",
   beep = FALSE,
@@ -71,7 +71,14 @@ analyses the simulated data). See \code{\link{Analyse}} for details}
 \item{summarise}{optional (but strongly recommended) user-defined summary function
   from \code{\link{Summarise}} to be used to compute meta-statistical summary
   information after all the replications have completed within
-  each \code{design} condition. Note that unlike the Generate and Analyse
+  each \code{design} condition. Return of this function, in order
+  of increasing complexity, should be: a named numeric vector or \code{data.frame}
+  with one row, a \code{matrix} or \code{data.frame} with more than one row, and,
+  failing these more atomic types, a named \code{list}. For summary objects that
+  are not easily appended to the original \code{design} object use
+  \code{\link{SimExtract}} with the option \code{what = 'summarise'}.
+
+  Note that unlike the Generate and Analyse
   steps, the Summarise portion is not as important to perfectly organize
   as the results can be summarised later on by using the built-in
   \code{\link{reSummarise}} function (provided either
@@ -359,6 +366,10 @@ in the simulation}
       \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
       in the string}
 
+      \item{\code{tmpfilename}}{string indicating the temporary file name to save
+        provisional information to. If not specified the following will be used:
+        \code{paste0('SIMDESIGN-TEMPFILE_', compname, '.rds')}}
+
   }}
 
 \item{control}{a list for extra information flags for controlling less
@@ -459,7 +470,7 @@ in the simulation}
      \item{\code{allow_nan}}{logical (default is \code{FALSE}); should \code{NaN}s be allowed in the
        analyse step as a valid result from the simulation analysis?}
 
-     \item{\code{type}}{default type of cluster to create for the \code{cl} object if no supplied.
+     \item{\code{type}}{default type of cluster to create for the \code{cl} object if not supplied.
        For Windows OS this defaults to \code{"PSOCK"}, otherwise \code{"SOCK"} is selected
        (suitable for Linux and Mac OSX). This is ignored if the user specifies their own \code{cl} object}
 

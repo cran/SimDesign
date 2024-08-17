@@ -2,33 +2,39 @@
 % Please edit documentation in R/SimCheck.R
 \name{SimCheck}
 \alias{SimCheck}
-\title{Check the status of the simulation's temporary results}
+\title{Check for missing files in array simulations}
 \usage{
-SimCheck(file)
+SimCheck(dir = NULL, files = NULL, min = 1L, max = NULL)
 }
 \arguments{
-\item{file}{the temp file currently saving the simulation state. If missing
-the file is assumed to be in the current working directory, and start with the
-name \code{'SIMDESIGN-TEMPFILE'}}
+\item{dir}{character vector input indicating the directory
+containing the \code{.rds} files (see \code{files})}
+
+\item{files}{vector of file names referring to the saved simulation files.
+E.g. \code{c('mysim-1.rds', 'mysim-2.rds', ...)}}
+
+\item{min}{minimum number after the \code{'-'} deliminator. Default is 1}
+
+\item{max}{maximum number after the \code{'-'} deliminator. If not specified
+is extracted from the attributes in the first file}
+}
+\value{
+returns an invisible TRUE if all the files are present and FALSE otherwise
 }
 \description{
-This function reads the temporary file saved by \code{\link{runSimulation}}
-by collapsing the information into a suitable (albeit temporary) object of
-class \code{'SimDesign'}. This is useful when taking a quick-peak at how the
-early simulation results are performing (useful long running simulation
-results with many rows in the \code{Design} object). Returns a tibble-based
-data.frame object (\code{tbl_df}).
+Given the saved files from a \code{\link{runArraySimulation}} remote
+evaluation check whether all \code{.rds} files have been saved. If missing
+the missing row condition numbers will be returned.
 }
 \examples{
 \dontrun{
 
-# explicit
-temp_results <- SimCheck(file = 'SIMDESIGN-TEMPFILE_mycomp.rds')
-temp_results
+# if files are in mysimfiles/ directory
+SimCheck('mysimfiles')
 
-# works if file is in the current working directory
-temp_results <- SimCheck()
-temp_results
+# specifying files explicility
+setwd('mysimfiles/')
+SimCheck(files=dir())
 
 }
 
@@ -37,13 +43,9 @@ temp_results
 Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
 with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
 \doi{10.20982/tqmp.16.4.p248}
-
-Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
-Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-\doi{10.1080/10691898.2016.1246953}
 }
 \seealso{
-\code{\link{runSimulation}}
+\code{\link{runArraySimulation}}, \code{\link{SimCollect}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

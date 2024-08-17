@@ -12,8 +12,11 @@ runArraySimulation(
   filename,
   dirname = NULL,
   arrayID = getArrayID(),
-  filename_suffix = paste0("-", arrayID),
+  array2row = function(arrayID) arrayID,
   addArrayInfo = TRUE,
+  parallel = FALSE,
+  cl = NULL,
+  ncores = parallelly::availableCores(omit = 1L),
   save_details = list(),
   control = list()
 )
@@ -29,14 +32,14 @@ See \code{\link{runSimulation}} for further details}
 condition (i.e., each row in \code{design}). See \code{\link{runSimulation}}
 for further details}
 
-\item{iseed}{initial seed to be passed to \code{\link{gen_seeds}}'s argument
+\item{iseed}{initial seed to be passed to \code{\link{genSeeds}}'s argument
 of the same name, along with the supplied \code{arrayID}}
 
 \item{filename}{file name to save simulation files to (does not need to
 specify extension). However, the array ID will be appended to each
-\code{filename} (see \code{filename_suffix}). For example, if
+\code{filename}. For example, if
 \code{filename = 'mysim'} then files stored will be \code{'mysim-1.rds'},
-\code{'mysim-2.rds'}, and so on for each row in \code{design}}
+\code{'mysim-2.rds'}, and so on for each row ID in \code{design}}
 
 \item{dirname}{directory to save the files associated with \code{filename}
 to. If omitted the files will be stored in the same working directory
@@ -47,11 +50,29 @@ where the script was submitted}
 be called automatically, which assumes the environmental variables are available
 according the SLURM scheduler}
 
-\item{filename_suffix}{suffix to add to the \code{filename};
-default add '-' with the \code{arrayID}}
+\item{array2row}{user defined function with the single argument \code{arrayID}.
+  Used to convert the detected \code{arrayID}
+  into a suitable row index in the \code{design} object input. By default
+  each \code{arrayID} is associated with its respective row in \code{design}.
+
+  For example, if each \code{arrayID} should evaluate 10 rows in
+  the \code{design} object then the function
+  \code{function(arrayID){1:10 + 10 * (arrayID-1)}} can be passed to \code{array2row}}
 
 \item{addArrayInfo}{logical; should the array ID and original design row number
-be added to the \code{SimExtract(..., what='results')} output?}
+be added to the \code{SimResults(...)} output?}
+
+\item{parallel}{logical; use parallel computations via the a "SOCK" cluster?
+Only useful when the instruction shell file requires more than 1 core
+(number of cores detected via \code{ncores}). For this application
+the random seeds further distributed using \code{\link[parallel]{nextRNGSubStream}}}
+
+\item{cl}{cluster definition. If omitted a "SOCK" cluster will be defined}
+
+\item{ncores}{number of cores to use when \code{parallel=TRUE}. Note that
+the default uses 1 minus the number of available cores, therefore this
+will only be useful when \code{ncores > 2} as defined in the shell instruction
+file}
 
 \item{save_details}{optional list of extra file saving details.
 See \code{\link{runSimulation}}}
@@ -89,7 +110,7 @@ per independent row condition. This is mainly useful when distributing the
 jobs to HPC clusters where a job array number is available (e.g., via SLURM),
 where the simulation results must be saved to independent files as they
 complete. Use of \code{\link{expandDesign}} is useful for distributing replications
-to different jobs, while \code{\link{gen_seeds}} is required to ensure high-quality
+to different jobs, while \code{\link{genSeeds}} is required to ensure high-quality
 random number generation across the array submissions. See the associated
 vignette for a brief tutorial of this setup.
 }
@@ -100,9 +121,10 @@ array ID submissions (cf. \code{\link{runSimulation}}'s \code{parallel}
 approach, which uses this method to distribute random seeds within
 each isolated condition rather than between all conditions). As such, this
 function requires the seeds to be generated using
-\code{\link{gen_seeds}} with the \code{iseed} and \code{arrayID}
+\code{\link{genSeeds}} with the \code{iseed} and \code{arrayID}
 inputs to ensure that each job is analyzing a high-quality
-set of random numbers via L'Ecuyer-CMRG's (2002) method.
+set of random numbers via L'Ecuyer-CMRG's (2002) method, incremented using
+\code{\link[parallel]{nextRNGStream}}.
 
 Additionally, for timed simulations on HPC clusters it is also recommended to pass a
 \code{control = list(max_time)} value to avoid discarding
@@ -143,7 +165,8 @@ iseed <- 554184288
 ###   and therefore should be used in real SLURM submissions
 arrayID <- getArrayID(type = 'slurm')
 
-# However, for the following example array ID is set to first row only
+# However, the following example arrayID is set to
+#  the first row only for testing purposes
 arrayID <- 1L
 
 # run the simulation (results not caught on job submission, only files saved)
@@ -154,8 +177,17 @@ res <- runArraySimulation(design=Design, replications=50,
 res
 SimResults(res) # condition and replication count stored
 
+# same, but evaluated with multiple cores
+res <- runArraySimulation(design=Design, replications=50,
+                      generate=Generate, analyse=Analyse,
+                      summarise=Summarise, arrayID=arrayID,
+                      parallel=TRUE, ncores=3,
+                      iseed=iseed, filename='myparsim')
+res
+SimResults(res) # condition and replication count stored
+
 dir()
-SimClean('mysim-1.rds')
+SimClean(c('mysim-1.rds', 'myparsim-1.rds'))
 
 ########################
 # Same submission job as above, however split the replications over multiple
@@ -184,6 +216,8 @@ SimClean('mylongsim-14.rds')
 
 ###
 # Emulate the arrayID distribution, storing all results in a 'sim/' folder
+# (if 'sim/' does not exist in runArraySimulation() it will be
+# created automatically)
 dir.create('sim/')
 
 # Emulate distribution to nrow(Design5) = 15 independent job arrays
@@ -203,18 +237,57 @@ sapply(1:nrow(Design5), \(arrayID)
 # list saved files
 dir('sim/')
 
-setwd('sim')
-condition14 <- readRDS('condition-14.rds')
+# check that all files saved (warnings will be raised if missing files)
+SimCheck('sim/') |> isTRUE()
+
+condition14 <- readRDS('sim/condition-14.rds')
 condition14
 SimResults(condition14)
 
 # aggregate simulation results into single file
-final <- SimCollect(files=dir())
+final <- SimCollect('sim/')
 final
 
-SimResults(final) |> View()
+# clean simulation directory
+SimClean(dirs='sim/')
 
-setwd('..')
+
+############
+# same as above, however passing different amounts of information depending
+# on the array ID
+array2row <- function(arrayID){
+  switch(arrayID,
+    "1"=1:8,
+    "2"=9:14,
+    "3"=15)
+}
+
+# arrayID 1 does row 1 though 8, arrayID 2 does 9 to 14
+array2row(1)
+array2row(2)
+array2row(3)  # arrayID 3 does 15 only
+
+# emulate remote array distribution with only 3 arrays
+sapply(1:3, \(arrayID)
+     runArraySimulation(design=Design5, replications=10,
+          generate=Generate, analyse=Analyse,
+          summarise=Summarise, iseed=iseed, arrayID=arrayID,
+          filename='condition', dirname='sim', array2row=array2row)) |> invisible()
+
+# list saved files
+dir('sim/')
+
+# note that all row conditions are still stored separately, though note that
+#  arrayID is now 2 instead
+condition14 <- readRDS('sim/condition-14.rds')
+condition14
+SimResults(condition14)
+
+# aggregate simulation results into single file
+final <- SimCollect('sim/')
+final
+
+# clean simulation directory
 SimClean(dirs='sim/')
 
 }
@@ -224,14 +297,11 @@ SimClean(dirs='sim/')
 Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
 with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
 \doi{10.20982/tqmp.16.4.p248}
-
-Sigal, M. J., & Chalmers, R. P. (2016). Play it again: Teaching statistics with Monte
-Carlo simulation. \code{Journal of Statistics Education, 24}(3), 136-156.
-\doi{10.1080/10691898.2016.1246953}
 }
 \seealso{
 \code{\link{runSimulation}}, \code{\link{expandDesign}},
-  \code{\link{gen_seeds}}, \code{\link{SimCollect}}, \code{\link{getArrayID}}
+  \code{\link{genSeeds}}, \code{\link{SimCheck}},
+  \code{\link{SimCollect}}, \code{\link{getArrayID}}
 }
 \author{
 Phil Chalmers \email{rphilip.chalmers@gmail.com}

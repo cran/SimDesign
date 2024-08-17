@@ -116,9 +116,6 @@
 #'   is consistently between [.795, .805] then \code{predCI.tol = .01} to indicate this
 #'   tolerance range
 #'
-#' @param control a \code{list} of the algorithm control parameters. If not specified,
-#'   the defaults described below are used.
-#'
 #' @param wait.time (optional) argument passed to \code{\link{PBA}} to indicate
 #'   the time to wait (specified in minutes) per row in the \code{Design} object
 #'   rather than using pre-determined termination criteria based on the estimates.
@@ -128,6 +125,9 @@
 #'   independently specified termination criteria in \code{control}. Note that
 #'   \code{maxiter} is still used alongside \code{wait.time}, therefore this should
 #'   be increased as well (e.g., to \code{maxiter = 1000})
+#'
+#' @param control a \code{list} of the algorithm control parameters. If not specified,
+#'   the defaults described below are used.
 #'
 #' \describe{
 #'    \item{\code{tol}}{tolerance criteria for early termination (.1 for
@@ -197,8 +197,8 @@
 #' @references
 #'
 #'
-#' Chalmers, R. P. (accepted). Solving Variables with Monte Carlo Simulation Experiments: A
-#' Stochastic Root-Solving Approach. \code{Psychological Methods}.
+#' Chalmers, R. P. (in press). Solving Variables with Monte Carlo Simulation Experiments: A
+#' Stochastic Root-Solving Approach. \code{Psychological Methods}. DOI: 10.1037/met0000689
 #'
 #' Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
 #' with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
@@ -464,7 +464,7 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
                      integer = TRUE, formula = y ~ poly(x, 2), family = 'binomial',
                      parallel = FALSE, cl = NULL, save = TRUE, resume = TRUE,
                      method = 'ProBABLI', wait.time = NULL,
-                     ncores = parallel::detectCores() - 1L,
+                     ncores = parallelly::availableCores(omit = 1L),
                      type = ifelse(.Platform$OS.type == 'windows', 'PSOCK', 'FORK'),
                      maxiter = 100L, check.interval = TRUE,
                      verbose = TRUE, control = list(),
@@ -507,7 +507,7 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
     if(is.null(control$summarise.reg_data))
         control$summarise.reg_data <- FALSE
     if(is.null(control$rel.tol)) control$rel.tol <- .0001
-    if(is.null(control$k.sucess)) control$k.success <- 3L
+    if(is.null(control$k.success)) control$k.success <- 3L
     if(is.null(control$interpolate.R)) control$interpolate.R <- 3000L
     if(is.null(control$bolster)) control$bolster <- TRUE
     if(is.null(control$include_reps)) control$include_reps <- FALSE
@@ -553,7 +553,8 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
                              generate=generate, analyse=analyse,
                              summarise=summarise, parallel=parallel, cl=cl,
                              save=FALSE, resume=FALSE, verbose=FALSE,
-                             control=.SIMDENV$FromSimSolve$control, ...)
+                             control=.SIMDENV$FromSimSolve$control, ...) |>
+            manageWarnings(suppress="\'package:stats\' may not be available when loading")
         val <- ifelse(is.list(ret), ret[[1L]], ret[1L])
         if(store){
             pick <- min(which(sapply(.SIMDENV$stored_results, is.null)))

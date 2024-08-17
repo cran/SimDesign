@@ -112,5 +112,4 @@ out2
 set.seed(7)
 out3 <- manageWarnings(myfun(), 
                         warning2error='This warning is serious')
-out3
 

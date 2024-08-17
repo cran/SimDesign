@@ -1,8 +1,37 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.17.1
+
+- `runArraySimulation()` now correctly searches in `.GlobalEnv` for user
+  defined functions
+
+- `manageWarnings(... suppress)` argument now allows for partial matching 
+  and other regex inputs
+
+- `SimCollect()` now automatically checks whether all files are expected to 
+  be present via `SimCheck()`
+
+- `runArraySimulation()` gains a `array2row` function to allow array jobs
+  to index multiple conditions in the `design` object (default uses one 
+  `arrayID` per row, the original behaviour)
+
+- `runArraySimulation()` gains `parallel` flag and friends to use multi-core
+  processing within array distributions. RNG numbers within the L'Ecuyer-CMRG
+  algorithm are incremented using `parallel::nextRNGSubStream()` within each 
+  defined core
+
+- Better name checking when using the supported `list` inputs in `runSimulation()`
+  and `runArraySimulation()`
+  
+- `SimCollect()` more efficient when combining a large number of files (e.g.,
+  greater than 5000 `.rds` files stored via `runArraySimulation()`). Gains a 
+  `dir` argument for this purpose as well so that a full directory can be specified
+  
+- `SimCheck()` repurposed to check for missing files for `runArraySimulation()` 
+
 ## Changes in SimDesign 2.16
 
-- Fix for `SimCollect()` when `runArraySimulatino()` result contains 
+- Fix for `SimCollect()` when `runArraySimulation()` result contains 
   mixed warning outputs  (reported by Michael Troung)
 
 - `manageMessages()` added in a similar spirit to `manageWarnigns()`, though

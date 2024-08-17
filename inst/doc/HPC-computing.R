@@ -129,9 +129,10 @@ iseed <- 1276149341
 #                     dirname='mysimfiles', filename='mysim')
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  setwd('mysimfiles')
 #  library(SimDesign)
-#  Final <- SimCollect(files=dir())
+#  
+#  # automatically checks whether all saved files are present via SimCheck()
+#  Final <- SimCollect('mysimfiles/')
 #  Final
 
 ## ----eval=FALSE---------------------------------------------------------------
@@ -169,23 +170,21 @@ Design
 #  if(multirow){
 #      # If selecting multiple design rows per array, such as the first 3 rows,
 #      #  then next 3 rows, and so on, something like the following would work
-#      s <- c(seq(from=1, to=nrow(Design), by=3), nrow(Design)+1L)
 #  
-#      ## For arrayID=1, rows2pick is c(1,2,3); for arrayID2, rows2pick is c(4,5,6)
-#      rows2pick <- s[arrayID]:(s[arrayID + 1] - 1)
-#      filename <- paste0('mysim-', paste0(rows2pick, collapse=''))
+#      ## For arrayID=1, rows 1 through 3 are evaluated
+#      ## For arrayID=2, rows 4 through 6 are evaluated
+#      ## For arrayID=3, rows 7 through 9 are evaluated
+#      array2row <- function(arrayID) 1:3 + 3 * (arrayID-1)
 #  } else {
-#      # otherwise, submit each row independently across array
-#      rows2pick <- arrayID
-#      filename <- paste0('mysim-', rows2pick)
+#      # otherwise, use one row per respective arrayID
+#      array2row <- function(arrayID) arrayID
 #  }
 #  
-#  # Make sure parallel=TRUE flag is on! Also, it's important to change the computer
-#  # name to something unique to the array job to avoid overwriting files (even temporary ones)
-#  runSimulation(design=Design[rows2pick, ], replications=10000,
-#                generate=Generate, analyse=Analyse, summarise=Summarise,
-#                parallel=TRUE, filename=filename,
-#                save_details=list(compname=paste0('array-', arrayID)))
+#  # Make sure parallel=TRUE flag is on to use all available cores!
+#  runArraySimulation(design=Design, replications=10000,
+#                     generate=Generate, analyse=Analyse, summarise=Summarise,
+#                     iseed=iseed, dirname='mysimfiles', filename='mysim',
+#                     parallel=TRUE, arrayID=arrayID, array2row=array2row)
 
 ## ----eval=FALSE---------------------------------------------------------------
 #  # Return successful results up to the 11 hour mark, and terminate early
@@ -198,7 +197,7 @@ Design
 #  
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  Final <- SimCollect(files=dir())
+#  Final <- SimCollect('mysimfiles/')
 #  Final
 
 ## ----eval=FALSE---------------------------------------------------------------
@@ -236,8 +235,8 @@ iseed <- 1276149341
 
 ## ----eval=FALSE---------------------------------------------------------------
 #  # See if any missing still
-#  SimCollect(files=dir(), check.only=TRUE)
+#  SimCollect('mysimfiles', check.only=TRUE)
 #  
 #  # Obtain complete simulation results
-#  Final <- SimCollect(files=dir())
+#  Final <- SimCollect('mysimfiles')
 

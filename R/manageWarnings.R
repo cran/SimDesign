@@ -91,10 +91,13 @@
 #' @examples
 #' \dontrun{
 #'
-#' fun <- function(warn1=FALSE, warn2=FALSE, warn3=FALSE, error=FALSE){
+#' fun <- function(warn1=FALSE, warn2=FALSE, warn3=FALSE,
+#'                 warn_trailing = FALSE, error=FALSE){
 #'    if(warn1) warning('Message one')
 #'    if(warn2) warning('Message two')
 #'    if(warn3) warning('Message three')
+#'    if(warn_trailing) warning(sprintf('Message with lots of random trailings: %s',
+#'                              paste0(sample(letters, sample(1:20, 1)), collapse=',')))
 #'    if(error) stop('terminate function call')
 #'    return('Returned from fun()')
 #' }
@@ -143,6 +146,25 @@
 #' ret <- fun(warn3=TRUE) |>
 #'             manageWarnings(c("Message one", "Message two"))
 #' ret
+#'
+#' # suppress warnings that have only partial matching
+#' fun(warn_trailing=TRUE)
+#' fun(warn_trailing=TRUE)
+#' fun(warn_trailing=TRUE)
+#'
+#' # partial match, therefore suppressed
+#' fun(warn_trailing=TRUE) |>
+#'   manageWarnings(suppress="Message with lots of random trailings: ")
+#'
+#' # multiple suppress strings
+#' fun(warn_trailing=TRUE) |>
+#'   manageWarnings(suppress=c("Message with lots of random trailings: ",
+#'                            "Suppress this too"))
+#'
+#' # could also use .* to catch all remaining characters (finer regex control)
+#' fun(warn_trailing=TRUE) |>
+#'   manageWarnings(suppress="Message with lots of random trailings: .*")
+#'
 #'
 #' ###########
 #' # Combine with quiet() and suppress argument to suppress innocuous messages
@@ -223,7 +245,11 @@
 #'
 manageWarnings <- function(expr, warning2error = FALSE, suppress = NULL, ...){
     stopit <- function(message, warning2error, suppress, ...){
-        if(message %in% suppress) return(TRUE)
+        if(!is.null(suppress)){
+            match_suppress <- sapply(suppress, function(supp)
+                grepl(supp, message, ...))
+            if(any(match_suppress)) return(TRUE)
+        }
         if(is.null(warning2error)) stop(message, call.=FALSE)
         sapply(warning2error, function(warn){
             if(warn == "") return(invisible(NULL))

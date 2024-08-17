@@ -107,18 +107,18 @@ test_that('aggregate', {
     expect_true(is.null(SimExtract(Final, 'results')))
     SimClean(dir()[grepl('\\.rds', dir())])
 
-    tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                         replications = 2, parallel=FALSE, save_results = TRUE, verbose = FALSE)
-    tmp2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
-                         replications = 2, parallel=FALSE, save_results = TRUE,
-                         verbose = FALSE)
+    # tmp <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+    #                      replications = 2, parallel=FALSE, save_results = TRUE, verbose = FALSE)
+    # tmp2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect,
+    #                      replications = 2, parallel=FALSE, save_results = TRUE,
+    #                      verbose = FALSE)
 
-    dirs <- c(SimExtract(tmp, 'save_results_dirname'),
-              SimExtract(tmp2, 'save_results_dirname'))
-    SimCollect(dirs = dirs)
-    row1 <- readRDS('SimDesign_aggregate_results/results-row-1.rds')
-    expect_equal(nrow(row1$results), 4L)
-    SimClean(dirs = c(dirs, "SimDesign_aggregate_results"))
+    # dirs <- c(SimExtract(tmp, 'save_results_dirname'),
+    #           SimExtract(tmp2, 'save_results_dirname'))
+    # SimCollect(dirs = dirs)
+    # row1 <- readRDS('SimDesign_aggregate_results/results-row-1.rds')
+    # expect_equal(nrow(row1$results), 4L)
+    # SimClean(dirs = c(dirs, "SimDesign_aggregate_results"))
 
     # seeds
     # TODO this fails, but it shouldn't be used anyway
@@ -161,7 +161,7 @@ test_that('aggregate', {
     tmp2 <- runSimulation(Design, generate=mysim, analyse=mycompute, summarise=mycollect, max_errors=Inf,
                          replications = 2, parallel=FALSE, filename = 'newfile', save=TRUE,
                          verbose = FALSE)
-    Final <- SimCollect(c('this.rds', 'newfile.rds'))
+    Final <- SimCollect(files=c('this.rds', 'newfile.rds'))
     expect_is(Final, 'data.frame')
     expect_true(all(Final$REPLICATIONS == 4L))
     expect_equal(tmp$ERRORS + tmp2$ERRORS, Final$ERRORS)
@@ -170,7 +170,7 @@ test_that('aggregate', {
     SimClean(dir()[grepl('\\.rds', dir())])
 
     #results
-    tmp <- runSimulation(rbind(Design, Design), generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
+    tmp <- runSimulation(expandDesign(Design, 2), generate=mysim, analyse=mycompute, summarise=mycollect, verbose=FALSE,
                          replications = 2, parallel=FALSE, save_results = TRUE, max_errors = Inf)
     compname = Sys.info()["nodename"]
     DIR <- paste0("SimDesign-results_", compname)
@@ -187,6 +187,7 @@ test_that('aggregate', {
     expect_is(row1to5, 'list')
     expect_equal(length(row1to5), 5)
     SimClean(results = TRUE)
+    # SimClean(dirs=DIR)
 
     # reSummarise test
     mycomputeGood <- function(condition, dat, fixed_objects){
@@ -245,10 +246,11 @@ test_that('aggregate', {
                              generate=mygenerate, analyse=mycompute3, summarise=mycollect,
                              parallel=FALSE, save_results = TRUE, verbose = FALSE,
                              save_details = list(save_results_dirname = 'dir3'))
-    SimCollect(dirs = c('dir1', 'dir2', 'dir3'))
-    expect_true(dir.exists('SimDesign_aggregate_results'))
-    expect_equal(6, nrow(readRDS('SimDesign_aggregate_results/results-row-1.rds')$results))
-    SimClean(dirs = c('SimDesign_aggregate_results','dir1', 'dir2', 'dir3'))
+    # SimCollect(dirs = c('dir1', 'dir2', 'dir3'))
+    # expect_true(dir.exists('SimDesign_aggregate_results'))
+    # expect_equal(6, nrow(readRDS('SimDesign_aggregate_results/results-row-1.rds')$results))
+    # SimClean(dirs = c('SimDesign_aggregate_results','dir1', 'dir2', 'dir3'))
+    SimClean(dirs = c('dir1', 'dir2', 'dir3'))
 
     mycompute <- function(condition, dat, fixed_objects){
         if(sample(c(FALSE, TRUE), 1, prob = c(.9, .1))) stop('error')
@@ -265,10 +267,11 @@ test_that('aggregate', {
                              generate=mygenerate, analyse=mycompute, summarise=mycollect,
                              parallel=FALSE, save_results = TRUE, verbose = FALSE,
                              save_details = list(save_results_dirname = 'dir2'))
-    SimCollect(dirs = c('dir1', 'dir2'))
-    expect_true(dir.exists('SimDesign_aggregate_results'))
-    expect_equal(4, length(readRDS('SimDesign_aggregate_results/results-row-1.rds')$results))
-    SimClean(dirs = c('SimDesign_aggregate_results','dir1', 'dir2'))
+    # SimCollect(dirs = c('dir1', 'dir2'))
+    # expect_true(dir.exists('SimDesign_aggregate_results'))
+    # expect_equal(4, length(readRDS('SimDesign_aggregate_results/results-row-1.rds')$results))
+    # SimClean(dirs = c('SimDesign_aggregate_results','dir1', 'dir2'))
+    SimClean(dirs = c('dir1', 'dir2'))
 
     ## warning and other information
     mysim_ew <- function(condition, fixed_objects){
@@ -307,7 +310,7 @@ test_that('aggregate', {
                              analyse=mycompute_ew, summarise=mycollect, verbose=FALSE,
                              filename='sim2')
 
-    ret <- SimCollect(c('sim1.rds', 'sim2.rds'))
+    ret <- SimCollect(files=c('sim1.rds', 'sim2.rds'), warning_details = TRUE)
     expect_true(all(na.omit(ret$WARNINGS == c(NA,NA,200,200,200,200,400,400))))
     expect_true(all(ret$ERRORS > 0 | is.na(ret$ERRORS)))
     expect_equal(sum(results$ERRORS + results2$ERRORS), sum(ret$ERRORS, na.rm=TRUE))

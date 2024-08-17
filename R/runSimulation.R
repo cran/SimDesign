@@ -155,7 +155,14 @@
 #' @param summarise optional (but strongly recommended) user-defined summary function
 #'   from \code{\link{Summarise}} to be used to compute meta-statistical summary
 #'   information after all the replications have completed within
-#'   each \code{design} condition. Note that unlike the Generate and Analyse
+#'   each \code{design} condition. Return of this function, in order
+#'   of increasing complexity, should be: a named numeric vector or \code{data.frame}
+#'   with one row, a \code{matrix} or \code{data.frame} with more than one row, and,
+#'   failing these more atomic types, a named \code{list}. For summary objects that
+#'   are not easily appended to the original \code{design} object use
+#'   \code{\link{SimExtract}} with the option \code{what = 'summarise'}.
+#'
+#'   Note that unlike the Generate and Analyse
 #'   steps, the Summarise portion is not as important to perfectly organize
 #'   as the results can be summarised later on by using the built-in
 #'   \code{\link{reSummarise}} function (provided either
@@ -399,7 +406,7 @@
 #'      \item{\code{allow_nan}}{logical (default is \code{FALSE}); should \code{NaN}s be allowed in the
 #'        analyse step as a valid result from the simulation analysis?}
 #'
-#'      \item{\code{type}}{default type of cluster to create for the \code{cl} object if no supplied.
+#'      \item{\code{type}}{default type of cluster to create for the \code{cl} object if not supplied.
 #'        For Windows OS this defaults to \code{"PSOCK"}, otherwise \code{"SOCK"} is selected
 #'        (suitable for Linux and Mac OSX). This is ignored if the user specifies their own \code{cl} object}
 #'
@@ -472,6 +479,10 @@
 #'       \code{'SimDesign-seeds_'} with the associated \code{compname} appended if no
 #'       \code{filename} is defined, otherwise the filename is used to replace 'SimDesign'
 #'       in the string}
+#'
+#'       \item{\code{tmpfilename}}{string indicating the temporary file name to save
+#'         provisional information to. If not specified the following will be used:
+#'         \code{paste0('SIMDESIGN-TEMPFILE_', compname, '.rds')}}
 #'
 #'   }
 #'
@@ -967,13 +978,21 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           fixed_objects = NULL, packages = NULL, filename = NULL,
                           debug = 'none', load_seed = NULL, save = any(replications > 2),
                           store_results = TRUE, save_results = FALSE,
-                          parallel = FALSE, ncores = parallel::detectCores() - 1L,
+                          parallel = FALSE, ncores = parallelly::availableCores(omit = 1L),
                           cl = NULL, notification = 'none', beep = FALSE, sound = 1,
                           CI = .95, seed = NULL, boot_method='none', boot_draws = 1000L,
                           max_errors = 50L, resume = TRUE, save_details = list(),
                           control = list(), progress = TRUE, verbose = TRUE)
 {
     stopifnot(!missing(analyse))
+    if(length(control)){
+        stopifnot("Argument(s) to control list invalid"=
+                      all(names(control) %in% valid_control.list()))
+    }
+    if(length(save_details)){
+        stopifnot("Argument(s) to save_details list invalid"=
+                      all(names(save_details) %in% valid_save_details.list()))
+    }
     if(replications < 3L){
         if(verbose)
             message('save, stop_on_fatal, and print_RAM flags disabled for testing purposes')
@@ -1155,13 +1174,16 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     Functions <- list(generate=generate, analyse=analyse, summarise=summarise)
     dummy_run <- FALSE
     if(missing(design)){
-        design <- data.frame(dummy_run=NA)
+        design <- createDesign(dummy_run=NA)
         dummy_run <- TRUE
     }
     if(nrow(design) == 1L){
         verbose <- FALSE
         store_results <- TRUE
     }
+    if(is.null(attr(design, 'Design.ID')))
+        attr(design, 'Design.ID') <- 1L:nrow(design)
+    Design.ID <- attr(design, 'Design.ID')
     if(save_results) store_results <- FALSE
     SimSolveRun <- !is.null(attr(design, 'SimSolve'))
     stopifnot(!missing(replications))
@@ -1252,7 +1274,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             on.exit(undebug(Functions[[debug]]), add = TRUE)
         }
     }
-    export_funs <- parent_env_fun()
+    export_funs <- if(!is.null(control$from.runArraySimulation))
+        parent_env_fun(3L) else parent_env_fun()
     if(parallel){
         if(!useFuture && is.null(cl)){
             cl <- parallel::makeCluster(ncores, type=type)
@@ -1601,23 +1624,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
     if(all(is.na(Final$FATAL_TERMINATION))) Final$FATAL_TERMINATION <- NULL
     if(is.null(Final$SEED)) Final$SEED <- NA
     if(!is.null(seed)) Final$SEED <- seed
-    if(!is.null(filename) && safe){ #save file
-        files <- dir(out_rootdir)
-        filename0 <- filename
-        count <- 1L
-        # create a new file name if old one exists, and throw warning
-        while(TRUE){
-            filename <- paste0(filename, '.rds')
-            if(filename %in% files){
-                filename <- paste0(filename0, '-', count)
-                count <- count + 1L
-            } else break
-        }
-        if(count > 1L)
-            if(verbose && save)
-                message(paste0('\nWARNING:\n', filename0, ' existed in the working directory.
-                               Using a unique file name instead.\n'))
-    }
+    filename <- unique_filename(filename, safe=safe, verbose=verbose)
     dn <- colnames(design)
     dn <- dn[!(dn %in% c('ID', 'REPLICATION'))]
     ten <- colnames(Final)[grepl('ERROR:', colnames(Final))]
@@ -1665,7 +1672,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                       error_seeds=dplyr::as_tibble(error_seeds),
                                       warning_seeds=dplyr::as_tibble(warning_seeds),
                                       stored_results = if(store_results) stored_Results_list else NULL,
-                                      summarise_list=summarise_list)
+                                      summarise_list=summarise_list, Design.ID=Design.ID)
     if(!is.null(summarise_list[[1L]]) && verbose)
         message('Note: To extract Summarise() results use SimExtract(., what = \'summarise\')')
     if(dummy_run) Final$dummy_run <- NULL
@@ -1694,6 +1701,7 @@ summary.SimDesign <- function(object, ...){
     ret$error_seeds <- NULL
     ret$warning_seeds <- NULL
     ret$summarise_list <- NULL
+    ret <- ret[!sapply(ret, is.null)]
     ret
 }
 

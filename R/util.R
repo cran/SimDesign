@@ -1,11 +1,32 @@
 .SIMDENV <- new.env(parent=emptyenv())
 
 # return a character vector of functions defined in .GlobalEnv
-parent_env_fun <- function(){
-    nms <- ls(envir = parent.frame(2L))
+parent_env_fun <- function(level=2){
+    nms <- ls(envir = parent.frame(level))
     is_fun <- sapply(nms, function(x, envir) is.function(get(x, envir=envir)),
-                     envir = parent.frame(2L))
+                     envir = parent.frame(level))
     return(nms[is_fun])
+}
+
+unique_filename <- function(filename, safe = TRUE, verbose = TRUE){
+    if(!is.null(filename) && safe){ #save file
+        filename <- gsub('.rds', "", filename)
+        filename0 <- filename
+        count <- 1L
+        # create a new file name if old one exists, and throw warning
+        while(TRUE){
+            filename <- paste0(filename, '.rds')
+            if(file.exists(filename)){
+                filename <- paste0(filename0, '-', count)
+                count <- count + 1L
+            } else break
+        }
+        if(count > 1L)
+            if(verbose && safe)
+                message(paste0('\nWARNING:\n\"', filename0, '.rds\" existed in the working directory.
+                               Using a unique file name instead.\n'))
+    }
+    filename
 }
 
 load_packages <- function(packages){
@@ -322,16 +343,17 @@ reduceTable <- function(tab){
 sim_results_check <- function(sim_results){
     if(is(sim_results, 'try-error'))
         stop(c("Summarise() should not throw errors. Message was:\n    ", sim_results), call.=FALSE)
-    if(is.data.frame(sim_results)){
-        if(nrow(sim_results) > 1L)
-            stop('When returning a data.frame in summarise() there should only be 1 row',
-                 call.=FALSE)
-        nms <- names(sim_results)
-        sim_results <- as.numeric(sim_results)
-        names(sim_results) <- nms
+    if(is.data.frame(sim_results) || is.matrix(sim_results)){
+        if(nrow(sim_results) > 1L){
+            sim_results <- list(sim_results)
+        } else {
+            nms <- colnames(sim_results)
+            sim_results <- as.numeric(sim_results)
+            names(sim_results) <- nms
+        }
     }
     if(isList(sim_results)){
-        if(is.null(names(sim_results)))
+        if(length(sim_results) > 1L && is.null(names(sim_results)))
             stop("List elements must be named in Summarise() definition",
                  call.=FALSE)
         ret <- numeric(0)
@@ -371,7 +393,7 @@ lapply_timer <- function(X, FUN, max_time, max_RAM, ...){
         time_left <- total
         for(i in 1L:length(ret)){
             st <- proc.time()['elapsed']
-            val <- R.utils::withTimeout(FUN(...),
+            val <- R.utils::withTimeout(FUN(i, ...),
                                         timeout = time_left,
                                         onTimeout = 'warning')
             elapsed <- elapsed + proc.time()['elapsed'] - st
@@ -393,7 +415,7 @@ lapply_timer <- function(X, FUN, max_time, max_RAM, ...){
     } else {
         ret <- vector('list', length(X))
         for(i in 1L:length(ret)){
-            val <- FUN(...)
+            val <- FUN(i, ...)
             ret[[i]] <- val
             if(is.finite(max_RAM) && object.size(ret) > max_RAM){
                 message(sprintf(c("Simulation terminated due to max_RAM constraint",
@@ -671,6 +693,39 @@ set_seed <- function(seed){
     invisible(NULL)
 }
 
+recvResult_fun <- utils::getFromNamespace("recvResult", "snow")
+
+#' Set RNG sub-stream for  Pierre L'Ecuyer's RngStreams
+#'
+#' Sets the sub-stream RNG state within for Pierre L'Ecuyer's (1999)
+#' algorithm. Should be used within distributed array jobs
+#' after suitable L'Ecuyer's (1999) have been distributed to each array, and
+#' each array is further defined to use multi-core processing. See
+#' \code{\link[parallel]{clusterSetRNGStream}} for further information.
+#'
+#' @param seed An integer vector of length 7 as given by \code{.Random.seed} when
+#'   the L'Ecuyer-CMR RNG is in use. See\code{\link{RNG}} for the valid values
+#' @param cl A cluster from the \code{parallel} or \code{snow} package, or
+#'   (if \code{NULL}) the registered cluster
+#' @return invisible NULL
+#' @export
+#'
+#'
+clusterSetRNGSubStream <- function(cl, seed){
+    nc <- length(cl)
+    seeds <- vector("list", nc)
+    seeds[[1L]] <- seed[[1L]]
+    for (i in seq_len(nc - 1L)) seeds[[i + 1L]] <-
+        parallel::nextRNGSubStream(seeds[[i]])
+    for (i in seq_along(cl)) {
+        expr <- substitute(assign(".Random.seed", seed, envir = .GlobalEnv),
+                           list(seed = seeds[[i]]))
+        snow::sendCall(cl[[i]], eval, list(expr))
+    }
+    snow::checkForRemoteErrors(lapply(cl, recvResult_fun))
+    invisible()
+}
+
 valid_results <- function(x)
     is(x, 'numeric') || is(x, 'data.frame') || is(x, 'list') || is(x, 'logical') || is(x, 'try-error')
 
@@ -882,6 +937,17 @@ sbatch_time2sec <- function(time){
     ret
 }
 
+valid_control.list <- function()
+    c("stop_on_fatal", "warnings_as_errors", "save_seeds", "store_Random.seeds",
+      "store_warning_seeds", "include_replication_index", "include_reps", "try_all_analyse",
+      "allow_na", "allow_nan", "type", "print_RAM", "max_time", "max_RAM",
+      "tol", "summarise.reg_data", "rel.tol", "k.success", "interpolate.R", "bolster",
+      "include_reps", 'from.runArraySimulation')
+
+valid_save_details.list <- function()
+    c("safe", "compname", "out_rootdir", "save_results_dirname", "save_results_filename",
+      "save_seeds_dirname", 'arrayID', "tmpfilename")
+
 # Test cases:
 #
 # sbatch_RAM2bytes("1024MB")
@@ -915,7 +981,7 @@ gen_seeds <- function(...){
 }
 
 add_cbind <- function(lst){
-    len <- sapply(lst, length)
+    len <- sapply(lst, ncol)
     if(!any(len)) return(lst[[1L]])
     lst <- lapply(lst, \(x){
         x[is.na(x)] <- 0
@@ -938,7 +1004,7 @@ add_cbind <- function(lst){
                 if(matched[j])
                     ret[,nms[j]] <- ret[,nms[j]] + lst[[i]][,nms[j]]
         }
-        ret <- cbind(ret, lst[[i]][,!matched])
+        ret <- cbind(ret, lst[[i]][,!(nms2 %in% nms)])
     }
     dplyr::as_tibble(ret)
 }

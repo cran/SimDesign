@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2024-07-08" />
+<meta name="date" content="2024-08-16" />
 
 <title>Parallel computing information</title>
 
@@ -1505,7 +1505,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Parallel computing information</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2024-07-08</h4>
+<h4 class="date">2024-08-16</h4>
 
 </div>
 
@@ -1516,7 +1516,7 @@ div.tocify {
 <p>The logic presented within this document is based on the notion that the front-end user has, in principle, access to each of the computing cores (e.g., can be connected via <code>ssh</code>, or are available locally), and that each simulation condition defined in the <code>design</code> object reflect independent experiments (default when using <code>createDesign()</code>; see <code>expandDesign()</code> for the non-independent structure that would not be supported by the approaches described in this document). For situations where the computing architecture is not directly available, such as on high performance computing (HPC) super computers, or simply by picking independent computers and running batches of the simulation code on each computer (with the purpose of collapsing later via <code>aggregate_simulations()</code>), see the vignette <em>“Distributing jobs for high-performance computing (HPC)”</em> as managing the random number generation will require additional care.</p>
 <div id="local-parallel-computing" class="section level2" number="1.1">
 <h2 number="1.1"><span class="header-section-number">1.1</span> Local parallel computing</h2>
-<p>By default, <code>SimDesign</code>’s <code>runSimulation()</code> function is executed with only a single core. However, setting the argument <code>runSimulation(..., parallel = TRUE)</code> will automatically define a cluster object using one core less than the system has available (detect via <code>parallel::detectCores()</code>). This allows a straightforward way to construct a suitable, locally supported cluster object for parallel processing on just the active computer. Depending on the <code>verbose</code> and <code>progress</code> flags, the progress of each distributed replication will also be printed to the console to indicate the amount of estimated time remaining for the selection simulation condition to complete. This process is then repeated again for each condition in the supplied <code>design</code> object until all rows have been evaluated.</p>
+<p>By default, <code>SimDesign</code>’s <code>runSimulation()</code> function is executed with only a single core. However, setting the argument <code>runSimulation(..., parallel = TRUE)</code> will automatically define a cluster object using one core less than the system has available (detect via <code>parallelly::availableCores()</code>). This allows a straightforward way to construct a suitable, locally supported cluster object for parallel processing on just the active computer. Depending on the <code>verbose</code> and <code>progress</code> flags, the progress of each distributed replication will also be printed to the console to indicate the amount of estimated time remaining for the selection simulation condition to complete. This process is then repeated again for each condition in the supplied <code>design</code> object until all rows have been evaluated.</p>
 <p>This setup is the most painless way to construct and distribute the independent replications per condition, where within each evaluated condition (i.e., each row of the <code>design</code> object) high-quality random numbers are automatically used via Pierre L’Ecuyer’s (1999) multiple streams method, limited only by the number of cores that are available. Alternatively, though with a bit of extra effort, users may also define their own cluster computing object by way of the <code>runSimulation(..., cl)</code> object, which can be used to link computing resources that are able to communicate via <code>ssh</code>, thereby expanding the number of available computing cores detected by <code>parallel::detectCores()</code> and friends.</p>
 </div>
 <div id="network-computing" class="section level2" number="1.2">

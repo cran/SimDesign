@@ -24,7 +24,7 @@ SimSolve(
   resume = TRUE,
   method = "ProBABLI",
   wait.time = NULL,
-  ncores = parallel::detectCores() - 1L,
+  ncores = parallelly::availableCores(omit = 1L),
   type = ifelse(.Platform$OS.type == "windows", "PSOCK", "FORK"),
   maxiter = 100L,
   check.interval = TRUE,
@@ -130,14 +130,34 @@ vector of length \code{maxiter} to indicate the replications to use per
 iteration}
 
 \item{wait.time}{(optional) argument passed to \code{\link{PBA}} to indicate
-  the time to wait (specified in minutes) per row in the \code{Design} object
-  rather than using pre-determined termination criteria based on the estimates.
-  For example, if three three conditions were defined in
-  \code{Design}, and \code{wait.time="5"},
-  then the total search time till terminate after 15 minutes regardless of
-  independently specified termination criteria in \code{control}. Note that
-  \code{maxiter} is still used alongside \code{wait.time}, therefore this should
-  be increased as well (e.g., to \code{maxiter = 1000})
+the time to wait (specified in minutes) per row in the \code{Design} object
+rather than using pre-determined termination criteria based on the estimates.
+For example, if three three conditions were defined in
+\code{Design}, and \code{wait.time="5"},
+then the total search time till terminate after 15 minutes regardless of
+independently specified termination criteria in \code{control}. Note that
+\code{maxiter} is still used alongside \code{wait.time}, therefore this should
+be increased as well (e.g., to \code{maxiter = 1000})}
+
+\item{ncores}{see \code{\link{runSimulation}}}
+
+\item{type}{type of cluster object to define. If \code{type} used in \code{plot}
+then can be \code{'density'} to plot the density of the iteration history
+after the burn-in stage, \code{'iterations'} for a bubble plot with inverse
+replication weights. If not specified then the default PBA
+plots are provided (see \code{\link{PBA}})}
+
+\item{maxiter}{the maximum number of iterations (default 100)}
+
+\item{check.interval}{logical; should an initial check be made to determine
+whether \code{f(interval[1L])} and \code{f(interval[2L])} have opposite
+signs? If \code{FALSE}, the specified \code{interval} is assumed to contain a root,
+where \code{f(interval[1]) < 0} and \code{f(interval[2] > 0}. Default is \code{TRUE}}
+
+\item{verbose}{logical; print information to the console?}
+
+\item{control}{a \code{list} of the algorithm control parameters. If not specified,
+  the defaults described below are used.
 
 \describe{
    \item{\code{tol}}{tolerance criteria for early termination (.1 for
@@ -160,26 +180,6 @@ iteration}
      raw data from the \code{Analyse} step? Set this to \code{TRUE} when the individual
      results from \code{Analyse} give less meaningful information}
    }}
-
-\item{ncores}{see \code{\link{runSimulation}}}
-
-\item{type}{type of cluster object to define. If \code{type} used in \code{plot}
-then can be \code{'density'} to plot the density of the iteration history
-after the burn-in stage, \code{'iterations'} for a bubble plot with inverse
-replication weights. If not specified then the default PBA
-plots are provided (see \code{\link{PBA}})}
-
-\item{maxiter}{the maximum number of iterations (default 100)}
-
-\item{check.interval}{logical; should an initial check be made to determine
-whether \code{f(interval[1L])} and \code{f(interval[2L])} have opposite
-signs? If \code{FALSE}, the specified \code{interval} is assumed to contain a root,
-where \code{f(interval[1]) < 0} and \code{f(interval[2] > 0}. Default is \code{TRUE}}
-
-\item{verbose}{logical; print information to the console?}
-
-\item{control}{a \code{list} of the algorithm control parameters. If not specified,
-the defaults described below are used.}
 
 \item{predCI}{advertised confidence interval probability for final
 model-based prediction of target \code{b} given the root input estimate.
@@ -493,8 +493,8 @@ pwr.t.test(n=50, d = .8, sig.level=solved$sig.level[3])
 }
 }
 \references{
-Chalmers, R. P. (accepted). Solving Variables with Monte Carlo Simulation Experiments: A
-Stochastic Root-Solving Approach. \code{Psychological Methods}.
+Chalmers, R. P. (in press). Solving Variables with Monte Carlo Simulation Experiments: A
+Stochastic Root-Solving Approach. \code{Psychological Methods}. DOI: 10.1037/met0000689
 
 Chalmers, R. P., & Adkins, M. C.  (2020). Writing Effective and Reliable Monte Carlo Simulations
 with the SimDesign Package. \code{The Quantitative Methods for Psychology, 16}(4), 248-280.
