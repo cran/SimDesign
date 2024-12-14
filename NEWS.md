@@ -1,5 +1,21 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.18
+
+- Objects built by `createDesign()` gain `[]` and `rbind()` S3 functions for 
+  subsetting and combining by rows. Largely included so that internal attributes
+  such as `Design.ID` are better tracked (reported by Michael S. Truong)
+
+- `runArraySimulation(..., max_time)` now correctly applies the maximum 
+  time across all subsetted conditions rather than over each condition, thereby
+  matching, for example, SBATCH commands in SLURM (reported by Michael S. Truong)
+
+- `SimResults()` now gives the same output behavior when `store_results` or 
+  `save_results` are used (see issue #45)
+
+- Use of `SimSolve(..., wait.time)` now automatically sets the `maxiter` to 
+  3000 to avoid early terminations
+
 ## Changes in SimDesign 2.17.1
 
 - `runArraySimulation()` now correctly searches in `.GlobalEnv` for user
@@ -32,7 +48,7 @@
 ## Changes in SimDesign 2.16
 
 - Fix for `SimCollect()` when `runArraySimulation()` result contains 
-  mixed warning outputs  (reported by Michael Troung)
+  mixed warning outputs  (reported by Michael S. Truong)
 
 - `manageMessages()` added in a similar spirit to `manageWarnigns()`, though
   to change messages into either errors or warnings (default behavior is the 

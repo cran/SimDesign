@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2024-08-16" />
+<meta name="date" content="2024-12-13" />
 
 <title>Saving simulation results and state</title>
 
@@ -1505,7 +1505,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Saving simulation results and state</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2024-08-16</h4>
+<h4 class="date">2024-12-13</h4>
 
 </div>
 
@@ -1545,13 +1545,13 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
                      generate=Generate, analyse=Analyse, summarise=Summarise,
                      control = list(stop_on_fatal = TRUE))</code></pre>
 <pre><code>## 
-## Design: 1/3;   RAM Used: 62.1 Mb;   Replications: 1000;   Total Time: 0.00s 
+## Design: 1/3;   Replications: 1000;   RAM Used: 62.3 Mb;   Total Time: 0.00s 
 ##  Conditions: N=10
 ## 
-## Design: 2/3;   RAM Used: 62.1 Mb;   Replications: 1000;   Total Time: 0.28s 
+## Design: 2/3;   Replications: 1000;   RAM Used: 62.3 Mb;   Total Time: 0.28s 
 ##  Conditions: N=20
 ## 
-## Design: 3/3;   RAM Used: 62.1 Mb;   Replications: 1000;   Total Time: 0.56s 
+## Design: 3/3;   Replications: 1000;   RAM Used: 62.3 Mb;   Total Time: 0.56s 
 ##  Conditions: N=30
 ## </code></pre>
 <p>Check that temporary file still exists.</p>
@@ -1568,7 +1568,7 @@ files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
 res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my-simple-sim&#39;,
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
-## Design: 3/3;   Replications: 1000;   Total Time: 0.56s 
+## Design: 3/3;   Replications: 1000   Total Time: 0.56s 
 ##  Conditions: N=30
 ## </code></pre>
 <p>Check which files exist.</p>
@@ -1587,13 +1587,13 @@ files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
 res &lt;- runSimulation(Design, replications = 3, 
               generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
-## Design: 1/3;   RAM Used: 62.2 Mb;   Replications: 3;   Total Time: 0.00s 
+## Design: 1/3;   Replications: 3;   RAM Used: 62.4 Mb;   Total Time: 0.00s 
 ##  Conditions: N=10
 ## 
-## Design: 2/3;   RAM Used: 62.2 Mb;   Replications: 3;   Total Time: 0.00s 
+## Design: 2/3;   Replications: 3;   RAM Used: 62.3 Mb;   Total Time: 0.00s 
 ##  Conditions: N=20
 ## 
-## Design: 3/3;   RAM Used: 62.2 Mb;   Replications: 3;   Total Time: 0.01s 
+## Design: 3/3;   Replications: 3;   RAM Used: 62.3 Mb;   Total Time: 0.01s 
 ##  Conditions: N=30
 ## </code></pre>
 <pre class="r"><code>results &lt;- SimResults(res)
@@ -1618,13 +1618,13 @@ results</code></pre>
 <pre class="r"><code>res &lt;- runSimulation(Design, replications = 1000, save_results=TRUE,
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
-## Design: 1/3;   RAM Used: 62.2 Mb;   Replications: 1000;   Total Time: 0.00s 
+## Design: 1/3;   Replications: 1000;   RAM Used: 62.4 Mb;   Total Time: 0.00s 
 ##  Conditions: N=10
 ## 
-## Design: 2/3;   RAM Used: 62.2 Mb;   Replications: 1000;   Total Time: 0.28s 
+## Design: 2/3;   Replications: 1000;   RAM Used: 62.3 Mb;   Total Time: 0.30s 
 ##  Conditions: N=20
 ## 
-## Design: 3/3;   RAM Used: 62.2 Mb;   Replications: 1000;   Total Time: 0.57s 
+## Design: 3/3;   Replications: 1000;   RAM Used: 62.3 Mb;   Total Time: 0.57s 
 ##  Conditions: N=30
 ## </code></pre>
 <pre class="r"><code>dir &lt;- dir()
@@ -1664,62 +1664,15 @@ str(row1)</code></pre>
 <pre class="r"><code># first row
 row1 &lt;- SimResults(res, which = 1)
 str(row1)</code></pre>
-<pre><code>## List of 6
-##  $ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
-##   ..$ N: num 10
-##  $ results      :&#39;data.frame&#39;:   1000 obs. of  1 variable:
-##   ..$ p: num [1:1000] 0.976 0.397 0.143 0.595 0.453 ...
-##  $ errors       : &#39;table&#39; int[0 (1d)] 
-##   ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. ..$ : NULL
-##  $ error_seeds  : NULL
-##  $ warnings     : &#39;table&#39; int[0 (1d)] 
-##   ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. ..$ warnings: NULL
-##  $ warning_seeds: NULL</code></pre>
+<pre><code>## tibble [1,000 × 2] (S3: tbl_df/tbl/data.frame)
+##  $ N: num [1:1000] 10 10 10 10 10 10 10 10 10 10 ...
+##  $ p: num [1:1000] 0.976 0.397 0.143 0.595 0.453 ...</code></pre>
 <p>The <code>SimResults()</code> function has the added benefit that it can read-in all simulation results at once (only recommended if RAM can hold all the information), or simply hand pick which ones should be inspected. For example, here is how all the saved results can be inspected:</p>
 <pre class="r"><code>input &lt;- SimResults(res)
 str(input)</code></pre>
-<pre><code>## List of 3
-##  $ :List of 6
-##   ..$ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
-##   .. ..$ N: num 10
-##   ..$ results      :&#39;data.frame&#39;:    1000 obs. of  1 variable:
-##   .. ..$ p: num [1:1000] 0.976 0.397 0.143 0.595 0.453 ...
-##   ..$ errors       : &#39;table&#39; int[0 (1d)] 
-##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. .. ..$ : NULL
-##   ..$ error_seeds  : NULL
-##   ..$ warnings     : &#39;table&#39; int[0 (1d)] 
-##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. .. ..$ warnings: NULL
-##   ..$ warning_seeds: NULL
-##  $ :List of 6
-##   ..$ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
-##   .. ..$ N: num 20
-##   ..$ results      :&#39;data.frame&#39;:    1000 obs. of  1 variable:
-##   .. ..$ p: num [1:1000] 0.824 0.823 0.857 0.904 0.297 ...
-##   ..$ errors       : &#39;table&#39; int[0 (1d)] 
-##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. .. ..$ : NULL
-##   ..$ error_seeds  : NULL
-##   ..$ warnings     : &#39;table&#39; int[0 (1d)] 
-##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. .. ..$ warnings: NULL
-##   ..$ warning_seeds: NULL
-##  $ :List of 6
-##   ..$ condition    : tibble [1 × 1] (S3: tbl_df/tbl/data.frame)
-##   .. ..$ N: num 30
-##   ..$ results      :&#39;data.frame&#39;:    1000 obs. of  1 variable:
-##   .. ..$ p: num [1:1000] 0.00466 0.32682 0.71914 0.01076 0.3534 ...
-##   ..$ errors       : &#39;table&#39; int[0 (1d)] 
-##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. .. ..$ : NULL
-##   ..$ error_seeds  : NULL
-##   ..$ warnings     : &#39;table&#39; int[0 (1d)] 
-##   .. ..- attr(*, &quot;dimnames&quot;)=List of 1
-##   .. .. ..$ warnings: NULL
-##   ..$ warning_seeds: NULL</code></pre>
+<pre><code>## tibble [3,000 × 2] (S3: tbl_df/tbl/data.frame)
+##  $ N: num [1:3000] 10 10 10 10 10 10 10 10 10 10 ...
+##  $ p: num [1:3000] 0.976 0.397 0.143 0.595 0.453 ...</code></pre>
 <p>Should the need arise to remove the results directory then the <code>SimClean()</code> function is the easiest way to remove all unwanted files and directories.</p>
 <pre class="r"><code>SimClean(results = TRUE)</code></pre>
 </div>

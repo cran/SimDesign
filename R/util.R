@@ -87,11 +87,15 @@ print_progress <- function(row, trow, stored_time, RAM, progress,
             condstring <- paste0(nms, '=', nms2, collapse=', ')
         }
     }
-    if(RAM != "") RAM <- sprintf(';   RAM Used: %s', RAM)
-    cat(sprintf('\rDesign: %i/%i%s;   Replications: %i;   Total Time: %s ',
-                row, trow, RAM, replications, timeFormater_internal(sum(stored_time))))
+    if(RAM != "") RAM <- sprintf(';   RAM Used: %s;', RAM)
+    if(row == 1 && trow == 1)
+        cat(sprintf('\rReplications: %i%s   ', replications, RAM))
+    else
+        cat(sprintf('\rDesign: %i/%i;   Replications: %i%s   Total Time: %s ',
+                    row, trow, replications, RAM, timeFormater_internal(sum(stored_time))))
     cat(sprintf('\n Conditions: %s\n', condstring))
     if(progress) cat('\r')
+    utils::flush.console()
     invisible(NULL)
 }
 
@@ -121,11 +125,11 @@ notification_final <- function(Final){
 #' Suppress verbose function messages
 #'
 #' This function is used to suppress information printed from external functions
-#' that make internal use of \code{link{message}} and \code{\link{cat}}, which
+#' that make internal use of \code{\link{message}} and \code{\link{cat}}, which
 #' provide information in interactive R sessions. For simulations, the session
 #' is not interactive, and therefore this type of output should be suppressed.
 #' For similar behaviour for suppressing warning messages, see
-#' \code{link{manageWarnings}}.
+#' \code{\link{manageWarnings}}.
 #'
 #' @param ... the functional expression to be evaluated
 #'
@@ -533,6 +537,7 @@ SimSolveUniroot <- function(SimMod, b, interval, max.interval, median, CI=NULL){
         predict(SimMod, newdata = data.frame(x=x), type = 'response') - b
     res <- try(uniroot(f.root, b=b, interval = interval), silent = TRUE)
     if(is(res, 'try-error')){
+        org.interval <- interval
         # in case original interval is poor for interpolation
         interval <- max.interval
         for(i in seq_len(20L)){
@@ -895,13 +900,17 @@ genSeeds <- function(design = 1L, iseed = NULL, arrayID = NULL, old.seeds = NULL
 #' timeFormater("30:30", output = 'hour')
 #' timeFormater("4:30:30", output = 'hour')
 #'
+#' # numeric input is understood as seconds by default
+#' timeFormater(42)
+#' timeFormater(42, output='min') # minutes
+#'
 timeFormater <- function(time, output='sec'){
     stopifnot(length(time) == 1L && length(output) == 1L)
     stopifnot(output %in% c('sec', 'min', 'hour', 'day'))
     time <- sbatch_time2sec(time)
     if(output == 'min') time <- time / 60
     if(output == 'hour') time <- time / 60 / 60
-    if(output == 'min') time <- time / 60 / 60 / 24
+    if(output == 'day') time <- time / 60 / 60 / 24
     time
 }
 

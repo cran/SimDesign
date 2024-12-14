@@ -186,6 +186,14 @@
 #'   \code{save_results = TRUE} with or without a supplied \code{summarise}
 #'   definition.
 #'
+#'   Finally, there are keywords that should not be returned from this
+#'   functions since they will cause a conflict with the aggregated simulation
+#'   objects. These are currently those listed in capital letters (e.g.,
+#'   \code{ERRORS}, \code{WARNINGS}, \code{REPLICATIONS}, etc), all of which can
+#'   be avoided if the returned objects are not entirely capitalized
+#'   (e.g., \code{Errors}, \code{errors}, \code{ErRoRs}, ..., will all avoid
+#'   conflicts)
+#'
 #' @param replications number of independent replications to perform per
 #'   condition (i.e., each row in \code{design}). Can be a single number, which
 #'   will be used for each design condition, or an integer vector with length
@@ -421,7 +429,8 @@
 #'        where \code{max_time} is only evaluated after every row in the
 #'        \code{design} object has been completed (hence, is notably more approximate as it
 #'        has the potential to overshoot by a wider margin). Default sets no time limit.
-#'        See \code{\link{timeFormater}} for the input specifications.
+#'        See \code{\link{timeFormater}} for the input specifications; otherwise, can be
+#'        specified as a \code{numeric} input reflecting the maximum time in seconds.
 #'      }
 #'
 #'      \item{\code{max_RAM}}{
@@ -562,7 +571,7 @@
 #'   generation independence across conditions and replications, while the vector input
 #'   ensures independence within the replications per conditions but not necessarily
 #'   across conditions. Default randomly generates seeds within the
-#'   range 1 to 2147483647 for each condition via \code{link{gen_seeds}}
+#'   range 1 to 2147483647 for each condition via \code{\link{gen_seeds}}
 #'
 #' @param progress logical; display a progress bar (using the \code{pbapply} package)
 #'   for each simulation condition?
@@ -1578,7 +1587,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         return(Result_list)
     }
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))
-    if(verbose)
+    if(verbose && nrow(design) > 1L)
         message('\nSimulation complete. Total execution time: ',
                 timeFormater_internal(sum(stored_time)), "\n")
     stored_time <- do.call(c, lapply(Result_list, function(x) x$SIM_TIME))

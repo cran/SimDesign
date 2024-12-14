@@ -27,9 +27,9 @@
 #' conditions that require more than the specified time in the shell script.
 #' The \code{max_time} value should be less than the maximum time allocated
 #' on the HPC cluster (e.g., approximately 90% of this time or less, though
-#' depends on how long each replication takes). Simulations with missing
-#' replication information should submit a new set of jobs at a later time
-#' to collect the missing replication information.
+#' depends on how long, and how variable, each replication is). Simulations with missing
+#' replications should submit a new set of jobs at a later time
+#' to collect the missing information.
 #'
 #' @param design design object containing simulation conditions on a per row basis.
 #'   This function is design to submit each row as in independent job on a HPC cluster.
@@ -110,6 +110,11 @@
 #'   available. Default applies no memory limit
 #'
 #' @param ... additional arguments to be passed to \code{\link{runSimulation}}
+#'
+#' @param verbose logical; pass a verbose flag to \code{\link{runSimulation}}.
+#'   Unlike \code{\link{runSimulation}} this is set to FALSE during interactive
+#'   sessions, though set to TRUE when non-interactive and information about the
+#'   session itself should be stored (e.g., in SLURM \code{.out} files)
 #'
 #' @export
 #'
@@ -289,8 +294,8 @@ runArraySimulation <- function(design, ..., replications,
                                addArrayInfo = TRUE,
                                parallel = FALSE, cl = NULL,
                                ncores = parallelly::availableCores(omit = 1L),
-                               save_details = list(),
-                               control = list()){
+                               save_details = list(), control = list(),
+                               verbose = ifelse(interactive(), FALSE, TRUE)){
     dots <- list(...)
     if(parallel && ncores == 1L) parallel <- FALSE
     if(!is.null(dots$save_results) && isTRUE(dots$save_results))
@@ -333,13 +338,22 @@ runArraySimulation <- function(design, ..., replications,
             on.exit(parallel::stopCluster(cl), add=TRUE)
         }
     }
+    max_time <- control$max_time
+    if(!is.null(max_time))
+        max_time <- timeFormater(max_time)
+    start_time <- proc.time()[3L]
     for(i in 1L:length(rowpick)){
         row <- rowpick[i]
         seed <- genSeeds(design, iseed=iseed, arrayID=row)
         dsub <- design[row, , drop=FALSE]
         attr(dsub, 'Design.ID') <- attr(design, 'Design.ID')[row]
+        if(!is.null(max_time)){
+            control$max_time <- max_time - (proc.time()['elapsed'] - start_time)
+            if(max_time <= 0)
+                stop('max_time limit exceeded', call.=FALSE)
+        }
         ret <- runSimulation(design=dsub, replications=replications, seed=seed,
-                             verbose=FALSE, save_details=save_details,
+                             verbose=verbose, save_details=save_details,
                              parallel=parallel, cl=cl,
                              control=control, save=FALSE, ...)
         attr(ret, 'extra_info')$number_of_conditions <- nrow(design)
@@ -347,8 +361,14 @@ runArraySimulation <- function(design, ..., replications,
            (!is.null(dots$store_results) && isTRUE(dots$store_results)))){
             results <- SimExtract(ret, 'results')
             condition <- attr(design, 'Design.ID')
-            results <- dplyr::mutate(results, arrayID=arrayID, .before=1L)
-            results <- dplyr::mutate(results, condition=condition[row], .before=1L)
+            if(is(results, 'tbl_df')){
+                results <- dplyr::mutate(results, arrayID=arrayID, .before=1L)
+                results <- dplyr::mutate(results, condition=condition[row], .before=1L)
+            } else {
+                results <- lapply(results,
+                                  \(x) c(arrayID=arrayID, condition=condition[row], x))
+                names(results) <- NULL
+            }
             attr(ret, "extra_info")$stored_results <- results
         }
         filename.u <- unique_filename(filename[i], safe=TRUE, verbose=FALSE)

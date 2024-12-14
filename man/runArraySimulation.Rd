@@ -18,7 +18,8 @@ runArraySimulation(
   cl = NULL,
   ncores = parallelly::availableCores(omit = 1L),
   save_details = list(),
-  control = list()
+  control = list(),
+  verbose = ifelse(interactive(), FALSE, TRUE)
 )
 }
 \arguments{
@@ -101,6 +102,11 @@ See \code{\link{runSimulation}}}
   Useful for larger HPC cluster jobs with RAM constraints that could terminate abruptly.
   As a rule of thumb this should be set to around 90% of the maximum possible storage
   available. Default applies no memory limit}
+
+\item{verbose}{logical; pass a verbose flag to \code{\link{runSimulation}}.
+Unlike \code{\link{runSimulation}} this is set to FALSE during interactive
+sessions, though set to TRUE when non-interactive and information about the
+session itself should be stored (e.g., in SLURM \code{.out} files)}
 }
 \description{
 This function has the same purpose as \code{\link{runSimulation}}, however
@@ -131,9 +137,9 @@ Additionally, for timed simulations on HPC clusters it is also recommended to pa
 conditions that require more than the specified time in the shell script.
 The \code{max_time} value should be less than the maximum time allocated
 on the HPC cluster (e.g., approximately 90% of this time or less, though
-depends on how long each replication takes). Simulations with missing
-replication information should submit a new set of jobs at a later time
-to collect the missing replication information.
+depends on how long, and how variable, each replication is). Simulations with missing
+replications should submit a new set of jobs at a later time
+to collect the missing information.
 }
 \examples{
 

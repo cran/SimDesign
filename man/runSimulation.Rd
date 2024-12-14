@@ -100,7 +100,15 @@ analyses the simulated data). See \code{\link{Analyse}} for details}
   the within-condition replication information are of interest, though
   of course this  can be circumvented by using \code{store_results = TRUE} or
   \code{save_results = TRUE} with or without a supplied \code{summarise}
-  definition.}
+  definition.
+
+  Finally, there are keywords that should not be returned from this
+  functions since they will cause a conflict with the aggregated simulation
+  objects. These are currently those listed in capital letters (e.g.,
+  \code{ERRORS}, \code{WARNINGS}, \code{REPLICATIONS}, etc), all of which can
+  be avoided if the returned objects are not entirely capitalized
+  (e.g., \code{Errors}, \code{errors}, \code{ErRoRs}, ..., will all avoid
+  conflicts)}
 
 \item{fixed_objects}{(optional) an object (usually a named \code{list})
 containing additional user-defined objects
@@ -292,7 +300,7 @@ numbers must have been generated from \code{\link{gen_seeds}} with the argument
 generation independence across conditions and replications, while the vector input
 ensures independence within the replications per conditions but not necessarily
 across conditions. Default randomly generates seeds within the
-range 1 to 2147483647 for each condition via \code{link{gen_seeds}}}
+range 1 to 2147483647 for each condition via \code{\link{gen_seeds}}}
 
 \item{boot_method}{method for performing non-parametric bootstrap confidence intervals
 for the respective meta-statistics computed by the \code{Summarise} function.
@@ -485,7 +493,8 @@ in the simulation}
        where \code{max_time} is only evaluated after every row in the
        \code{design} object has been completed (hence, is notably more approximate as it
        has the potential to overshoot by a wider margin). Default sets no time limit.
-       See \code{\link{timeFormater}} for the input specifications.
+       See \code{\link{timeFormater}} for the input specifications; otherwise, can be
+       specified as a \code{numeric} input reflecting the maximum time in seconds.
      }
 
      \item{\code{max_RAM}}{
