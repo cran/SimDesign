@@ -10,7 +10,7 @@
 #' approximately when \code{check.interval=TRUE}).
 #' See Waeber, Frazier, and Henderson (2013) for details.
 #'
-#' @param f noisy function for which the root is sought
+#' @param f.root noisy function for which the root is sought
 #'
 #' @param f.prior density function indicating the likely location of the prior
 #'   (e.g., if root is within [0,1] then \code{\link{dunif}} works, otherwise custom
@@ -120,13 +120,13 @@
 #' plot(retpba.noise, type = 'history')
 #'
 #' \dontrun{
-#' # ignore termination criteria and instead run for 30 seconds or 30000 iterations
-#' retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = "0:30", maxiter=30000)
+#' # ignore termination criteria and instead run for 30 seconds or 50000 iterations
+#' retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = "0:30", maxiter=50000)
 #' retpba.noise_30sec
 #'
 #' }
 #'
-PBA <- function(f, interval, ..., p = .6,
+PBA <- function(f.root, interval, ..., p = .6,
                 integer = FALSE, tol = if(integer) .01 else .0001,
                 maxiter = 300L, miniter = 100L, wait.time = NULL,
                 f.prior = NULL, resolution = 10000L,
@@ -143,25 +143,6 @@ PBA <- function(f, interval, ..., p = .6,
         if(any((interval - floor(interval)) > 0))
             stop('interval supplied contains decimals while integer = TRUE. Please fix',
                  call.=FALSE)
-    }
-
-    bool.f <- function(f.root, median, ...){
-        val <- valp <- f.root(median, ...)
-        if(integer && !is.null(.SIMDENV$FromSimSolve) && .SIMDENV$FromSimSolve$bolster){
-            if(!all(is.na(.SIMDENV$stored_medhistory))){
-                whc <- which(median == .SIMDENV$stored_medhistory)
-                whc <- whc[-1L]
-                if(length(whc)){
-                    dots <- list(...)
-                    cmp <- dplyr::bind_rows(.SIMDENV$stored_history[whc])
-                    valp <- sum((cmp$y - .SIMDENV$FromSimSolve$b) * cmp$reps,
-                             val * dots$replications) /
-                        sum(cmp$reps, dots$replications)
-                }
-            }
-        }
-        z <- valp < 0
-        c(z, val)
     }
 
     logp <- log(p)
@@ -187,7 +168,7 @@ PBA <- function(f, interval, ..., p = .6,
             rel.tol <- 0
         }
         interpolate.burnin <- FromSimSolve$interpolate.burnin
-        glmpred.last <- glmpred <- c(NA, NA)
+        glmpred.last <- glmpred <- glmpred0 <- c(NA, NA)
         k.success <- FromSimSolve$k.success
         k.successes <- 0L
     } else{
@@ -204,13 +185,15 @@ PBA <- function(f, interval, ..., p = .6,
 
     if(check.interval){
         if(!is.null(FromSimSolve)){
-            upper <- bool.f(f.root=f, interval[2L], replications=replications[1L],
+            upper <- bool.f(f.root=f.root, interval[2L], integer=integer,
+                            .SIMDENV = .SIMDENV, replications=replications[1L],
                             store = FALSE, ...)
-            lower <- bool.f(f.root=f, interval[1L], replications=replications[1L],
+            lower <- bool.f(f.root=f.root, interval[1L], integer=integer,
+                            .SIMDENV = .SIMDENV, replications=replications[1L],
                             store = FALSE, ...)
         } else {
-            upper <- bool.f(f.root=f, interval[2L], ...)
-            lower <- bool.f(f.root=f, interval[1L], ...)
+            upper <- bool.f(f.root=f.root, interval[2L], integer=integer, ...)
+            lower <- bool.f(f.root=f.root, interval[1L], integer=integer, ...)
         }
         no_root <- (upper[1L] + lower[1L]) != 1L
         if(no_root){
@@ -246,8 +229,9 @@ PBA <- function(f, interval, ..., p = .6,
         }
         medhistory[iter] <- med
         feval <- if(!is.null(FromSimSolve))
-            bool.f(f.root=f, med, replications=replications[iter], ...)
-        else bool.f(f.root=f, med, ...)
+            bool.f(f.root=f.root, med, integer=integer,
+                   .SIMDENV = .SIMDENV, replications=replications[iter], ...)
+        else bool.f(f.root=f.root, med, integer=integer, ...)
         z <- feval[1]
         roothistory[iter] <- feval[2]
         if(z){
@@ -362,7 +346,11 @@ PBA <- function(f, interval, ..., p = .6,
     fx <- exp(fx) / sum(exp(fx)) # normalize final result
     medhistory <- medhistory[1L:(iter-1L)]
     # BI <- belief_interval(x, fx, CI=CI)
-    root <- if(!interpolate) medhistory[length(medhistory)] else glmpred0[1L]
+    root <- if(!interpolate || is.na(glmpred0[1]))
+        medhistory[length(medhistory)] else glmpred0[1L]
+    if(interpolate && is.na(glmpred0[1]))
+        warning('Interpolation model failed; root set to last PBA estimate',
+                call.=FALSE)
     ret <- list(iter=iter, root=root, terminated_early=converged, integer=integer,
                 e.froot=e.froot, x=x, fx=fx, medhistory=medhistory,
                 time=as.numeric(proc.time()[3L]-start_time),
@@ -430,6 +418,25 @@ getMedian <- function(fx, x){
         if(!length(ret)) ret <- xs[1L]
     }
     ret[length(ret)]
+}
+
+bool.f <- function(f.root, median, integer, .SIMDENV, ...){
+    val <- valp <- f.root(median, ...)
+    if(integer && !is.null(.SIMDENV$FromSimSolve) && .SIMDENV$FromSimSolve$bolster){
+        if(!all(is.na(.SIMDENV$stored_medhistory))){
+            whc <- which(median == .SIMDENV$stored_medhistory)
+            whc <- whc[-1L]
+            if(length(whc)){
+                dots <- list(...)
+                cmp <- dplyr::bind_rows(.SIMDENV$stored_history[whc])
+                valp <- sum((cmp$y - .SIMDENV$FromSimSolve$b) * cmp$reps,
+                            val * dots$replications) /
+                    sum(cmp$reps, dots$replications)
+            }
+        }
+    }
+    z <- valp < 0
+    c(z, val)
 }
 
 # belief_interval <- function(x, fx, CI = .95){

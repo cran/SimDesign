@@ -7,7 +7,7 @@
 \title{Probabilistic Bisection Algorithm}
 \usage{
 PBA(
-  f,
+  f.root,
   interval,
   ...,
   p = 0.6,
@@ -28,7 +28,7 @@ PBA(
 \method{plot}{PBA}(x, type = "posterior", main = "Probabilistic Bisection Posterior", ...)
 }
 \arguments{
-\item{f}{noisy function for which the root is sought}
+\item{f.root}{noisy function for which the root is sought}
 
 \item{interval}{a vector containing the end-points of the interval
 to be searched for the root}
@@ -133,8 +133,8 @@ plot(retpba.noise)
 plot(retpba.noise, type = 'history')
 
 \dontrun{
-# ignore termination criteria and instead run for 30 seconds or 30000 iterations
-retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = "0:30", maxiter=30000)
+# ignore termination criteria and instead run for 30 seconds or 50000 iterations
+retpba.noise_30sec <- PBA(f.root_noisy, c(0,1), wait.time = "0:30", maxiter=50000)
 retpba.noise_30sec
 
 }

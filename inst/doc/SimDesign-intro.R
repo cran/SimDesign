@@ -16,10 +16,10 @@ library(SimDesign)
 SimFunctions()
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  SimDesign::SimFunctions('mysim')
+# SimDesign::SimFunctions('mysim')
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  SimFunctions('mysim', singlefile = FALSE, comments = TRUE)
+# SimFunctions('mysim', singlefile = FALSE, comments = TRUE)
 
 ## -----------------------------------------------------------------------------
 Design <- createDesign(sample_size = c(30, 60, 120, 240), 

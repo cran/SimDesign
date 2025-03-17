@@ -26,7 +26,6 @@
 #' @import methods parallel stats
 #' @importFrom sessioninfo session_info
 #' @importFrom parallelly availableCores
-#' @importFrom RPushbullet pbPost
 #' @importFrom graphics abline
 #' @importFrom R.utils withTimeout
 #' @importFrom pbapply pblapply pboptions
@@ -35,7 +34,6 @@
 #' @importFrom future.apply future_lapply
 #' @importFrom progressr progressor
 #' @importFrom beepr beep
-#' @importFrom snow sendCall checkForRemoteErrors
 # @importFrom robustbase glmrob
 #' @importFrom utils recover packageVersion head tail capture.output object.size
 #' @keywords package

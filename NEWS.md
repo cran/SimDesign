@@ -1,5 +1,22 @@
 # NEWS file for SimDesign
 
+## Changes in SimDesign 2.19.1
+
+- `print.Design()` gains a `show.IDs` flag to show the internally stored condition
+  identifiers. Set to `FALSE` by default
+
+- New notification system in `runSimulation()` contributed by Moritz Ketzer
+
+- `max_time` now behaves more accurately when using multi-core applications 
+  in `runSimulation()` and `runArraySimulation()`
+
+- S3 `rbind.Design()` changed to `rbindDesign` as there was some confusion
+  in the S3 dispatch purpose when internal ID elements needed to be tracked
+  (see #50)
+
+- Multiple parameter `bias()` returned incorrect behavior/errors
+  for `relative` and `abs_relative` types (see #60)
+
 ## Changes in SimDesign 2.18
 
 - Objects built by `createDesign()` gain `[]` and `rbind()` S3 functions for 

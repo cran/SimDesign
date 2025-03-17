@@ -39,13 +39,13 @@
 #'   indicating the number of replication to
 #'   use for each design condition per PBA iteration. By default the input is a
 #'   \code{list} with the arguments \code{burnin.iter = 15L}, specifying the number
-#'   of burn-in iterations to used, \code{burnin.reps = 100L} to indicate how many
+#'   of burn-in iterations to used, \code{burnin.reps = 50L} to indicate how many
 #'   replications to use in each burn-in iteration, \code{max.reps = 500L} to
 #'   prevent the replications from increasing higher than this number,
 #'   \code{min.total.reps = 9000L} to avoid termination when very few replications
 #'   have been explored (lower bound of the replication budget),
 #'   and \code{increase.by = 10L} to indicate how many replications to increase
-#'   after the burn-in stage. Default can overwritten by explicit definition (e.g.,
+#'   per iteration after the burn-in stage. Default can overwritten by explicit definition (e.g.,
 #'   \code{replications = list(increase.by = 25L)}).
 #'
 #'   Vector inputs can specify the exact replications  for each respective
@@ -118,7 +118,8 @@
 #'   used to reflect this tolerance range
 #'
 #' @param wait.time (optional) argument passed to \code{\link{PBA}} to indicate
-#'   the time to wait (specified in minutes) per row in the \code{Design} object
+#'   the time to wait (specified in minutes if a numeric vector is passed)
+#'   per row in the \code{Design} object
 #'   rather than using pre-determined termination criteria based on the estimates.
 #'   For example, if three three conditions were defined in
 #'   \code{Design}, and \code{wait.time="5"},
@@ -463,7 +464,7 @@
 #'
 #' }
 SimSolve <- function(design, interval, b, generate, analyse, summarise,
-                     replications = list(burnin.iter = 15L, burnin.reps = 100L,
+                     replications = list(burnin.iter = 15L, burnin.reps = 50L,
                                          max.reps = 500L, min.total.reps = 9000L,
                                          increase.by = 10L),
                      integer = TRUE, formula = y ~ poly(x, 2), family = 'binomial',
@@ -480,11 +481,14 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
     options(warn = 1)
     on.exit(options(org.opts), add = TRUE)
     if(is.null(control$print_RAM)) control$print_RAM <- FALSE
+    if(is.null(control$global_fun_level)) control$global_fun_level <- 2
     burnin.iter <- 15L
     if(!is.null(wait.time) && maxiter == 100L){
         maxiter <- 3000L
         predCI.tol <- 0
     }
+    if(!is.null(wait.time) && !is.character(wait.time))
+        wait.time <- as.character(wait.time)
     if(is.list(replications)){
         if(is.null(replications$burnin.iter)) replications$burnin.iter <- burnin.iter else
             burnin.iter <- replications$burnin.iter
@@ -604,7 +608,7 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
             on.exit(parallel::stopCluster(cl), add = TRUE)
         }
     }
-    export_funs <- parent_env_fun()
+    export_funs <- parent_env_fun(control$global_fun_level)
     if(parallel){
         if(!useFuture && is.null(cl)){
             cl <- parallel::makeCluster(ncores, type=type)
@@ -613,7 +617,7 @@ SimSolve <- function(design, interval, b, generate, analyse, summarise,
         if(!useFuture){
             parallel::clusterExport(cl=cl, export_funs, envir = parent.frame(1L))
             parallel::clusterExport(cl=cl, "ANALYSE_FUNCTIONS", envir = environment())
-            if(verbose)
+            if(verbose > 0 && verbose < 2)
                 message(sprintf("\nNumber of parallel clusters in use: %i", length(cl)))
         }
     }

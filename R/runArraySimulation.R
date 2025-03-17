@@ -303,7 +303,7 @@ runArraySimulation <- function(design, ..., replications,
     if(!is.null(control$save_seeds) && isTRUE(control$save_seeds))
         stop(c('save_seeds not supported for array jobs. If this is truely',
                ' necessary use store_Random.seeds instead'))
-    control$from.runArraySimulation <- TRUE
+    control$global_fun_level <- 3
     rngkind <- RNGkind()
     RNGkind("L'Ecuyer-CMRG")
     on.exit(RNGkind(rngkind[1L]))
@@ -338,24 +338,18 @@ runArraySimulation <- function(design, ..., replications,
             on.exit(parallel::stopCluster(cl), add=TRUE)
         }
     }
-    max_time <- control$max_time
-    if(!is.null(max_time))
-        max_time <- timeFormater(max_time)
-    start_time <- proc.time()[3L]
+    max_time.start <- proc.time()[3L]
+    if(!is.null(control$max_time))
+        control$max_time.start <- max_time.start
     for(i in 1L:length(rowpick)){
         row <- rowpick[i]
         seed <- genSeeds(design, iseed=iseed, arrayID=row)
         dsub <- design[row, , drop=FALSE]
         attr(dsub, 'Design.ID') <- attr(design, 'Design.ID')[row]
-        if(!is.null(max_time)){
-            control$max_time <- max_time - (proc.time()['elapsed'] - start_time)
-            if(max_time <= 0)
-                stop('max_time limit exceeded', call.=FALSE)
-        }
         ret <- runSimulation(design=dsub, replications=replications, seed=seed,
                              verbose=verbose, save_details=save_details,
                              parallel=parallel, cl=cl,
-                             control=control, save=FALSE, ...)
+                             control=control, save=FALSE, resume=FALSE, ...)
         attr(ret, 'extra_info')$number_of_conditions <- nrow(design)
         if(addArrayInfo && (is.null(dots$store_results) ||
            (!is.null(dots$store_results) && isTRUE(dots$store_results)))){

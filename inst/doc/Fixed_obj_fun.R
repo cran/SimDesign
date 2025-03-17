@@ -20,10 +20,10 @@ myfun <- function(x) obj1 + obj2
 myfun(1)
 
 ## ----eval = FALSE-------------------------------------------------------------
-#  library(parallel)
-#  cl <- makeCluster(2)
-#  res <- try(parSapply(cl=cl, 1:4, myfun))
-#  res
+# library(parallel)
+# cl <- makeCluster(2)
+# res <- try(parSapply(cl=cl, 1:4, myfun))
+# res
 
 ## ----echo=FALSE---------------------------------------------------------------
 library(parallel)
@@ -80,7 +80,7 @@ res <- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_ob
 res
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  res <- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
-#                       generate=Generate, analyse=Analyse, summarise=Summarise, debug='none',
-#                       parallel = TRUE)
+# res <- runSimulation(Design, replications, verbose=FALSE, fixed_objects=fixed_objects,
+#                      generate=Generate, analyse=Analyse, summarise=Summarise, debug='none',
+#                      parallel = TRUE)
 

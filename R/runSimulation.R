@@ -150,7 +150,7 @@
 #' @param analyse user-defined analysis function (or named list of functions)
 #'   that acts on the data generated from
 #'   \code{\link{Generate}} (or, if \code{generate} was omitted, can be used to generate and
-#'   analyses the simulated data). See \code{\link{Analyse}} for details
+#'   analyse the simulated data). See \code{\link{Analyse}} for details
 #'
 #' @param summarise optional (but strongly recommended) user-defined summary function
 #'   from \code{\link{Summarise}} to be used to compute meta-statistical summary
@@ -174,7 +174,7 @@
 #'   \code{Analyse()} call was a one-dimensional vector.
 #'   For more general objects returned by \code{Analyse()}
 #'   (such as \code{list}s), a \code{list}
-#'   containing the results returned form \code{\link{Analyse}}.
+#'   containing the results returned from \code{\link{Analyse}}.
 #'   This is generally only recommended for didactic purposes because the results
 #'   will leave out a large amount of
 #'   information (e.g., try-errors, warning messages, saving files, etc), can
@@ -182,12 +182,12 @@
 #'   and generally is not as flexible internally. However, it may be useful
 #'   when replications are expensive and ANOVA-based decompositions involving
 #'   the within-condition replication information are of interest, though
-#'   of course this  can be circumvented by using \code{store_results = TRUE} or
+#'   of course this can be circumvented by using \code{store_results = TRUE} or
 #'   \code{save_results = TRUE} with or without a supplied \code{summarise}
 #'   definition.
 #'
 #'   Finally, there are keywords that should not be returned from this
-#'   functions since they will cause a conflict with the aggregated simulation
+#'   function, since they will cause a conflict with the aggregated simulation
 #'   objects. These are currently those listed in capital letters (e.g.,
 #'   \code{ERRORS}, \code{WARNINGS}, \code{REPLICATIONS}, etc), all of which can
 #'   be avoided if the returned objects are not entirely capitalized
@@ -249,22 +249,31 @@
 #' @param sound \code{sound} argument passed to \code{beepr::beep()}
 #'
 #' @param notification an optional character vector input that can be used to send
-#'   Pushbullet notifications from a configured
-#'   computer. This reports information such as the total execution time, the condition
-#'   completed, and error/warning
-#'   messages recorded. This arguments assumes that users have already A) registered for
-#'   a Pushbullet account,
-#'   B) installed the application on their mobile device and computer, and C) created an
-#'   associated JSON file of the form
-#'   \code{~/.rpushbullet.json} using \code{RPushbullet::pbSetup()}).
+#'   notifications with information about execution time and recorded errors and warnings.
+#'   Pass one of the following supported options:
+#'   \code{'none'} (default; send no notification), \code{'condition'} to send a notification
+#'   after each condition has completed, or \code{'complete'} to send a notification only
+#'   when the simulation has finished.
+#'   When notification is set to \code{'condition'} or \code{'complete'}, the \code{notifier}
+#'   argument must be supplied with a valid notifier object (or a list of notifier objects).
 #'
-#'   To utilize the \code{RPushbullet} in \code{SimDesign} first call \code{library(RPushbullet}
-#'   before running \code{runSimulation()} to read-in the default JSON file. Next,
-#'   pass one of the following supported
-#'   options: \code{'none'} (default; send no notification),
-#'   \code{'condition'} to send a notification after each condition has completed,
-#'   or \code{'complete'} to send
-#'   a notification only when the simulation has finished.
+#' @param notifier A notifier object (or a list of notifier objects, allowing for multiple
+#'   notification methods) required when \code{notification} is not set to \code{"none"}.
+#'   See \code{listAvailableNotifiers} for a list of available notifiers and how to use them.
+#'
+#'   Example usage:
+#'
+#'   \code{telegram_notifier <- new_TelegramNotifier(bot_token = "123456:ABC-xyz", chat_id = "987654321")}
+#'
+#'   \code{runSimulation(..., notification = "condition", notifier = telegram_notifier)}
+#'
+#'   Using multiple notifiers:
+#'
+#'   \code{pushbullet_notifier <- new_PushbulletNotifier()}
+#'
+#'   \code{runSimulation(..., notification = "complete", notifier = list(telegram_notifier, pushbullet_notifier))}
+#'
+#'   See the \code{R/notifications.R} file for reference on implementing a custom notifier.
 #'
 #' @param save_results logical; save the results returned from \code{\link{Analyse}} to external
 #'   \code{.rds} files located in the defined \code{save_results_dirname} directory/folder?
@@ -422,15 +431,18 @@
 #'        used throughout the simulation? Set to \code{FALSE} if unnecessary or if the call to
 #'        \code{\link{gc}} is unnecessarily time consuming}
 #'
+#'      \item{\code{global_fun_level}}{determines how many levels to search until global environment
+#'        frame is located. Default is 2, though for \code{\link{runArraySimulation}} this is set to 3.
+#'        Use 3 or more whenever \code{runSimulation} is used within the context of another function}
+#'
 #'      \item{\code{max_time}}{
 #'        Similar to \code{\link{runArraySimulation}}, specifies the (approximate) maximum
-#'        time that the simulation is allowed to be executed. However, unlike the implementation
-#'        in \code{runArraySimulation} is evaluated on a per condition basis,
-#'        where \code{max_time} is only evaluated after every row in the
-#'        \code{design} object has been completed (hence, is notably more approximate as it
-#'        has the potential to overshoot by a wider margin). Default sets no time limit.
+#'        time that the simulation is allowed to be executed. Default sets no time limit.
 #'        See \code{\link{timeFormater}} for the input specifications; otherwise, can be
 #'        specified as a \code{numeric} input reflecting the maximum time in seconds.
+#'
+#'        Note that when \code{parallel = TRUE} the \code{max_time} can only be checked on
+#'        a per condition basis.
 #'      }
 #'
 #'      \item{\code{max_RAM}}{
@@ -566,17 +578,16 @@
 #'   If the input is a vector then \code{\link{set.seed}} or
 #'   \code{\link{clusterSetRNGStream}} for each condition will be called, respectively.
 #'   If a list is provided then these
-#'   numbers must have been generated from \code{\link{gen_seeds}} with the argument
-#'   \code{CMRG.seed} used to specify the initial. The list approach ensures random number
-#'   generation independence across conditions and replications, while the vector input
-#'   ensures independence within the replications per conditions but not necessarily
-#'   across conditions. Default randomly generates seeds within the
-#'   range 1 to 2147483647 for each condition via \code{\link{gen_seeds}}
+#'   numbers must have been generated from \code{\link{genSeeds}}. The list approach
+#'   ensures random number generation independence across conditions and replications,
+#'   while the vector input ensures independence within the replications per conditions
+#'   but not necessarily across conditions. Default randomly generates seeds within the
+#'   range 1 to 2147483647 for each condition via \code{\link{genSeeds}}
 #'
 #' @param progress logical; display a progress bar (using the \code{pbapply} package)
 #'   for each simulation condition?
 #'   This is useful when simulations conditions take a long time to run (see also the
-#'   \code{notifications} argument). Default is \code{TRUE}
+#'   \code{notification} argument). Default is \code{TRUE}
 #'
 #' @param boot_method method for performing non-parametric bootstrap confidence intervals
 #'  for the respective meta-statistics computed by the \code{Summarise} function.
@@ -849,9 +860,10 @@
 #'
 #' ## same as above, but send a notification via Pushbullet upon completion
 #' library(RPushbullet) # read-in default JSON file
+#' pushbullet_notifier <- new_PushbulletNotifier(verbose_issues = TRUE)
 #' runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
 #'               generate=Generate, analyse=Analyse, summarise=Summarise,
-#'               notification = 'complete')
+#'               notification = 'complete', notifier = pushbullet_notifier)
 #'
 #' ## Submit as RStudio job (requires job package and active RStudio session)
 #' job::job({
@@ -988,11 +1000,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                           debug = 'none', load_seed = NULL, save = any(replications > 2),
                           store_results = TRUE, save_results = FALSE,
                           parallel = FALSE, ncores = parallelly::availableCores(omit = 1L),
-                          cl = NULL, notification = 'none', beep = FALSE, sound = 1,
+                          cl = NULL, notification = 'none', notifier = NULL,
+                          beep = FALSE, sound = 1,
                           CI = .95, seed = NULL, boot_method='none', boot_draws = 1000L,
                           max_errors = 50L, resume = TRUE, save_details = list(),
                           control = list(), progress = TRUE, verbose = TRUE)
 {
+    max_time.start <- if(is.null(control$max_time.start)) proc.time()[3L] else control$max_time.start
     stopifnot(!missing(analyse))
     if(length(control)){
         stopifnot("Argument(s) to control list invalid"=
@@ -1002,6 +1016,9 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         stopifnot("Argument(s) to save_details list invalid"=
                       all(names(save_details) %in% valid_save_details.list()))
     }
+    if(is.null(control$global_fun_level)) control$global_fun_level <- 2
+    if(is.null(control$useAnalyseHandler)) control$useAnalyseHandler <- TRUE
+    useAnalyseHandler <- control$useAnalyseHandler
     if(replications < 3L){
         if(verbose)
             message('save, stop_on_fatal, and print_RAM flags disabled for testing purposes')
@@ -1030,8 +1047,11 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             seed <- seed[as.integer(tmp[2L])]
         }
     }
-    if(missing(generate) && !missing(analyse))
+    useGenerate <- TRUE
+    if(missing(generate) && !missing(analyse)){
         generate <- function(condition, dat, fixed_objects){}
+        useGenerate <- FALSE
+    }
     if(is.list(generate)){
         if(debug %in% c('all', 'generate'))
             stop('debug input not supported when generate is a list', call.=FALSE)
@@ -1081,10 +1101,13 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         }
     }
     stopifnot(notification %in% c('none', 'condition', 'complete'))
-    if(notification != 'none')
-        if(!("RPushbullet" %in% (.packages())))
-            stop('Please use library(RPushbullet) to load the default ~/.rpushbullet.json file',
-                 call. = FALSE)
+    if(notification != "none" && is.null(notifier)) {
+        stop(
+            "You requested notifications but did not provide a 'notifier'.\n",
+            "Use 'listAvailableNotifiers()' to see built-in options, or create ",
+            "your own notifier (see ?new_Notifier)."
+        )
+    }
     save_seeds <- ifelse(is.null(control$save_seeds),
                       FALSE, control$save_seeds)
     store_Random.seeds <- ifelse(is.null(control$store_Random.seeds),
@@ -1283,8 +1306,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             on.exit(undebug(Functions[[debug]]), add = TRUE)
         }
     }
-    export_funs <- if(!is.null(control$from.runArraySimulation))
-        parent_env_fun(3L) else parent_env_fun()
+    export_funs <- parent_env_fun(control$global_fun_level)
     if(parallel){
         if(!useFuture && is.null(cl)){
             cl <- parallel::makeCluster(ncores, type=type)
@@ -1322,9 +1344,11 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                 Result_list <- tmp_new
             }
         }
-        start <- ifelse(is.na(resume.row),
-                        min(c(which(sapply(Result_list, is.null)), nrow(design))),
-                        resume.row)
+        pick_tmp <- min(c(which(sapply(Result_list, is.null)), nrow(design)))
+        if(pick_tmp > 1)
+            if(any(colnames(Result_list[[pick_tmp - 1]]) == 'FATAL_TERMINATION'))
+                pick_tmp <- pick_tmp - 1
+        start <- ifelse(is.na(resume.row), pick_tmp, resume.row)
         time0 <- time1 - Result_list[[start-1L]]$SIM_TIME
     }
     TIME0 <- proc.time()[3L]
@@ -1442,7 +1466,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                                          save_results_dirname=save_results_dirname,
                                          save_results_filename=save_results_filename,
                                          arrayID=save_details$arrayID,
-                                         multirow=nrow(design) > 1L,
+                                         multirow=nrow(design) > 1L, max_time.start=max_time.start,
+                                         useGenerate=useGenerate, useAnalyseHandler=useAnalyseHandler,
                                          save_seeds=save_seeds, summarise_asis=summarise_asis,
                                          save_seeds_dirname=save_seeds_dirname,
                                          max_errors=max_errors, packages=packages,
@@ -1482,7 +1507,8 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
                             save_seeds=save_seeds, summarise_asis=summarise_asis,
                             save_seeds_dirname=save_seeds_dirname,
                             arrayID=save_details$arrayID,
-                            multirow=nrow(design) > 1L,
+                            multirow=nrow(design) > 1L, max_time.start=max_time.start,
+                            useGenerate=useGenerate, useAnalyseHandler=useAnalyseHandler,
                             max_errors=max_errors, packages=packages,
                             include_replication_index=include_replication_index,
                             load_seed=load_seed, export_funs=export_funs,
@@ -1518,8 +1544,19 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
             if(save || save_results)
                 saveRDS(Result_list, file.path(out_rootdir, tmpfilename))
         }
-        if(notification == 'condition')
-            notification_condition(design[i,], Result_list[[i]], nrow(design))
+
+        if(notification == "condition") {
+            notify_single_or_list(
+                notifier = notifier,
+                event = "condition",
+                event_data = list(
+                    condition = design[i, ],
+                    result = Result_list[[i]],
+                    total = nrow(design)
+                )
+            )
+        }
+
         if(print_RAM)
             memory_used[i+1L] <- RAM_used()
         if(nrow(design) > 1L && i < nrow(design)){
@@ -1692,7 +1729,7 @@ runSimulation <- function(design, replications, generate, analyse, summarise,
         saveRDS(Final, file.path(out_rootdir, filename))
     }
     if(save || save_results || save_seeds) file.remove(file.path(out_rootdir, tmpfilename))
-    if(notification %in% c('condition', 'complete')) notification_final(Final)
+    if(notification %in% c('condition', 'complete')) notify_single_or_list(notifier, "complete", list(final = Final))
     if(beep)
         beepr::beep(sound=sound)
     return(Final)

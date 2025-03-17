@@ -4,7 +4,7 @@
 \alias{createDesign}
 \alias{print.Design}
 \alias{[.Design}
-\alias{rbind.Design}
+\alias{rbindDesign}
 \title{Create the simulation design object}
 \usage{
 createDesign(
@@ -15,11 +15,11 @@ createDesign(
   stringsAsFactors = FALSE
 )
 
-\method{print}{Design}(x, list2char = TRUE, pillar.sigfig = 5, ...)
+\method{print}{Design}(x, list2char = TRUE, pillar.sigfig = 5, show.IDs = FALSE, ...)
 
 \method{[}{Design}(x, i, j, ..., drop = FALSE)
 
-\method{rbind}{Design}(...)
+rbindDesign(..., keep.IDs = FALSE)
 }
 \arguments{
 \item{...}{comma separated list of named input objects representing the simulation
@@ -49,11 +49,18 @@ Default is TRUE}
 
 \item{pillar.sigfig}{number of significant digits to print. Default is 5}
 
+\item{show.IDs}{logical; print the internally stored Design ID indicators?}
+
 \item{i}{row index}
 
 \item{j}{column index}
 
 \item{drop}{logical; drop to lower dimension class?}
+
+\item{keep.IDs}{logical; keep the internal ID variables in the
+\code{Design} objects? Use this when row-binding conditions
+that are matched with previous conditions
+(e.g., when using \code{\link{expandDesign}})}
 }
 \value{
 a \code{tibble} or \code{data.frame} containing the simulation experiment

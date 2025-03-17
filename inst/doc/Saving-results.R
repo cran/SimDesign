@@ -34,15 +34,15 @@ Summarise <- function(condition, results, fixed_objects) {
 set.seed(1)
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  Analyse <- function(condition, dat, fixed_objects) {
-#      if(condition$N == 30) stop('Danger Will Robinson!')
-#      ret <- c(p = t.test(dat)$p.value)
-#      ret
-#  }
-#  
-#  res <- runSimulation(Design, replications = 1000, save=TRUE, filename='my-simple-sim',
-#                       generate=Generate, analyse=Analyse, summarise=Summarise,
-#                       control = list(stop_on_fatal = TRUE))
+# Analyse <- function(condition, dat, fixed_objects) {
+#     if(condition$N == 30) stop('Danger Will Robinson!')
+#     ret <- c(p = t.test(dat)$p.value)
+#     ret
+# }
+# 
+# res <- runSimulation(Design, replications = 1000, save=TRUE, filename='my-simple-sim',
+#                      generate=Generate, analyse=Analyse, summarise=Summarise,
+#                      control = list(stop_on_fatal = TRUE))
 
 ## ----echo=FALSE---------------------------------------------------------------
 Analyse <- function(condition, dat, fixed_objects) {

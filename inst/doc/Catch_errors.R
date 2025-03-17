@@ -62,18 +62,18 @@ print(result)
 SimExtract(result, what = 'errors')
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  runSimulation(..., debug = 'error-4')
+# runSimulation(..., debug = 'error-4')
 
 ## -----------------------------------------------------------------------------
 seeds <- SimExtract(result, what = 'error_seeds')
 head(seeds[,1:3])
 
 ## ----eval=FALSE---------------------------------------------------------------
-#  picked_seed <- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
-#  
-#  # debug analyse() for first row of Design object via debug='analyse-1'
-#  runSimulation(Design, replications = 100, load_seed=picked_seed, debug='analyse-1',
-#                generate=Generate, analyse=Analyse, summarise=Summarise)
+# picked_seed <- seeds$Design_row_1.1..Error.in.t.test.default..invalid.....not.enough..x..observations.
+# 
+# # debug analyse() for first row of Design object via debug='analyse-1'
+# runSimulation(Design, replications = 100, load_seed=picked_seed, debug='analyse-1',
+#               generate=Generate, analyse=Analyse, summarise=Summarise)
 
 ## ----include=FALSE------------------------------------------------------------
 knitr::opts_chunk$set(
@@ -99,6 +99,7 @@ set.seed(7)
 out <- myfun()
 
 ## ----error=TRUE---------------------------------------------------------------
+try({
 set.seed(1)
 out1 <- manageWarnings(myfun(), 
                         warning2error='This warning is serious')
@@ -112,4 +113,5 @@ out2
 set.seed(7)
 out3 <- manageWarnings(myfun(), 
                         warning2error='This warning is serious')
+})
 

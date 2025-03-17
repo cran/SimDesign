@@ -2,10 +2,14 @@
 
 # return a character vector of functions defined in .GlobalEnv
 parent_env_fun <- function(level=2){
-    nms <- ls(envir = parent.frame(level))
-    is_fun <- sapply(nms, function(x, envir) is.function(get(x, envir=envir)),
-                     envir = parent.frame(level))
-    return(nms[is_fun])
+    ret <- NULL
+    for(lev in level:2){
+        nms <- ls(envir = parent.frame(lev))
+        is_fun <- sapply(nms, function(x, envir) is.function(get(x, envir=envir)),
+                         envir = parent.frame(lev))
+        if(any(is_fun)) ret <- c(ret, nms[is_fun])
+    }
+    ret
 }
 
 unique_filename <- function(filename, safe = TRUE, verbose = TRUE){
@@ -100,27 +104,6 @@ print_progress <- function(row, trow, stored_time, RAM, progress,
 }
 
 myundebug <- function(fun) if(isdebugged(fun)) undebug(fun)
-
-notification_condition <- function(condition, results, total){
-    RPushbullet::pbPost(type = 'note',
-                        title = sprintf("Condition %i/%i completed", condition$ID, total),
-                        body = sprintf("Execution time: %s \nErrors: %i \nWarnings: %i",
-                                       timeFormater_internal(results$SIM_TIME),
-                                       ifelse(is.null(results$ERRORS), 0, results$ERRORS),
-                                       ifelse(is.null(results$WARNINGS), 0, results$WARNINGS)))
-
-    invisible(NULL)
-}
-
-notification_final <- function(Final){
-    RPushbullet::pbPost(type = 'note',
-                        title = "Simulation completed",
-                        body = sprintf("Total execution time: %s \nTotal Errors: %i \nTotal Warnings: %i",
-                                       timeFormater_internal(sum(Final$SIM_TIME)),
-                                       ifelse(is.null(Final$ERRORS), 0, sum(Final$ERRORS)),
-                                       ifelse(is.null(Final$WARNINGS), 0, sum(Final$WARNINGS))))
-    invisible(NULL)
-}
 
 #' Suppress verbose function messages
 #'
@@ -698,7 +681,7 @@ set_seed <- function(seed){
     invisible(NULL)
 }
 
-recvResult_fun <- utils::getFromNamespace("recvResult", "snow")
+recvResult_fun <- utils::getFromNamespace("recvResult", "parallel")
 
 #' Set RNG sub-stream for  Pierre L'Ecuyer's RngStreams
 #'
@@ -710,7 +693,7 @@ recvResult_fun <- utils::getFromNamespace("recvResult", "snow")
 #'
 #' @param seed An integer vector of length 7 as given by \code{.Random.seed} when
 #'   the L'Ecuyer-CMR RNG is in use. See\code{\link{RNG}} for the valid values
-#' @param cl A cluster from the \code{parallel} or \code{snow} package, or
+#' @param cl A cluster from the \code{parallel} package, or
 #'   (if \code{NULL}) the registered cluster
 #' @return invisible NULL
 #' @export
@@ -725,11 +708,15 @@ clusterSetRNGSubStream <- function(cl, seed){
     for (i in seq_along(cl)) {
         expr <- substitute(assign(".Random.seed", seed, envir = .GlobalEnv),
                            list(seed = seeds[[i]]))
-        snow::sendCall(cl[[i]], eval, list(expr))
+        sendCall.imp(cl[[i]], eval, list(expr))
     }
-    snow::checkForRemoteErrors(lapply(cl, recvResult_fun))
+    checkForRemoteErrors.imp(lapply(cl, recvResult_fun))
     invisible()
 }
+
+sendCall.imp <- utils::getFromNamespace('sendCall', 'parallel')
+checkForRemoteErrors.imp <- utils::getFromNamespace('checkForRemoteErrors',
+                                                    'parallel')
 
 valid_results <- function(x)
     is(x, 'numeric') || is(x, 'data.frame') || is(x, 'list') || is(x, 'logical') || is(x, 'try-error')
@@ -866,13 +853,13 @@ genSeeds <- function(design = 1L, iseed = NULL, arrayID = NULL, old.seeds = NULL
 #' \code{"days-hours"}, \code{"days-hours:minutes"} and
 #' \code{"days-hours:minutes:seconds"}.
 #'
-#' For example, \code{max_time = "60"} indicates a maximum time of 60 minutes,
-#' \code{max_time = "03:00:00"} a maximum time of 3 hours,
-#' \code{max_time = "4-12"} a maximum of 4 days and 12 hours, and
-#' \code{max_time = "2-02:30:00"} a maximum of 2 days, 2 hours and 30 minutes.
+#' For example, \code{time = "60"} indicates a maximum time of 60 minutes,
+#' \code{time = "03:00:00"} a maximum time of 3 hours,
+#' \code{time = "4-12"} a maximum of 4 days and 12 hours, and
+#' \code{time = "2-02:30:00"} a maximum of 2 days, 2 hours and 30 minutes.
 #'
 #' @param time a character string to be formatted. If a numeric vector is supplied
-#' then this will be interpreted as seconds.
+#' then this will be interpreted as minutes due to character coercion.
 #'
 #' @param output type of numeric output to convert time into.
 #' Currently supported are \code{'sec'} for seconds (default),
@@ -900,11 +887,12 @@ genSeeds <- function(design = 1L, iseed = NULL, arrayID = NULL, old.seeds = NULL
 #' timeFormater("30:30", output = 'hour')
 #' timeFormater("4:30:30", output = 'hour')
 #'
-#' # numeric input is understood as seconds by default
-#' timeFormater(42)
+#' # numeric input is understood as minutes
+#' timeFormater(42)               # seconds
 #' timeFormater(42, output='min') # minutes
 #'
 timeFormater <- function(time, output='sec'){
+    if(!is.character(time)) time <- as.character(time)
     stopifnot(length(time) == 1L && length(output) == 1L)
     stopifnot(output %in% c('sec', 'min', 'hour', 'day'))
     time <- sbatch_time2sec(time)
@@ -951,7 +939,7 @@ valid_control.list <- function()
       "store_warning_seeds", "include_replication_index", "include_reps", "try_all_analyse",
       "allow_na", "allow_nan", "type", "print_RAM", "max_time", "max_RAM",
       "tol", "summarise.reg_data", "rel.tol", "k.success", "interpolate.R", "bolster",
-      "include_reps", 'from.runArraySimulation')
+      "include_reps", 'global_fun_level', 'useAnalyseHandler', 'max_time.start')
 
 valid_save_details.list <- function()
     c("safe", "compname", "out_rootdir", "save_results_dirname", "save_results_filename",

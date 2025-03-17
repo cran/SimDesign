@@ -24,6 +24,7 @@ runSimulation(
   ncores = parallelly::availableCores(omit = 1L),
   cl = NULL,
   notification = "none",
+  notifier = NULL,
   beep = FALSE,
   sound = 1,
   CI = 0.95,
@@ -66,7 +67,7 @@ generate function is executed, where the subsequent generation functions are the
 \item{analyse}{user-defined analysis function (or named list of functions)
 that acts on the data generated from
 \code{\link{Generate}} (or, if \code{generate} was omitted, can be used to generate and
-analyses the simulated data). See \code{\link{Analyse}} for details}
+analyse the simulated data). See \code{\link{Analyse}} for details}
 
 \item{summarise}{optional (but strongly recommended) user-defined summary function
   from \code{\link{Summarise}} to be used to compute meta-statistical summary
@@ -90,7 +91,7 @@ analyses the simulated data). See \code{\link{Analyse}} for details}
   \code{Analyse()} call was a one-dimensional vector.
   For more general objects returned by \code{Analyse()}
   (such as \code{list}s), a \code{list}
-  containing the results returned form \code{\link{Analyse}}.
+  containing the results returned from \code{\link{Analyse}}.
   This is generally only recommended for didactic purposes because the results
   will leave out a large amount of
   information (e.g., try-errors, warning messages, saving files, etc), can
@@ -98,12 +99,12 @@ analyses the simulated data). See \code{\link{Analyse}} for details}
   and generally is not as flexible internally. However, it may be useful
   when replications are expensive and ANOVA-based decompositions involving
   the within-condition replication information are of interest, though
-  of course this  can be circumvented by using \code{store_results = TRUE} or
+  of course this can be circumvented by using \code{store_results = TRUE} or
   \code{save_results = TRUE} with or without a supplied \code{summarise}
   definition.
 
   Finally, there are keywords that should not be returned from this
-  functions since they will cause a conflict with the aggregated simulation
+  function, since they will cause a conflict with the aggregated simulation
   objects. These are currently those listed in capital letters (e.g.,
   \code{ERRORS}, \code{WARNINGS}, \code{REPLICATIONS}, etc), all of which can
   be avoided if the returned objects are not entirely capitalized
@@ -267,22 +268,31 @@ primarily useful for debugging purposes.
   \code{plan()} will be followed instead}
 
 \item{notification}{an optional character vector input that can be used to send
-  Pushbullet notifications from a configured
-  computer. This reports information such as the total execution time, the condition
-  completed, and error/warning
-  messages recorded. This arguments assumes that users have already A) registered for
-  a Pushbullet account,
-  B) installed the application on their mobile device and computer, and C) created an
-  associated JSON file of the form
-  \code{~/.rpushbullet.json} using \code{RPushbullet::pbSetup()}).
+notifications with information about execution time and recorded errors and warnings.
+Pass one of the following supported options:
+\code{'none'} (default; send no notification), \code{'condition'} to send a notification
+after each condition has completed, or \code{'complete'} to send a notification only
+when the simulation has finished.
+When notification is set to \code{'condition'} or \code{'complete'}, the \code{notifier}
+argument must be supplied with a valid notifier object (or a list of notifier objects).}
 
-  To utilize the \code{RPushbullet} in \code{SimDesign} first call \code{library(RPushbullet}
-  before running \code{runSimulation()} to read-in the default JSON file. Next,
-  pass one of the following supported
-  options: \code{'none'} (default; send no notification),
-  \code{'condition'} to send a notification after each condition has completed,
-  or \code{'complete'} to send
-  a notification only when the simulation has finished.}
+\item{notifier}{A notifier object (or a list of notifier objects, allowing for multiple
+  notification methods) required when \code{notification} is not set to \code{"none"}.
+  See \code{listAvailableNotifiers} for a list of available notifiers and how to use them.
+
+  Example usage:
+
+  \code{telegram_notifier <- new_TelegramNotifier(bot_token = "123456:ABC-xyz", chat_id = "987654321")}
+
+  \code{runSimulation(..., notification = "condition", notifier = telegram_notifier)}
+
+  Using multiple notifiers:
+
+  \code{pushbullet_notifier <- new_PushbulletNotifier()}
+
+  \code{runSimulation(..., notification = "complete", notifier = list(telegram_notifier, pushbullet_notifier))}
+
+  See the \code{R/notifications.R} file for reference on implementing a custom notifier.}
 
 \item{beep}{logical; call the \code{beepr} package when the simulation is completed?}
 
@@ -295,12 +305,11 @@ The length of the vector must be equal the number of rows in \code{design}.
 If the input is a vector then \code{\link{set.seed}} or
 \code{\link{clusterSetRNGStream}} for each condition will be called, respectively.
 If a list is provided then these
-numbers must have been generated from \code{\link{gen_seeds}} with the argument
-\code{CMRG.seed} used to specify the initial. The list approach ensures random number
-generation independence across conditions and replications, while the vector input
-ensures independence within the replications per conditions but not necessarily
-across conditions. Default randomly generates seeds within the
-range 1 to 2147483647 for each condition via \code{\link{gen_seeds}}}
+numbers must have been generated from \code{\link{genSeeds}}. The list approach
+ensures random number generation independence across conditions and replications,
+while the vector input ensures independence within the replications per conditions
+but not necessarily across conditions. Default randomly generates seeds within the
+range 1 to 2147483647 for each condition via \code{\link{genSeeds}}}
 
 \item{boot_method}{method for performing non-parametric bootstrap confidence intervals
 for the respective meta-statistics computed by the \code{Summarise} function.
@@ -486,15 +495,18 @@ in the simulation}
        used throughout the simulation? Set to \code{FALSE} if unnecessary or if the call to
        \code{\link{gc}} is unnecessarily time consuming}
 
+     \item{\code{global_fun_level}}{determines how many levels to search until global environment
+       frame is located. Default is 2, though for \code{\link{runArraySimulation}} this is set to 3.
+       Use 3 or more whenever \code{runSimulation} is used within the context of another function}
+
      \item{\code{max_time}}{
        Similar to \code{\link{runArraySimulation}}, specifies the (approximate) maximum
-       time that the simulation is allowed to be executed. However, unlike the implementation
-       in \code{runArraySimulation} is evaluated on a per condition basis,
-       where \code{max_time} is only evaluated after every row in the
-       \code{design} object has been completed (hence, is notably more approximate as it
-       has the potential to overshoot by a wider margin). Default sets no time limit.
+       time that the simulation is allowed to be executed. Default sets no time limit.
        See \code{\link{timeFormater}} for the input specifications; otherwise, can be
        specified as a \code{numeric} input reflecting the maximum time in seconds.
+
+       Note that when \code{parallel = TRUE} the \code{max_time} can only be checked on
+       a per condition basis.
      }
 
      \item{\code{max_RAM}}{
@@ -512,7 +524,7 @@ in the simulation}
 \item{progress}{logical; display a progress bar (using the \code{pbapply} package)
 for each simulation condition?
 This is useful when simulations conditions take a long time to run (see also the
-\code{notifications} argument). Default is \code{TRUE}}
+\code{notification} argument). Default is \code{TRUE}}
 
 \item{verbose}{logical; print messages to the R console? Default is \code{TRUE}}
 
@@ -889,9 +901,10 @@ runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim
 
 ## same as above, but send a notification via Pushbullet upon completion
 library(RPushbullet) # read-in default JSON file
+pushbullet_notifier <- new_PushbulletNotifier(verbose_issues = TRUE)
 runSimulation(design=Design, replications=1000, parallel=TRUE, filename = 'mysim',
               generate=Generate, analyse=Analyse, summarise=Summarise,
-              notification = 'complete')
+              notification = 'complete', notifier = pushbullet_notifier)
 
 ## Submit as RStudio job (requires job package and active RStudio session)
 job::job({
