@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2025-03-17" />
+<meta name="date" content="2025-03-28" />
 
 <title>Introduction to the SimDesign package</title>
 
@@ -1487,7 +1487,7 @@ font-size: 0.95em;
 
 <h1 class="title toc-ignore">Introduction to the SimDesign package</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2025-03-17</h4>
+<h4 class="date">2025-03-28</h4>
 
 </div>
 
@@ -1498,20 +1498,22 @@ P. Box</p>
 </blockquote>
 <p>Whether you are interested in evaluating the performance of a new
 optimizer or estimation criteria, re-evaluating previous research claims
-(e.g., ANOVA is ‘robust’ to violations of normality), determine power
-rates for an upcoming research proposal, or simply to appease a strange
+(e.g., ANOVA is ‘robust’ to violations of normality), want to determine
+power rates for an upcoming research proposal (cf. the
+<code>Spower</code> package), or simply wish to appease a strange
 thought in your head about a new statistical idea you heard about,
 designing Monte Carlo simulations can be incredibly rewarding and are
-extremely important to those who are statistically oriented. However,
-organizing simulations can be a challenge, particularly to those new to
-the topic, where all too often coders resort to the inefficient and
-error prone strategies (e.g., the dreaded “for-loop” strategy,
-<em>for</em>-ever resulting in confusing, error prone, and simulation
-specific code). The package <code>SimDesign</code> is one attempt to fix
-these and other issues that often arise when designing Monte Carlo
-simulation experiments, while also providing a templated setup that is
-designed to support many useful features that can be useful when
-evaluating simulation research.</p>
+extremely important to those who are statistically oriented.</p>
+<p>However, organizing simulations can be a challenge, particularly to
+those new to the topic, where all too often investigators resort to the
+inefficient and error prone strategies (e.g., the dreaded “for-loop”
+strategy, <em>for</em>-ever resulting in confusing, error prone, and
+simulation specific code). The package <code>SimDesign</code> is one
+attempt to fix these and other issues that often arise when designing
+Monte Carlo simulation experiments, while also providing a templated
+setup that is designed to support many useful features that can be
+useful when evaluating simulation research for novice and advanced
+users.</p>
 <p>Generally speaking, Monte Carlo simulations can be broken into three
 major components:</p>
 <ul>
@@ -1540,11 +1542,12 @@ where the simulation steps are evaluated, ultimately returning a
 <h1><span class="header-section-number">1</span> A general overview</h1>
 <p>After loading the <code>SimDesign</code> package, we begin by
 defining the required user-constructed functions. To expedite this
-process, a call to <code>SimFunctions()</code> will create a template to
-be filled in, where all the necessary functional arguments have been
-pre-assigned, and only the body of the functions need to be modified.
-The documentation of each argument can be found in the respective R help
-files, however there organization is very simple conceptually.</p>
+process, a call to <code>SimFunctions()</code> can be used to create a
+suitable template, where all the necessary functional arguments have
+been pre-assigned and only the body of the functions need to be
+modified. The documentation of each argument can be found in the
+respective R help files, however the organization is conceptually
+simple.</p>
 <p>To begin, the following code should be copied and saved to an
 external source (i.e., text) file.</p>
 <pre class="r"><code>library(SimDesign)
@@ -1582,7 +1585,9 @@ res</code></pre>
 copy-and-pasting, <code>SimFunctions()</code> can write the output to a
 file by providing a <code>filename</code> argument. The following
 creates a file (<code>mysim.R</code>) containing the simulation
-design/execution and required user-defined functions.</p>
+design/execution and required user-defined functions. For Rstudio users,
+this will also automatically open up the file in a new coding
+window.</p>
 <pre class="r"><code>SimDesign::SimFunctions(&#39;mysim&#39;)</code></pre>
 <p>For larger simulations, you may want to use two files, and if you’d
 prefer to have helpful comments included then these can be achieved with
@@ -1602,8 +1607,8 @@ response theory model).</p>
 <div id="simulation-determine-estimator-efficiency" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Simulation: Determine
 estimator efficiency</h1>
-<p>As a toy example, let’s consider how the following question can be
-investigated with <code>SimDesign</code>:</p>
+<p>As a toy example, let’s consider how the following investigation
+using <code>SimDesign</code>:</p>
 <p><em>Question</em>: How does trimming affect recovering the mean of a
 distribution? Investigate this using different sample sizes with
 Gaussian and <span class="math inline">\(\chi^2\)</span> distributions.
@@ -1615,9 +1620,8 @@ conditions</h2>
 <p>First, define the condition combinations that should be investigated.
 In this case we wish to study 4 different sample sizes, and use a
 symmetric and skewed distribution. The use of
-<code>createDesign()</code> is extremely helpful here to create a
-completely crossed-design for each combination (there are 8 in
-total).</p>
+<code>createDesign()</code> is required to create a completely
+crossed-design for each combination (there are 8 in total).</p>
 <pre class="r"><code>Design &lt;- createDesign(sample_size = c(30, 60, 120, 240), 
                        distribution = c(&#39;norm&#39;, &#39;chi&#39;))
 Design</code></pre>
@@ -1634,8 +1638,8 @@ Design</code></pre>
 ## 8         240 chi</code></pre>
 <p>Each row in <code>Design</code> represents a unique condition to be
 studied in the simulation. In this case, the first condition to be
-studied comes from row 1, where <span class="math inline">\(N=30\)</span> and the distribution should be
-normal.</p>
+studied comes from row 1, where <span class="math inline">\(N=30\)</span> and the distribution is from the
+Gaussian/normal family.</p>
 </div>
 <div id="define-the-functions" class="section level2" number="2.2">
 <h2><span class="header-section-number">2.2</span> Define the
@@ -1643,12 +1647,11 @@ functions</h2>
 <p>We first start by defining the data generation functional component.
 The only argument accepted by this function is <code>condition</code>,
 which will always be a <em>single row from the Design data.frame
-object</em> of class <code>data.frame</code>. Conditions are run
-sequentially from row 1 to the last row in <code>Design</code>. It is
-also possible to pass a <code>fixed_objects</code> object to the
-function for including fixed sets of population parameters and other
-conditions, however for this simple simulation this input is not
-required.</p>
+object</em>. Conditions are run sequentially from row 1 to the last row
+in <code>Design</code>. It is also possible to pass a
+<code>fixed_objects</code> object to the function for including fixed
+sets of population parameters and other conditions, however for this
+simple simulation this input is not required.</p>
 <pre class="r"><code>Generate &lt;- function(condition, fixed_objects) {
     N &lt;- condition$sample_size
     dist &lt;- condition$distribution
@@ -1661,7 +1664,7 @@ required.</p>
 }</code></pre>
 <p>As we can see above, <code>Generate()</code> will return a numeric
 vector of length <span class="math inline">\(N\)</span> containing the
-data to be analysed each with a population mean of 3 (because a <span class="math inline">\(\chi^2\)</span> distribution has a mean equal to
+data to be analysed, each with a population mean of 3 (because a <span class="math inline">\(\chi^2\)</span> distribution has a mean equal to
 its df). Next, we define the <code>analyse</code> component to analyse
 said data:</p>
 <pre class="r"><code>Analyse &lt;- function(condition, dat, fixed_objects) {
@@ -1675,7 +1678,9 @@ said data:</p>
 }</code></pre>
 <p>This function accepts the data previously returned from
 <code>Generate()</code> (<code>dat</code>), the condition vector
-previously mentioned.</p>
+previously mentioned, and returns 4 named elements. Note that the
+element names do not have to be constant across the row-conditions,
+however it will often make conceptual sense to do so.</p>
 <p>At this point, we may conceptually think of the first two functions
 as being evaluated independently <span class="math inline">\(R\)</span>
 times to obtain <span class="math inline">\(R\)</span> sets of results.
@@ -1717,39 +1722,39 @@ as in a <code>matrix</code>, <code>data.frame</code>, or
 together</h2>
 <p>The last stage of the <code>SimDesign</code> work-flow is to pass the
 four defined elements to the <code>runSimulation()</code> function
-which, unsurprisingly given it’s name, runs the simulation. There are
-numerous options available in the function, and these should be
-investigated by reading the <code>help(runSimulation)</code> HTML file.
-Options for performing simulations in parallel, storing/resuming
-temporary results, debugging functions, and so on are available. Below
-we simply request that each condition be run 1000 times on a single
-processor, and finally store the results to an object called
-<code>results</code>.</p>
+which, unsurprisingly given its name, runs the simulation.</p>
+<p>There are numerous options available in the function, and these
+should be investigated by reading the <code>help(runSimulation)</code>
+HTML file. Options for performing simulations in parallel,
+storing/resuming temporary results, debugging functions, and so on are
+available. Below we simply request that each condition be run 1000 times
+on a single processor, and finally store the results to an object called
+<code>res</code>.</p>
 <pre class="r"><code>res &lt;- runSimulation(Design, replications = 1000, generate=Generate, 
                          analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
 ## Design: 1/8;   Replications: 1000;   RAM Used: 62.7 Mb;   Total Time: 0.00s 
 ##  Conditions: sample_size=30, distribution=norm
 ## 
-## Design: 2/8;   Replications: 1000;   RAM Used: 62.8 Mb;   Total Time: 0.34s 
+## Design: 2/8;   Replications: 1000;   RAM Used: 62.8 Mb;   Total Time: 0.23s 
 ##  Conditions: sample_size=60, distribution=norm
 ## 
-## Design: 3/8;   Replications: 1000;   RAM Used: 62.8 Mb;   Total Time: 0.70s 
+## Design: 3/8;   Replications: 1000;   RAM Used: 62.9 Mb;   Total Time: 0.46s 
 ##  Conditions: sample_size=120, distribution=norm
 ## 
-## Design: 4/8;   Replications: 1000;   RAM Used: 62.9 Mb;   Total Time: 1.06s 
+## Design: 4/8;   Replications: 1000;   RAM Used: 62.9 Mb;   Total Time: 0.70s 
 ##  Conditions: sample_size=240, distribution=norm
 ## 
-## Design: 5/8;   Replications: 1000;   RAM Used: 62.9 Mb;   Total Time: 1.45s 
+## Design: 5/8;   Replications: 1000;   RAM Used: 62.9 Mb;   Total Time: 0.96s 
 ##  Conditions: sample_size=30, distribution=chi
 ## 
-## Design: 6/8;   Replications: 1000;   RAM Used: 62.9 Mb;   Total Time: 1.79s 
+## Design: 6/8;   Replications: 1000;   RAM Used: 63 Mb;   Total Time: 1.19s 
 ##  Conditions: sample_size=60, distribution=chi
 ## 
-## Design: 7/8;   Replications: 1000;   RAM Used: 63 Mb;   Total Time: 2.15s 
+## Design: 7/8;   Replications: 1000;   RAM Used: 63 Mb;   Total Time: 1.42s 
 ##  Conditions: sample_size=120, distribution=chi
 ## 
-## Design: 8/8;   Replications: 1000;   RAM Used: 63 Mb;   Total Time: 2.54s 
+## Design: 8/8;   Replications: 1000;   RAM Used: 63 Mb;   Total Time: 1.67s 
 ##  Conditions: sample_size=240, distribution=chi
 ## </code></pre>
 <pre class="r"><code># Final simulation object
@@ -1908,8 +1913,9 @@ their efficiency, and so on.</p>
 ##            0.1739            0.1777            0.1859            0.2146 
 ##   RE.mean_no_trim    RE.mean_trim.1    RE.mean_trim.2         RE.median 
 ##            1.0000            1.0442            1.1425            1.5225</code></pre>
-<p>This process is then repeated for each row in the <code>Design</code>
-object until the entire simulation study is complete.</p>
+<p>This process is then repeated for each row <code>condition</code> in
+the <code>Design</code> object until the entire simulation study is
+complete.</p>
 <p>Of course, <code>runSimulation()</code> does much more than this
 conceptual outline, which is why it exists. Namely, errors and warnings
 are controlled and tracked, data is re-drawn when needed, parallel

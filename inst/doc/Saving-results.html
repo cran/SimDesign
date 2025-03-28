@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2025-03-17" />
+<meta name="date" content="2025-03-28" />
 
 <title>Saving simulation results and state</title>
 
@@ -1487,7 +1487,7 @@ font-size: 0.95em;
 
 <h1 class="title toc-ignore">Saving simulation results and state</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2025-03-17</h4>
+<h4 class="date">2025-03-28</h4>
 
 </div>
 
@@ -1554,10 +1554,10 @@ res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my
 ## Design: 1/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.00s 
 ##  Conditions: N=10
 ## 
-## Design: 2/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.33s 
+## Design: 2/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.20s 
 ##  Conditions: N=20
 ## 
-## Design: 3/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.66s 
+## Design: 3/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.40s 
 ##  Conditions: N=30
 ## </code></pre>
 <p>Check that temporary file still exists.</p>
@@ -1582,7 +1582,7 @@ of unforeseen program execution crashes no time is lost.</p>
 res &lt;- runSimulation(Design, replications = 1000, save=TRUE, filename=&#39;my-simple-sim&#39;,
                      generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <pre><code>## 
-## Design: 3/3;   Replications: 1000   Total Time: 0.66s 
+## Design: 3/3;   Replications: 1000   Total Time: 0.40s 
 ##  Conditions: N=30
 ## </code></pre>
 <p>Check which files exist.</p>
@@ -1595,15 +1595,15 @@ files[grepl(&#39;SIMDESIGN&#39;, files)]</code></pre>
 hard-drive.</p>
 <p>Relatedly, the <code>.Random.seed</code> states for each successful
 replication can be saved by passing
-<code>control = list(store_Random.seeds = TRUE))</code> to , though
-these are generally only useful under exceptional circumstances (e.g.,
-when the generate-analyse results are unusual but did not throw a
-warning or error message, yet should be inspected interactively).</p>
+<code>control = list(store_Random.seeds = TRUE))</code> to
+<code>runSimulation()</code>, though these are generally only useful
+under exceptional circumstances (e.g., when the generate-analyse results
+are unusual but did not throw a warning or error message, yet should be
+inspected interactively).</p>
 </div>
-<div id="store_results-true-by-default-though-not-recommended-if-ram-is-suspected-to-be-an-issue" class="section level1" number="2">
+<div id="store_results-true-by-default" class="section level1" number="2">
 <h1><span class="header-section-number">2</span>
-<code>store_results</code> (<code>TRUE</code> by default, though not
-recommended if RAM is suspected to be an issue)</h1>
+<code>store_results</code> (<code>TRUE</code> by default)</h1>
 <p>Passing <code>store_results = TRUE</code> stores the
 <code>results</code> object information that are passed to
 <code>Summarise()</code> in the returned object. This allows for further
@@ -1620,7 +1620,7 @@ res &lt;- runSimulation(Design, replications = 3,
 ## Design: 1/3;   Replications: 3;   RAM Used: 62.1 Mb;   Total Time: 0.00s 
 ##  Conditions: N=10
 ## 
-## Design: 2/3;   Replications: 3;   RAM Used: 62 Mb;   Total Time: 0.01s 
+## Design: 2/3;   Replications: 3;   RAM Used: 62 Mb;   Total Time: 0.00s 
 ##  Conditions: N=20
 ## 
 ## Design: 3/3;   Replications: 3;   RAM Used: 62 Mb;   Total Time: 0.01s 
@@ -1647,10 +1647,10 @@ the simulation progresses. Otherwise, <code>save_results = TRUE</code>
 described below is the recommended approach to resolve potential memory
 issues.</p>
 </div>
-<div id="option-save_results-true-false-by-default-recommended-during-official-simulation-run-if-ram-is-an-issue" class="section level1" number="3">
+<div id="option-save_results-true-false-by-default-set-to-true-if-ram-is-an-issue" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> Option:
-<code>save_results = TRUE</code> (<code>FALSE</code> by default;
-recommended during official simulation run if RAM is an issue)</h1>
+<code>save_results = TRUE</code> (<code>FALSE</code> by default; set to
+<code>TRUE</code> if RAM is an issue)</h1>
 <p>Finally, the <code>save_results</code> argument will output the
 <code>results</code> elements that were passed to
 <code>Summarise()</code> to separate <code>.rds</code> files containing
@@ -1667,10 +1667,10 @@ correctly tracked.</p>
 ## Design: 1/3;   Replications: 1000;   RAM Used: 62.1 Mb;   Total Time: 0.00s 
 ##  Conditions: N=10
 ## 
-## Design: 2/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.30s 
+## Design: 2/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.20s 
 ##  Conditions: N=20
 ## 
-## Design: 3/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.63s 
+## Design: 3/3;   Replications: 1000;   RAM Used: 62 Mb;   Total Time: 0.41s 
 ##  Conditions: N=30
 ## </code></pre>
 <pre class="r"><code>dir &lt;- dir()
@@ -1746,8 +1746,14 @@ aggregation of the simulation results is often what you are interested
 in then this approach will ensure that the results are stored in a
 succinct manner for later analyses. However, if RAM is suspected to be
 an issue as the simulation progresses then using
-<code>save_results = TRUE</code> is strongly recommended to avoid
-memory-based storage issues.</p>
+<code>save_results = TRUE</code> is recommended to avoid memory-based
+storage issues.</p>
+<p>Note that for array simulations evaluated via
+<code>runArraySimulation()</code> the results will be stored within each
+respective <code>.rds</code> object using
+<code>store_results = TRUE</code> as files are independently saved on
+the assigned arrays, negating the implicit RAM issue that could arise
+when using <code>runSimulation()</code>.</p>
 </div>
 
 

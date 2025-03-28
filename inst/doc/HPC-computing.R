@@ -43,6 +43,10 @@ rc <- 100   # number of times the design row was repeated
 Design300 <- expandDesign(Design, repeat_conditions = rc)
 Design300
 
+# compare the Design.IDs
+print(Design, show.IDs = TRUE)
+print(Design300, show.IDs = TRUE)
+
 # target replication number for each condition
 rep_target <- 10000
 
@@ -187,13 +191,12 @@ Design
 #                    parallel=TRUE, arrayID=arrayID, array2row=array2row)
 
 ## ----eval=FALSE---------------------------------------------------------------
-# # Return successful results up to the 11 hour mark, and terminate early
-# #   if more than 3.5 GB of RAM are required to store the internal results
+# # Return successful results up to the 11 hour mark
 # runArraySimulation(design=Design300, replications=replications,
 #                    generate=Generate, analyse=Analyse,
 #                    summarise=Summarise, iseed=iseed, arrayID=arrayID,
 #                    dirname='mysimfiles', filename='mysim',
-#                    control=list(max_time="11:00:00", max_RAM="3.5GB"))
+#                    control=list(max_time="11:00:00"))
 # 
 
 ## ----eval=FALSE---------------------------------------------------------------
@@ -214,7 +217,7 @@ replications_missed <- c(1000, 2000)
 # replications_missed <- subset(Missed, select=MISSED_REPLICATIONS)
 
 ## -----------------------------------------------------------------------------
-subDesign
+print(subDesign, show.IDs = TRUE)
 replications_missed
 
 ## -----------------------------------------------------------------------------
@@ -228,6 +231,7 @@ table(replications_left)
 # new total design and replication objects
 Design_total <- rbindDesign(Design300, Design_left, keep.IDs=TRUE)
 nrow(Design_total)
+print(Design_total, show.IDs = TRUE)
 replications_total <- c(replications, replications_left)
 table(replications_total)
 

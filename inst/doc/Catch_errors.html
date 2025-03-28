@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2025-03-17" />
+<meta name="date" content="2025-03-28" />
 
 <title>Managing warning and error messages</title>
 
@@ -1487,7 +1487,7 @@ font-size: 0.95em;
 
 <h1 class="title toc-ignore">Managing warning and error messages</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2025-03-17</h4>
+<h4 class="date">2025-03-28</h4>
 
 </div>
 
@@ -1557,19 +1557,19 @@ iterations).</p>
 ## Design: 1/3;   Replications: 100;   RAM Used: 54.9 Mb;   Total Time: 0.00s 
 ##  Conditions: N=10
 ## 
-## Design: 2/3;   Replications: 100;   RAM Used: 56.1 Mb;   Total Time: 0.10s 
+## Design: 2/3;   Replications: 100;   RAM Used: 56.1 Mb;   Total Time: 0.07s 
 ##  Conditions: N=20
 ## 
-## Design: 3/3;   Replications: 100;   RAM Used: 56.2 Mb;   Total Time: 0.19s 
+## Design: 3/3;   Replications: 100;   RAM Used: 56.2 Mb;   Total Time: 0.13s 
 ##  Conditions: N=30
 ## </code></pre>
 <pre class="r"><code>print(result)</code></pre>
 <pre><code>## # A tibble: 3 × 9
 ##       N     bias REPLICATIONS SIM_TIME RAM_USED       SEED COMPLETED      ERRORS
 ##   &lt;dbl&gt;    &lt;dbl&gt;        &lt;dbl&gt; &lt;chr&gt;    &lt;chr&gt;         &lt;int&gt; &lt;chr&gt;           &lt;int&gt;
-## 1    10 0.061138          100 0.10s    56.1 Mb  1140350788 Mon Mar 17 07…     53
-## 2    20 0.014295          100 0.09s    56.2 Mb   312928385 Mon Mar 17 07…     52
-## 3    30 0.017927          100 0.08s    56.3 Mb   866248189 Mon Mar 17 07…     42
+## 1    10 0.061138          100 0.07s    56.1 Mb  1140350788 Fri Mar 28 10…     53
+## 2    20 0.014295          100 0.06s    56.2 Mb   312928385 Fri Mar 28 10…     52
+## 3    30 0.017927          100 0.06s    56.3 Mb   866248189 Fri Mar 28 10…     42
 ## # ℹ 1 more variable: WARNINGS &lt;int&gt;</code></pre>
 <p>What you’ll immediately notice from this output object is that counts
 of the error and warning messages have been appended to the
@@ -1605,15 +1605,15 @@ many consecutive <code>stop()</code> calls generally indicates a major
 problem in the simulation code which should be fixed before continuing.
 However, when encountering fatal errors in a given simulation condition
 the remainder of the simulation experiment will still be executed as
-normal, where for the problematic conditions combinations
-<code>NA</code> placeholders will be assigned to these rows in the final
-output object. This is so that the entire experiment does not
-unexpectedly terminate due to one or more problematic row conditions in
-<code>Design</code>, and instead these conditions can be inspected and
-debugged at a later time. Of course, if inspecting the code directly,
-the simulation could be manually halted so that these terminal errors
-can be attended to immediately (e.g., using <code>Ctrl + c</code>, or
-clicking the ‘Stop’ icon in Rstudio).</p>
+normal, where for the problematic conditions<code>NA</code> placeholders
+will be assigned to these rows in the final output object. This is so
+that the entire experiment does not unexpectedly terminate due to one or
+more problematic row conditions in <code>Design</code>, and instead
+these conditions can be inspected and debugged all at once at a later
+time. Of course, if inspecting the code directly, the simulation could
+be manually halted so that these terminal errors can be attended to
+immediately (e.g., using <code>Ctrl + c</code>, or clicking the ‘Stop’
+icon in Rstudio).</p>
 </div>
 <div id="what-to-do-explicit-debugging" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> What to do (explicit
@@ -1696,16 +1696,17 @@ the seed will clearly not replicate the exact problem state.</p>
 runSimulation(Design, replications = 100, load_seed=picked_seed, debug=&#39;analyse-1&#39;,
               generate=Generate, analyse=Analyse, summarise=Summarise)</code></pre>
 <p>The <code>.Random.seed</code> state will be loaded at this exact
-state, and will always be related at this state as well (in case
+state, and will always be repeated at this state as well (in case
 <code>c</code> is typed in the debugger, or somehow the error is harder
 to find while walking through the debug mode). Hence, users must type
 <code>Q</code> to exit the debugger after they have better understood
-the nature of the error message first-hand.</p>
+the nature of the error message first-hand, after which the
+<code>load_seed</code> input should be removed.</p>
 </div>
 </div>
-<div id="converting-warings-to-errors-explicitly" class="section level1" number="4">
+<div id="converting-warings-to-errors-explicitly-via-managewarnings" class="section level1" number="4">
 <h1><span class="header-section-number">4</span> Converting warings to
-errors explicitly</h1>
+errors explicitly via <code>manageWarnings()</code></h1>
 <p>On occasion functions will return <code>warning</code> message that
 either border on (or should be treated as) error messages if they
 influence the veracity of the simulation results. Such examples may

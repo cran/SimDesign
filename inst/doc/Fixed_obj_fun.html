@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2025-03-17" />
+<meta name="date" content="2025-03-28" />
 
 <title>Exporting objects and functions from the workspace</title>
 
@@ -1488,7 +1488,7 @@ font-size: 0.95em;
 <h1 class="title toc-ignore">Exporting objects and functions from the
 workspace</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2025-03-17</h4>
+<h4 class="date">2025-03-28</h4>
 
 </div>
 
@@ -1505,9 +1505,9 @@ higher-level environments… This recursive search continues until it
 searches for the object in the user workspace/Global environment, and
 only when the object can’t be found here will an error be thrown. This
 is a strange feature to most programmers who come from other languages,
-and when writing simulations may cause some severely unwanted issues.
-This tutorial demonstrates how to make sure all required user-defined
-objects are visible to <code>SimDesign</code>.</p>
+and when writing simulations may cause some severely unwanted masking
+issues. This tutorial demonstrates how to make sure all required
+user-defined objects are visible to <code>SimDesign</code>.</p>
 </div>
 <div id="scoping" class="section level1" number="2">
 <h1><span class="header-section-number">2</span> Scoping</h1>
@@ -1538,16 +1538,16 @@ res</code></pre>
 parSapply(cl=cl, 1:4, myfun)</code></pre>
 <pre><code>## [1] 30 30 30 30</code></pre>
 <p>The same reasoning above applies to functions defined in the R
-workspace as well, including functions defined within external R
+work-space as well, including functions defined within third-party R
 packages. Hence, in order to use functions from other packages they must
 either be explicitly loaded with <code>require()</code> or
 <code>library()</code> within the distributed code, or referenced via
 their Namespace with the <code>::</code> operator (e.g.,
 <code>mvtnorm::rmvtnorm()</code>).</p>
 </div>
-<div id="exporting-objects-example" class="section level1" number="3">
+<div id="exporting-objects-example-in-simdesign" class="section level1" number="3">
 <h1><span class="header-section-number">3</span> Exporting objects
-example</h1>
+example in <code>SimDesign</code></h1>
 <p>In order to make objects safely visible in <code>SimDesign</code> the
 strategy is very simple: wrap all desired objects into a named list (or
 other object), and pass this to the <code>fixed_objects</code> argument.
@@ -1559,7 +1559,7 @@ automatically makes user-defined functions available across all
 nodes.</p>
 <p>As an aside, an alternative approach is simply to define/source the
 objects within the respective <code>SimDesign</code> functions; that way
-they will clearly be visible at runtime. The following
+they will clearly be visible at run-time. The following
 <code>fixed_objects</code> approach is really only useful when the
 defined objects contain a large amount of code.</p>
 <pre class="r"><code>library(SimDesign)
@@ -1604,9 +1604,9 @@ res</code></pre>
 <pre><code>## # A tibble: 3 × 6
 ##       N     p REPLICATIONS SIM_TIME       SEED COMPLETED               
 ##   &lt;dbl&gt; &lt;dbl&gt;        &lt;dbl&gt; &lt;chr&gt;         &lt;int&gt; &lt;chr&gt;                   
-## 1    10 0.044         1000 0.45s     488349520 Mon Mar 17 07:53:16 2025
-## 2    20 0.06          1000 0.43s     469344150 Mon Mar 17 07:53:17 2025
-## 3    30 0.054         1000 0.42s    1550099436 Mon Mar 17 07:53:17 2025</code></pre>
+## 1    10 0.044         1000 0.27s     488349520 Fri Mar 28 10:46:50 2025
+## 2    20 0.06          1000 0.27s     469344150 Fri Mar 28 10:46:50 2025
+## 3    30 0.054         1000 0.27s    1550099436 Fri Mar 28 10:46:50 2025</code></pre>
 <p>By placing objects in a list and passing this to
 <code>fixed_objects</code>, the objects are safely exported to all
 relevant functions. Furthermore, running this code in parallel will also

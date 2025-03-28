@@ -11,7 +11,7 @@
 
 <meta name="author" content="Phil Chalmers" />
 
-<meta name="date" content="2025-03-17" />
+<meta name="date" content="2025-03-28" />
 
 <title>Distributing jobs for high-performance computing (HPC) clusters (e.g., via Slurm)</title>
 
@@ -1488,7 +1488,7 @@ font-size: 0.95em;
 <h1 class="title toc-ignore">Distributing jobs for high-performance
 computing (HPC) clusters (e.g., via Slurm)</h1>
 <h4 class="author">Phil Chalmers</h4>
-<h4 class="date">2025-03-17</h4>
+<h4 class="date">2025-03-28</h4>
 
 </div>
 
@@ -1751,6 +1751,29 @@ Design300</code></pre>
 ##  8    10
 ##  9    10
 ## 10    10
+## # ℹ 290 more rows</code></pre>
+<pre class="r"><code># compare the Design.IDs
+print(Design, show.IDs = TRUE)</code></pre>
+<pre><code>## # A tibble: 3 × 2
+##   Design.ID     N
+##       &lt;int&gt; &lt;dbl&gt;
+## 1         1    10
+## 2         2    20
+## 3         3    30</code></pre>
+<pre class="r"><code>print(Design300, show.IDs = TRUE)</code></pre>
+<pre><code>## # A tibble: 300 × 2
+##    Design.ID     N
+##        &lt;int&gt; &lt;dbl&gt;
+##  1         1    10
+##  2         1    10
+##  3         1    10
+##  4         1    10
+##  5         1    10
+##  6         1    10
+##  7         1    10
+##  8         1    10
+##  9         1    10
+## 10         1    10
 ## # ℹ 290 more rows</code></pre>
 <pre class="r"><code># target replication number for each condition
 rep_target &lt;- 10000
@@ -2156,9 +2179,9 @@ sshare -U &lt;username&gt;    # check the share usage for a specific user
 scancel &lt;jobid&gt;         # cancel a specific job
 scancel -u &lt;username&gt;   # cancel all queued and running jobs for a specific user</code></pre>
 </div>
-<div id="my-hpc-cluster-excution-timeram-is-limited-and-terminates-before-the-simulation-is-complete" class="section level2" number="6.2">
+<div id="my-hpc-cluster-excution-time-is-limited-and-terminates-before-the-simulation-is-complete" class="section level2" number="6.2">
 <h2><span class="header-section-number">6.2</span> My HPC cluster
-excution time/RAM is limited and terminates before the simulation is
+excution time is limited and terminates before the simulation is
 complete</h2>
 <p>This issue is important whenever the HPC cluster has mandatory
 time/RAM limits for the job submissions, where the array job may not
@@ -2169,29 +2192,26 @@ function of being unsure about how long each simulation
 condition/replication will take to complete when distributed across the
 arrays (some conditions/replications will take longer than others, and
 it is difficult to be perfectly knowledgeable about this information
-beforehand) or how large the final objects will grow as the simulation
-progresses.</p>
+beforehand).</p>
 <p>To avoid this time/resource waste it is <strong>strongly
-recommended</strong> to add a <code>max_time</code> and/or
-<code>max_RAM</code> argument to the <code>control</code> list (see
-<code>help(runArraySimulation)</code> for supported specifications),
-which are less than the Slurm specifications. These control flags will
-halt the <code>runArraySimulation()</code> executions early and return
-only the complete simulation results up to this point. However, this
-will only work if these arguments are <em>non-trivially less than the
-allocated Slurm resources</em>; otherwise, you’ll run the risk that the
-job terminates before the <code>SimDesign</code> functions have the
-chance to store the successfully completed replications. Setting these
-to around 90-95% of the respective <code>#SBATCH --time=</code> and
-<code>#SBATCH --mem-per-cpu=</code> inputs should, however, be
+recommended</strong> to add a <code>max_time</code> argument to the
+<code>control</code> list (see <code>help(runArraySimulation)</code> for
+supported specifications) which is less than the Slurm specifications.
+This control flag will halt the <code>runArraySimulation()</code>
+executions early and return only the complete simulation results up to
+this point. However, this will only work if the argument is
+<em>non-trivially less than the allocated Slurm resources</em>;
+otherwise, you’ll run the risk that the job terminates before the
+<code>SimDesign</code> functions have the chance to store the
+successfully completed replications. Setting this to around 90-95% of
+the respective <code>#SBATCH --time=</code> input should, however, be
 sufficient in most cases.</p>
-<pre class="r"><code># Return successful results up to the 11 hour mark, and terminate early 
-#   if more than 3.5 GB of RAM are required to store the internal results
+<pre class="r"><code># Return successful results up to the 11 hour mark
 runArraySimulation(design=Design300, replications=replications,
                    generate=Generate, analyse=Analyse,
                    summarise=Summarise, iseed=iseed, arrayID=arrayID, 
                    dirname=&#39;mysimfiles&#39;, filename=&#39;mysim&#39;,
-                   control=list(max_time=&quot;11:00:00&quot;, max_RAM=&quot;3.5GB&quot;))   </code></pre>
+                   control=list(max_time=&quot;11:00:00&quot;))   </code></pre>
 <p>Of course, if the session does time out early then this implies that
 the target <code>replications</code> will be missed on the first job
 submission batch. Therefore, and as is covered in the next section, a
@@ -2230,16 +2250,23 @@ Missed</code></pre>
   &lt;dbl&gt;               &lt;int&gt;               &lt;int&gt;
 1    10                1000               10000
 2    30                2000               10000</code></pre>
+<div id="create-new-conditions-for-missing-replications-and-use-rbinddesign" class="section level3" number="6.3.1">
+<h3><span class="header-section-number">6.3.1</span> Create new
+conditions for missing replications, and use
+<code>rbindDesign()</code></h3>
 <p>Next, build a new simulation structure containing only the missing
 information components.</p>
 <pre class="r"><code>subDesign &lt;- Design[c(1,3),]
 replications_missed &lt;- subset(Missed, select=MISSED_REPLICATIONS)</code></pre>
-<pre class="r"><code>subDesign</code></pre>
-<pre><code>## # A tibble: 2 × 1
-##       N
-##   &lt;dbl&gt;
-## 1    10
-## 2    30</code></pre>
+<p>Notice that the <code>Design.ID</code> terms below are associated
+with the problematic conditions in the original <code>Design</code>
+object.</p>
+<pre class="r"><code>print(subDesign, show.IDs = TRUE)</code></pre>
+<pre><code>## # A tibble: 2 × 2
+##   Design.ID     N
+##       &lt;int&gt; &lt;dbl&gt;
+## 1         1    10
+## 2         3    30</code></pre>
 <pre class="r"><code>replications_missed</code></pre>
 <pre><code>## [1] 1000 2000</code></pre>
 <p>At this point, you can return to the above logic of organizing the
@@ -2254,12 +2281,11 @@ were part of the initial job submission. Note that the
 <code>subDesign</code> component must use the original
 <code>Design</code> object in its construction so that the internal
 <code>Design.ID</code> attributes are properly tracked.</p>
-<p>Finally, we now glue on the new <code>subDesign</code> information to
+<p>Finally, the new <code>subDesign</code> information is row-bound to
 the original expanded version using <code>rbindDesign()</code> with
-<code>keep.IDs = TRUE</code>, though telling the scheduler to only
-evaluate these new rows in the <code>#SBATCH --array</code>
-specification (this is technically unnecessary, but is conceptually
-clear and keeps all simulation files and array IDs consistent).</p>
+<code>keep.IDs = TRUE</code> (the default), though telling the scheduler
+to only evaluate these new rows in the <code>#SBATCH --array</code>
+specification.</p>
 <pre class="r"><code>rc &lt;- 50
 Design_left &lt;- expandDesign(subDesign, rc) # smaller number of reps per array
 Design_left</code></pre>
@@ -2286,6 +2312,21 @@ table(replications_left)</code></pre>
 Design_total &lt;- rbindDesign(Design300, Design_left, keep.IDs=TRUE)
 nrow(Design_total)</code></pre>
 <pre><code>## [1] 400</code></pre>
+<pre class="r"><code>print(Design_total, show.IDs = TRUE)</code></pre>
+<pre><code>## # A tibble: 400 × 2
+##    Design.ID     N
+##        &lt;int&gt; &lt;dbl&gt;
+##  1         1    10
+##  2         1    10
+##  3         1    10
+##  4         1    10
+##  5         1    10
+##  6         1    10
+##  7         1    10
+##  8         1    10
+##  9         1    10
+## 10         1    10
+## # ℹ 390 more rows</code></pre>
 <pre class="r"><code>replications_total &lt;- c(replications, replications_left)
 table(replications_total)</code></pre>
 <pre><code>## replications_total
@@ -2296,11 +2337,17 @@ iseed &lt;- 1276149341</code></pre>
 <p>Again, this approach simply expands the original simulation with 300
 array jobs to one with 400 array jobs as though the added structure was
 an intended part of the initial design (which is obviously wasn’t, but
-is organized as such).</p>
-<p>Finally, in the <code>.slurm</code> submission file you no longer
-want to evaluate the first 1-300 cases, as these <code>.rds</code> files
-have already been evaluated, and instead want to change the
-<code>--array</code> line from</p>
+is organized as such). This also ensure that the random number
+generation is properly accounted for as the new conditions to evaluate
+will be uncorrelated with the previous array evaluation jobs.</p>
+</div>
+<div id="submit-the-new-job-evaluating-only-the-new-conditions" class="section level3" number="6.3.2">
+<h3><span class="header-section-number">6.3.2</span> Submit the new job,
+evaluating only the new conditions</h3>
+<p>Finally, in your new <code>.slurm</code> submission file you no
+longer want to evaluate the first 1-300 cases, as these
+<code>.rds</code> files have already been evaluated, and instead want to
+change the <code>--array</code> line from</p>
 <pre><code>#SBATCH --array=1-300</code></pre>
 <p>to</p>
 <pre><code>#SBATCH --array=301-400</code></pre>
@@ -2308,7 +2355,8 @@ have already been evaluated, and instead want to change the
 which stores these files into the same working directory but with the
 new information stored as <code>mysim-301.rds</code> through
 <code>mysim-400.rds</code>. In this example, there will now be a total
-of 400 files that have been saved. Once complete, run</p>
+of 400 files that have been saved.</p>
+<p>Once complete, run</p>
 <pre class="r"><code># See if any missing still
 SimCollect(&#39;mysimfiles&#39;, check.only=TRUE)
 
@@ -2318,6 +2366,7 @@ Final &lt;- SimCollect(&#39;mysimfiles&#39;)</code></pre>
 files instead of the previous 300, thereby obtaining the complete set of
 high-quality simulation results. Rinse and repeat if the same issue
 appears yet again on the second submission.</p>
+</div>
 </div>
 </div>
 
